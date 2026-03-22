@@ -91,6 +91,33 @@ Generated Zod schemas from the OpenAPI spec (e.g. `HealthCheckResponse`). Used b
 
 Generated React Query hooks and fetch client from the OpenAPI spec (e.g. `useHealthCheck`, `healthCheck`).
 
+### `artifacts/code-sim` (`@workspace/code-sim`)
+
+Interactive ACLS (Advanced Cardiac Life Support) code simulation game for resident physicians. Entirely frontend — no backend API needed.
+
+- **Framework**: React + Vite + Tailwind CSS v4
+- **Animation**: framer-motion
+- **Architecture**: Game engine with `useReducer` pattern
+  - `src/engine/types.ts` — All game types, enums, labels
+  - `src/engine/aclsProtocol.ts` — ACLS protocol logic (rhythms, vitals, medication rules)
+  - `src/engine/scenarioGenerator.ts` — Random scenario generation (patients, teams, complications)
+  - `src/engine/teamAI.ts` — AI team member behaviors (self-assignment, speech, complication handling)
+  - `src/engine/scoringEngine.ts` — ACLS adherence scoring with grade calculation
+  - `src/engine/gameReducer.ts` — Central game state reducer
+  - `src/engine/useGameEngine.ts` — React hook wrapping reducer + game loop
+- **UI Components** (`src/components/game/`):
+  - `StartScreen.tsx` — Difficulty selection and instructions
+  - `BriefingScreen.tsx` — Patient briefing before code begins
+  - `GameScreen.tsx` — Main game with vitals monitor, team panel, command panel, event log
+  - `DebriefScreen.tsx` — Post-game scoring breakdown and timeline review
+  - `VitalsMonitor.tsx` — ECG canvas + vital signs display
+  - `TeamPanel.tsx` — NPC team members with role assignment
+  - `CommandPanel.tsx` — Tabbed order interface (CPR, meds, airway, causes)
+  - `EventLog.tsx` — Scrolling event timeline
+  - `StopwatchWidget.tsx` — Manual stopwatch for timing
+- **Game Flow**: Menu → Briefing → Active Code → Ended → Debrief → Menu
+- **Difficulty levels**: Intern (easy), Resident (medium), Attending (hard)
+
 ### `scripts` (`@workspace/scripts`)
 
 Utility scripts package. Each script is a `.ts` file in `src/` with a corresponding npm script in `package.json`. Run scripts via `pnpm --filter @workspace/scripts run <script>`. Scripts can import any workspace package (e.g., `@workspace/db`) by adding it as a dependency in `scripts/package.json`.

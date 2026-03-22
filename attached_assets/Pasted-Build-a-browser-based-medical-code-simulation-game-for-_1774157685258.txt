@@ -1,0 +1,429 @@
+Build a browser-based medical code simulation game for resident physicians.
+
+Core product goal:
+Create a high-fidelity, real-time ACLS code leadership simulator that teaches not only algorithm knowledge, but also team leadership, role assignment, closed-loop communication, timing, and management of chaos in a medical emergency. This is not a typing game. All actions must be click-based, button-based, or dropdown-based.
+
+Tech stack:
+- Frontend: React + TypeScript
+- Styling: Tailwind
+- Animation: Framer Motion for UI, Canvas or PixiJS for animated room scene
+- State management: Zustand or Redux Toolkit
+- Timing engine: deterministic simulation loop
+- Audio: modular sound system for alarms, room chatter, monitor tones, shocks, footsteps, med prep, compressor swaps
+- Architecture: single-page app, responsive desktop-first
+- Do not use text command input anywhere in gameplay
+
+Build a first playable vertical slice with these screens:
+1. Main menu
+2. Case start / difficulty selection
+3. Live code room simulation
+4. Post-code debrief / scoring
+5. Case replay timeline
+
+Gameplay concept:
+The player is the code leader in a chaotic hospital code.
+The simulation runs on an internal clock.
+The player must manage:
+- ACLS rhythm-based decisions
+- team role assignment
+- closed-loop communication
+- timing of meds and shocks
+- quality and continuity of compressions
+- airway escalation
+- reversible causes / contextual complications
+- room crowding and interruptions
+- incomplete or failed execution by team members
+
+Important design philosophy:
+The game should feel stressful, dynamic, and chaotic, but still readable.
+It should simulate that issuing an order does NOT guarantee completion.
+The player must often ensure:
+1. the right person heard the order
+2. the order was acknowledged
+3. the task was actually completed
+4. the timing was appropriate
+
+Do not make the simulation a pure ACLS memorization quiz.
+Score clinical correctness AND command-and-control performance.
+
+Visual layout for live simulation:
+- Top bar:
+  - elapsed code time
+  - current rhythm
+  - pulse status
+  - oxygenation / ETCO2
+  - chaos meter
+  - score preview
+- Center stage:
+  - animated hospital room scene
+  - patient on bed
+  - monitor
+  - staff avatars around bed
+  - compressor animation
+  - defibrillator/cart
+  - crowding when too many personnel are present
+  - speech clouds over staff
+- Left panel:
+  - team roster with current role labels
+  - role status: unassigned / assigned / acknowledged / active / failed / distracted
+- Right panel:
+  - context-sensitive action controls
+  - tabs for:
+    - Leadership
+    - ACLS
+    - Airway
+    - Medications
+    - Diagnostics / causes
+    - Personnel control
+- Bottom panel:
+  - event log
+  - pending orders
+  - missed tasks
+  - alerts
+  - stopwatch button
+  - “assign timekeeper” action
+- Optional floating overlays:
+  - quick warnings
+  - speech bubbles
+  - timer reminders
+  - rhythm change banners
+  - “compressor fatigued”
+  - “epi requested but not confirmed”
+  - “pulse check prolonged”
+
+Core simulation systems to implement:
+
+1. Patient state engine
+Track:
+- initial arrest rhythm
+- hidden ROSC achievability flag
+- underlying cause
+- physiologic reserve
+- oxygenation
+- perfusion
+- ETCO2 trend
+- airway status
+- rhythm transitions over time
+- effect windows from correct or incorrect interventions
+
+Arrest rhythms for V1:
+- VF
+- pulseless VT
+- PEA
+- asystole
+
+The system should generate a hidden scenario seed at case start:
+- shockable vs nonshockable
+- cause category
+- expected response windows
+- whether ROSC is achievable
+- which complications may appear
+
+2. Team behavior engine
+Each AI staff member should have:
+- name
+- role capability
+- current location
+- current assigned role
+- acknowledgment reliability
+- execution reliability
+- delay profile
+- stress susceptibility
+- chance of volunteering or interfering
+- speech cloud behavior
+
+Example staff:
+- bedside nurse
+- second nurse
+- respiratory therapist
+- pharmacist
+- intern
+- senior resident
+- tech
+- attending (optional in some modes)
+
+Important:
+Staff do not always behave perfectly.
+Sometimes they:
+- partially hear commands
+- acknowledge but delay
+- do the wrong thing
+- ask for clarification
+- crowd the room
+- duplicate effort
+- stand idle
+- interrupt with information at bad times
+
+3. Closed-loop communication engine
+Every order should move through stages:
+- issued
+- targeted or untargeted
+- heard / not heard
+- acknowledged / not acknowledged
+- in progress
+- completed / failed / delayed
+
+If player says “Give epinephrine” without targeting someone, it should be riskier.
+If player says “Nurse Lee, give 1 mg epi IV now” and receives read-back, success probability rises.
+The UI should make this visible.
+
+4. Timing engine
+Internal simulation clock updates continuously.
+Player may have:
+- visible elapsed clock
+- optional manual stopwatch
+- option to delegate timekeeping
+
+Timing matters for:
+- rhythm checks
+- pulse checks
+- shock intervals
+- epinephrine spacing
+- compressor switch intervals
+- prolonged interruptions
+- airway escalation timing
+- overall code flow
+
+Do not make the game depend on perfect memorized timestamps only.
+Instead, reward reasonable timing windows and penalize major drift.
+
+5. Chaos / complication engine
+Randomly generate realistic disruptions:
+- overcrowded room
+- delayed med availability
+- confusion over who is compressing
+- monitor lead issue
+- family member arrives
+- RT not yet present
+- IV infiltrated
+- compressor fatigue
+- wrong person repeats wrong dose
+- resident offers distracting differential
+- pulse check lasts too long
+- shock charging delay
+- someone performs task without confirming
+- airway attempt interrupts compressions
+
+Complications should feel plausible, not absurd.
+They should increase pressure without turning into comedy.
+
+6. Action system
+No free text input.
+Use buttons, dropdowns, and click targets only.
+
+Action categories:
+A. Leadership
+- assign role
+- confirm role
+- redirect staff
+- request read-back
+- ask for update
+- clear room / dismiss extra personnel
+- call for additional resources
+- assign timekeeper
+- ask team to resume compressions
+- request compressor switch
+
+B. ACLS actions
+- rhythm check
+- pulse check
+- charge defibrillator
+- deliver shock
+- resume compressions
+- identify rhythm
+- call next epi
+- announce cycle transition
+
+C. Medications
+- epinephrine
+- amiodarone
+- lidocaine
+- magnesium
+- sodium bicarbonate
+- calcium
+- glucose / dextrose
+For V1, include only those needed for core ACLS scenarios and selected reversible-cause twists.
+Med actions should include dose labels in UI when appropriate.
+
+D. Airway
+- bag-mask ventilation
+- call RT
+- place advanced airway
+- confirm ET tube
+- capnography
+- pause airway attempt
+- optimize oxygenation
+
+E. Causes / diagnostics
+- consider Hs and Ts
+- bedside glucose
+- potassium concern
+- tamponade concern
+- tension pneumothorax concern
+- PE concern
+- tox concern
+- hypoxia concern
+These should influence decisions but not turn the game into an open medical sandbox.
+
+F. End-of-code actions
+- call ROSC care transition
+- call time of death
+- continue efforts
+- escalate team control
+
+Scoring model:
+Create separate score domains:
+1. Clinical correctness
+2. Timing / sequencing
+3. Leadership / role control
+4. Closed-loop communication
+5. Compression continuity / minimization of interruptions
+6. Situational awareness
+7. Efficiency under chaos
+
+Examples:
+- correct shockable management with good timing = strong bonus
+- epi given too early or too late repeatedly = penalty
+- order issued but never confirmed = penalty
+- role assigned and confirmed quickly = bonus
+- compressor fatigue recognized and corrected = bonus
+- calling TOD when ROSC was realistically achievable = major penalty
+- continuing a futile code forever when system determined ROSC impossible = moderate penalty for judgment
+- clearing overcrowding that improves team function = bonus
+
+ROSC system:
+At scenario generation, determine whether ROSC is:
+- likely achievable
+- conditionally achievable
+- not achievable
+
+Do not reveal this to player.
+Player may achieve, fail to achieve, or incorrectly abandon a salvageable code.
+If ROSC occurs, transition to immediate post-ROSC stabilization summary instead of simply ending.
+
+Difficulty modes:
+- Intern: more UI guidance, more reliable staff, stronger prompts
+- Resident: less prompting, moderate chaos
+- Senior: more ambiguity, more staff unreliability, more realistic interruptions
+- Nightmare / Teaching challenge: severe chaos, weaker cues, more timing pressure
+
+Case generator V1:
+Generate different combinations of:
+- rhythm
+- underlying cause category
+- staffing mix
+- room crowding
+- equipment readiness
+- communication reliability
+- interruptions
+- reversible cause hints
+
+Keep cases within reasonable ACLS realism.
+Do not generate fantasy cases.
+
+Speech cloud system:
+Each staff member can display short speech bubbles such as:
+- “Who’s giving epi?”
+- “I’m on compressions.”
+- “Do you want me to shock?”
+- “I didn’t hear the dose.”
+- “RT is not here yet.”
+- “No pulse.”
+- “Charging.”
+- “Epi is in.”
+- “I need a compressor swap.”
+- “Family is outside.”
+- “Monitor disconnected.”
+Speech should be brief and high-yield.
+
+Animation requirements:
+The game must feel alive and chaotic, but readable.
+Use:
+- pulsing monitor glow
+- overhead monitor flashes on rhythm change
+- subtle movement of staff around room
+- active compressor movement
+- speech bubbles that pop in/out
+- event banners that slide or shake in
+- room crowding animation when extra personnel present
+- visual highlight when tasks are assigned
+- color-coded pending task cards
+- shock animation with brief flash and monitor response
+- timer pulses when critical actions become overdue
+- post-action micro-animations for acknowledgment and completion
+Do not overdo screen shake.
+
+Audio requirements:
+- monitor beeps
+- alarm tone shifts with rhythm / severity
+- muffled room chatter bed
+- shock charge / shock delivery sound
+- footsteps / equipment movement
+- compressor cadence cues
+- optional toggle for reduced audio load
+Audio should enhance tension without making the game annoying.
+
+Debrief screen:
+After each case, show:
+- overall result
+- whether ROSC was achievable
+- whether player’s decisions made ROSC more or less likely
+- timeline of key actions
+- delayed or missed ACLS opportunities
+- prolonged interruptions
+- poorly closed-looped orders
+- communication failures
+- role control problems
+- strongest decisions
+- what to improve next time
+
+Replay timeline:
+Create a horizontal timeline of the code with markers for:
+- rhythm checks
+- shocks
+- meds
+- role assignments
+- missed tasks
+- interruptions
+- major complications
+- ROSC or TOD
+
+Data model suggestion:
+Create TypeScript types/interfaces for:
+- ScenarioSeed
+- PatientState
+- TeamMember
+- TeamRole
+- PendingOrder
+- ActionEvent
+- RhythmState
+- ComplicationEvent
+- CodeScore
+- DebriefItem
+- ReplayMarker
+
+Implementation target for V1:
+Build one polished vertical slice with:
+- 4 arrest rhythms
+- 6 to 8 staff behavior patterns
+- 10 to 15 complication types
+- 20 to 30 core actions
+- full live simulation screen
+- post-case debrief
+- replay timeline
+
+Important UX rule:
+Everything must be executable by mouse clicks only.
+No typed commands.
+No text parser.
+
+Deliverables:
+1. Working prototype UI
+2. Game state engine
+3. Random scenario generator
+4. Team role assignment system
+5. Closed-loop order system
+6. Timing/scoring engine
+7. Debrief screen
+8. Replay timeline
+9. Polished animation pass for live code screen

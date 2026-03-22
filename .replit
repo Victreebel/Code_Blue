@@ -17,6 +17,27 @@ env = { "CI" = "true" }
 [workflows]
 runButton = "Project"
 
+[[workflows.workflow]]
+name = "Project"
+mode = "parallel"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "artifacts/code-sim: web"
+
+[[workflows.workflow]]
+name = "artifacts/code-sim: web"
+author = "agent"
+
+[workflows.workflow.metadata]
+outputType = "webview"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "PORT=20192 BASE_PATH=/ pnpm --filter @workspace/code-sim run dev"
+waitForPort = 20192
+
 [agent]
 stack = "PNPM_WORKSPACE"
 expertMode = true
