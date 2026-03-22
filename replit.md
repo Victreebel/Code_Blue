@@ -118,15 +118,21 @@ Interactive ACLS (Advanced Cardiac Life Support) code simulation game for reside
   - `LiveRoomCanvas.tsx` — SVG room visualization with staff positions, CPR animation, speech bubbles, chaos meter
   - `PendingOrdersPanel.tsx` — Pending order lifecycle display (issued→heard→ack→in_progress→completed/failed)
   - `ReplayTimeline.tsx` — Color-coded event replay timeline in debrief with filters
-- **PendingOrder System**: Medications and IV/IO orders create pending orders that progress through lifecycle stages (issued→heard→acknowledged→in_progress→completed/failed/missed). Staff competence affects success rate.
+- **PendingOrder System**: Medications and IV/IO orders create pending orders that progress through lifecycle stages (issued→heard→acknowledged→in_progress→completed/failed/missed). Staff competence affects success rate. Rich failure modes: `wrong_person`, `prerequisite_missing`, `duplicate`, `abandoned`, `timeout`, `no_access`.
+- **Staff Archetypes** (`staffArchetypes.ts`): 8 behavior archetypes (experienced_nurse, hesitant_new_nurse, reliable_rt, delayed_rt, eager_intern, distractible_intern, efficient_pharmacist, interfering_senior) with unique BehaviorProfile traits, speech banks, delay patterns, clarification phrases, and wrong-task events.
+- **Physiology Realism** (`aclsProtocol.ts`): `computePhysiology()` calculates perfusionIndex, oxygenationIndex, roscProbability based on CPR quality, epinephrine timing, airway status, and reversible cause treatment. EtCO2 trend tracking.
+- **Compressor Fatigue**: CPR quality degrades over time when the same person compresses. Fatigue resets on compressor switch.
 - **Chaos Meter**: Real-time chaos level calculated from overcrowding, unassigned roles, CPR gaps, failed orders, complications.
-- **Compression Fraction HUD**: Tracks total CPR time vs total code time. CPR quality degrades with compressor fatigue.
+- **Compression Fraction HUD**: Tracks total CPR time vs total code time.
 - **Defibrillator Workflow**: Must charge defibrillator (200J) before shock can be delivered. Charge resets after each shock.
 - **New Team Actions**: Switch compressor, announce cycle status, clear room of non-essential personnel.
 - **Pulse Check Mechanic**: Player must explicitly check for a pulse to confirm ROSC (not auto-detected). Organized rhythms prompt "CHECK PULSE" reminders. Inappropriate pulse checks on shockable/asystole rhythms incur a -5 penalty. 10-second cooldown between checks.
 - **Seed Scenarios**: 3 predetermined scenarios for consistent testing: VF/ROSC, PEA/Hypoxia, Asystole/Overcrowded
 - **Game Flow**: Menu → Briefing → Active Code → Ended → Debrief → Menu
 - **Difficulty levels**: Intern (easy), Resident (medium), Attending (hard)
+- **Scoring**: 10 categories (rhythmCheckTiming, epinephrineTiming, defibrillationTiming, medicationChoices, pulseChecks, closedLoopComm, teamManagement, reversibleCauses, overallLeadership, roomControl) totaling 102 max + penalties. Room control has 5 sub-dimensions.
+- **Debrief Intelligence** (`scoringEngine.ts`): `generateDebriefAnalysis()` produces playerImpact rating, topMistakes/topStrengths with impact descriptions, primaryFailureDomain classification, and roomControlBreakdown (roleClarity, crowdControl, assignmentFollowThrough, ambiguityCorrection, delayRecovery).
+- **UI Priority Hierarchy**: Protocol reminders are priority-sorted; the most urgent reminder is visually dominant while secondary alerts are de-emphasized.
 
 ### `scripts` (`@workspace/scripts`)
 

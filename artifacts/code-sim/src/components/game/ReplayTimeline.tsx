@@ -13,7 +13,7 @@ type MarkerType = 'rhythm' | 'pulse' | 'shock' | 'medication' | 'cpr' | 'role' |
 interface TimelineMarker {
   time: number;
   label: string;
-  details: string | null;
+  details: string | null | undefined;
   markerType: MarkerType;
 }
 

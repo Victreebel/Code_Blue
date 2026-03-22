@@ -1,0 +1,85 @@
+Good progress. Now focus on realism and educational value rather than adding more surface features.
+
+Upgrade the code simulation in these priorities:
+
+1. Team behavior realism
+- Give each staff member a distinct behavior profile:
+  - initiative
+  - distractibility
+  - compliance
+  - clarification tendency
+  - execution speed
+- Staff should sometimes:
+  - begin reasonable actions without being told
+  - ask for clarification
+  - acknowledge but delay
+  - duplicate another staff member’s task
+  - perform the wrong task if orders were ambiguous
+- Make these events visible in speech bubbles and event log.
+
+2. Richer order failure modes
+Replace generic order failure with specific outcomes:
+- not_heard
+- heard_by_wrong_person
+- acknowledged_but_delayed
+- duplicated
+- blocked_by_missing_prerequisite
+- performed_incorrectly
+- abandoned
+Update PendingOrdersPanel and replay markers to reflect these.
+
+3. Physiology realism
+Add continuous variables and tie them to decisions:
+- ETCO2 trend
+- CPR quality impact on perfusion
+- oxygenation impact from airway/ventilation quality
+- shockable rhythm response influenced by time-to-first-shock and compression continuity
+- ROSC probability window that narrows over time
+Do not show hidden exact formulas to the user.
+
+4. Debrief intelligence
+Upgrade the debrief screen so it explains:
+- whether ROSC was initially achievable
+- whether the player improved or worsened that chance
+- top 3 critical mistakes by impact
+- top 3 strongest decisions
+- whether the main failure was:
+  - algorithm error
+  - leadership/control failure
+  - communication failure
+  - compression interruption burden
+  - late recognition of deterioration
+  - futile scenario despite good care
+
+5. UI priority hierarchy
+Improve readability:
+- make the single highest-priority unresolved issue visually dominant
+- distinguish acknowledged vs completed more clearly
+- pulse only truly urgent overdue tasks
+- keep noncritical chatter visually softer than critical alerts
+- allow hover tooltips in debrief and replay only, not during live play
+
+6. Staff identity templates
+Create 8 reusable archetypes such as:
+- experienced bedside nurse
+- hesitant new nurse
+- reliable RT
+- delayed RT
+- eager intern
+- distractible intern
+- efficient pharmacist
+- interfering senior
+Use these to generate more varied code-team behavior.
+
+7. Add one “room control” scoring panel in debrief
+Include:
+- role clarity
+- crowd control
+- assignment follow-through
+- correction of ambiguity
+- recovery from delays
+
+Do not add rapids mode yet.
+Do not add voice input.
+Do not add more arrest rhythms yet.
+Make the current code mode feel more alive, more human, and more educational.

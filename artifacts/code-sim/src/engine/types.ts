@@ -70,12 +70,27 @@ export const STAFF_TYPE_LABELS: Record<StaffType, string> = {
 export type Competence = 'low' | 'medium' | 'high';
 export type Compliance = 'cooperative' | 'independent' | 'resistant';
 
+export interface BehaviorProfile {
+  initiative: number;
+  distractibility: number;
+  clarificationTendency: number;
+  executionSpeed: number;
+  assertiveness: number;
+}
+
+export type StaffArchetypeId =
+  | 'experienced_nurse' | 'hesitant_new_nurse' | 'reliable_rt'
+  | 'delayed_rt' | 'eager_intern' | 'distractible_intern'
+  | 'efficient_pharmacist' | 'interfering_senior';
+
 export interface TeamMember {
   id: string;
   name: string;
   staffType: StaffType;
   competence: Competence;
   compliance: Compliance;
+  behavior: BehaviorProfile;
+  archetypeId: StaffArchetypeId | null;
   assignedRole: TeamRole;
   confirmedRole: boolean;
   busy: boolean;
@@ -84,6 +99,8 @@ export interface TeamMember {
   speechBubbleUntil: number;
   inRoom: boolean;
   selfAssignedRole: TeamRole | null;
+  lastActionTime: number;
+  fatigueLevel: number;
 }
 
 export type MedicationType = 'epinephrine' | 'amiodarone' | 'lidocaine' | 'atropine' | 'bicarb' | 'calcium' | 'magnesium';
@@ -106,10 +123,30 @@ export interface MedicationRecord {
 
 export type OrderStatus = 'issued' | 'heard' | 'acknowledged' | 'in_progress' | 'completed' | 'failed' | 'missed';
 
+export type OrderFailureMode =
+  | 'not_heard'
+  | 'heard_by_wrong_person'
+  | 'acknowledged_but_delayed'
+  | 'duplicated'
+  | 'blocked_by_missing_prerequisite'
+  | 'performed_incorrectly'
+  | 'abandoned';
+
+export const ORDER_FAILURE_LABELS: Record<OrderFailureMode, string> = {
+  not_heard: 'Not heard',
+  heard_by_wrong_person: 'Heard by wrong person',
+  acknowledged_but_delayed: 'Acknowledged but delayed',
+  duplicated: 'Duplicated by another staff',
+  blocked_by_missing_prerequisite: 'Blocked — missing prerequisite',
+  performed_incorrectly: 'Performed incorrectly',
+  abandoned: 'Abandoned mid-task',
+};
+
 export interface PendingOrder {
   id: string;
   actionType: string;
   targetMemberId: string | null;
+  heardByMemberId: string | null;
   label: string;
   issuedAt: number;
   dueAt: number;
@@ -117,6 +154,7 @@ export interface PendingOrder {
   acknowledgedAt: number | null;
   completedAt: number | null;
   failureReason: string | null;
+  failureMode: OrderFailureMode | null;
 }
 
 export interface PatientState {
@@ -140,6 +178,10 @@ export interface PatientState {
   reversibleCause: ReversibleCause;
   reversibleCauseIdentified: boolean;
   reversibleCauseTreated: boolean;
+  perfusionIndex: number;
+  oxygenationIndex: number;
+  roscProbability: number;
+  etco2Trend: number[];
 }
 
 export type ComplicationType =
@@ -185,8 +227,43 @@ export interface ScoreBreakdown {
   teamManagement: number;
   reversibleCauses: number;
   overallLeadership: number;
+  roomControl: number;
   penalties: number;
   total: number;
+}
+
+export type FailureDomain =
+  | 'algorithm_error'
+  | 'leadership_failure'
+  | 'communication_failure'
+  | 'compression_interruption'
+  | 'late_recognition'
+  | 'futile_scenario';
+
+export const FAILURE_DOMAIN_LABELS: Record<FailureDomain, string> = {
+  algorithm_error: 'ACLS Algorithm Error',
+  leadership_failure: 'Leadership / Room Control Failure',
+  communication_failure: 'Communication Breakdown',
+  compression_interruption: 'Excessive Compression Interruptions',
+  late_recognition: 'Late Recognition of Deterioration',
+  futile_scenario: 'Futile Scenario Despite Good Care',
+};
+
+export interface DebriefAnalysis {
+  roscInitiallyAchievable: boolean;
+  playerImpact: 'improved' | 'worsened' | 'neutral';
+  roscProbabilityStart: number;
+  roscProbabilityEnd: number;
+  topMistakes: { description: string; impact: string }[];
+  topStrengths: { description: string; impact: string }[];
+  primaryFailureDomain: FailureDomain | null;
+  roomControlBreakdown: {
+    roleClarity: number;
+    crowdControl: number;
+    assignmentFollowThrough: number;
+    ambiguityCorrection: number;
+    delayRecovery: number;
+  };
 }
 
 export type GamePhase = 'menu' | 'briefing' | 'active' | 'paused' | 'ended' | 'debrief';
@@ -237,6 +314,7 @@ export interface GameState {
   totalInterruptionTime: number;
   chaosLevel: number;
   defibCharged: boolean;
+  debriefAnalysis: DebriefAnalysis | null;
 }
 
 export type GameAction =

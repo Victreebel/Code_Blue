@@ -1,11 +1,12 @@
 import {
   type GameState, type GameAction, type PatientState, type ActionLogEntry,
   type TeamMember, type StopwatchState, type ScoreBreakdown, type PendingOrder, type OrderStatus,
-  ROSC_RHYTHMS, SHOCKABLE_RHYTHMS,
+  type OrderFailureMode,
+  ROSC_RHYTHMS, SHOCKABLE_RHYTHMS, ORDER_FAILURE_LABELS,
 } from './types';
-import { getHRForRhythm, getBPForRhythm, getSpO2ForRhythm, getEtCO2, isShockable } from './aclsProtocol';
-import { getTeamSpeechOnAssignment } from './teamAI';
-import { calculateScore } from './scoringEngine';
+import { getHRForRhythm, getBPForRhythm, getSpO2ForRhythm, getEtCO2, isShockable, computePhysiology } from './aclsProtocol';
+import { getTeamSpeechOnAssignment, determineOrderFailureMode } from './teamAI';
+import { calculateScore, generateDebriefAnalysis } from './scoringEngine';
 
 function uid(): string {
   return Math.random().toString(36).substr(2, 10);
@@ -36,6 +37,10 @@ export const initialPatient: PatientState = {
   reversibleCause: 'hypoxia',
   reversibleCauseIdentified: false,
   reversibleCauseTreated: false,
+  perfusionIndex: 0,
+  oxygenationIndex: 0.3,
+  roscProbability: 0.5,
+  etco2Trend: [],
 };
 
 export const initialScore: ScoreBreakdown = {
@@ -48,6 +53,7 @@ export const initialScore: ScoreBreakdown = {
   teamManagement: 0,
   reversibleCauses: 0,
   overallLeadership: 0,
+  roomControl: 0,
   penalties: 0,
   total: 0,
 };
@@ -80,16 +86,25 @@ export const initialState: GameState = {
   totalInterruptionTime: 0,
   chaosLevel: 0,
   defibCharged: false,
+  debriefAnalysis: null,
 };
 
-function updateVitals(patient: PatientState): PatientState {
+function updateVitals(patient: PatientState, clock: number, compressionFraction: number): PatientState {
   const isROSC = ROSC_RHYTHMS.includes(patient.rhythm);
+  const phys = computePhysiology(patient, clock, compressionFraction);
+  const etco2 = getEtCO2(patient.cprInProgress, patient.cprQuality, isROSC);
+  const newTrend = [...patient.etco2Trend, etco2].slice(-30);
+
   return {
     ...patient,
     hr: getHRForRhythm(patient.rhythm),
     bp: getBPForRhythm(patient.rhythm),
     spo2: getSpO2ForRhythm(patient.rhythm, patient.hasAdvancedAirway, patient.cprInProgress),
-    etco2: getEtCO2(patient.cprInProgress, patient.cprQuality, isROSC),
+    etco2,
+    perfusionIndex: phys.perfusion,
+    oxygenationIndex: phys.oxygenation,
+    roscProbability: phys.roscProbability,
+    etco2Trend: newTrend,
   };
 }
 
@@ -143,13 +158,23 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         return updated;
       });
 
+      newTeam = newTeam.map(m => {
+        if (m.assignedRole === 'compressor' && newPatient.cprInProgress && m.inRoom) {
+          const newFatigue = Math.min(1, m.fatigueLevel + action.delta * 0.004);
+          const qualityDrop = newFatigue > 0.5 ? (newFatigue - 0.5) * 0.6 : 0;
+          newPatient = { ...newPatient, cprQuality: Math.max(0.3, 0.85 - qualityDrop) };
+          return { ...m, fatigueLevel: newFatigue };
+        }
+        return m;
+      });
+
       if (state.scenario?.roscAchievable &&
           newClock >= state.scenario.roscTime &&
           newPatient.reversibleCauseTreated &&
           newPatient.cprInProgress &&
           !ROSC_RHYTHMS.includes(newPatient.rhythm)) {
         newPatient.rhythm = 'sinus';
-        newPatient = updateVitals(newPatient);
+        newPatient = updateVitals(newPatient, newClock, state.compressionFraction);
         newLog.push(log({ ...state, clock: newClock }, 'Monitor shows organized rhythm — check pulse!', 'system'));
         const monitorPerson = newTeam.find(m => m.assignedRole === 'monitor_defib' && m.inRoom);
         if (monitorPerson) {
@@ -161,7 +186,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         }
       }
 
-      newPatient = updateVitals(newPatient);
+      newPatient = updateVitals(newPatient, newClock, state.compressionFraction);
 
       const newStopwatch = { ...state.stopwatch };
       if (newStopwatch.running) {
@@ -175,28 +200,67 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
 
       let newOrders = state.pendingOrders.map(order => {
         if (order.status === 'issued' && newClock - order.issuedAt > 1.5) {
-          return { ...order, status: 'heard' as OrderStatus };
+          const target = newTeam.find(m => m.id === order.targetMemberId);
+          if (target && target.behavior.distractibility > 0.6 && Math.random() < target.behavior.distractibility * 0.3) {
+            if (newClock > order.dueAt) {
+              return { ...order, status: 'failed' as OrderStatus, failureReason: ORDER_FAILURE_LABELS['not_heard'], failureMode: 'not_heard' as OrderFailureMode };
+            }
+            return order;
+          }
+          const wrongListener = newTeam.find(m =>
+            m.inRoom && m.id !== order.targetMemberId && !m.busy &&
+            m.behavior.initiative > 0.7 && Math.random() < 0.1
+          );
+          if (wrongListener) {
+            return { ...order, status: 'heard' as OrderStatus, heardByMemberId: wrongListener.id };
+          }
+          return { ...order, status: 'heard' as OrderStatus, heardByMemberId: target?.id ?? null };
         }
         if (order.status === 'heard' && newClock - order.issuedAt > 3) {
-          const target = newTeam.find(m => m.id === order.targetMemberId);
-          const willAck = target ? (target.competence === 'high' ? 0.95 : target.competence === 'medium' ? 0.8 : 0.6) : 0.7;
+          const responder = newTeam.find(m => m.id === (order.heardByMemberId ?? order.targetMemberId));
+          const speed = responder?.behavior.executionSpeed ?? 0.6;
+          const willAck = speed > 0.5 ? 0.9 : 0.6;
           if (Math.random() < willAck) {
+            if (order.heardByMemberId && order.heardByMemberId !== order.targetMemberId) {
+              newLog.push(log({ ...state, clock: newClock },
+                `Order "${order.label}" picked up by wrong person`, 'team'));
+            }
             return { ...order, status: 'acknowledged' as OrderStatus, acknowledgedAt: newClock };
           }
           if (newClock > order.dueAt) {
-            return { ...order, status: 'missed' as OrderStatus, failureReason: 'Not acknowledged in time' };
+            return { ...order, status: 'missed' as OrderStatus, failureReason: ORDER_FAILURE_LABELS['not_heard'], failureMode: 'not_heard' as OrderFailureMode };
           }
         }
-        if (order.status === 'acknowledged' && newClock - (order.acknowledgedAt ?? newClock) > 2) {
-          return { ...order, status: 'in_progress' as OrderStatus };
+        if (order.status === 'acknowledged') {
+          const responder = newTeam.find(m => m.id === (order.heardByMemberId ?? order.targetMemberId));
+          const speed = responder?.behavior.executionSpeed ?? 0.6;
+          const delay = (1 - speed) * 5 + 2;
+          if (newClock - (order.acknowledgedAt ?? newClock) > delay) {
+            if (responder && responder.behavior.distractibility > 0.5 && Math.random() < 0.15) {
+              return { ...order, status: 'failed' as OrderStatus, failureReason: ORDER_FAILURE_LABELS['abandoned'], failureMode: 'abandoned' as OrderFailureMode };
+            }
+            return { ...order, status: 'in_progress' as OrderStatus };
+          }
         }
         if (order.status === 'in_progress' && newClock >= order.dueAt) {
-          const target = newTeam.find(m => m.id === order.targetMemberId);
-          const willComplete = target ? (target.competence === 'high' ? 0.95 : target.competence === 'medium' ? 0.85 : 0.65) : 0.8;
+          const responder = newTeam.find(m => m.id === (order.heardByMemberId ?? order.targetMemberId));
+          const competence = responder?.competence ?? 'medium';
+          const willComplete = competence === 'high' ? 0.95 : competence === 'medium' ? 0.85 : 0.6;
+
           if (Math.random() < willComplete) {
+            const dupOrder = state.pendingOrders.find(o =>
+              o.id !== order.id && o.actionType === order.actionType &&
+              o.status === 'in_progress' && newClock - o.issuedAt < 15
+            );
+            if (dupOrder) {
+              newLog.push(log({ ...state, clock: newClock },
+                `"${order.label}" duplicated — two people doing the same task`, 'team'));
+            }
             return { ...order, status: 'completed' as OrderStatus, completedAt: newClock };
           }
-          return { ...order, status: 'failed' as OrderStatus, failureReason: 'Execution failed' };
+
+          const failMode = determineOrderFailureMode(responder, { ...state, clock: newClock, pendingOrders: state.pendingOrders }, order.actionType);
+          return { ...order, status: 'failed' as OrderStatus, failureReason: ORDER_FAILURE_LABELS[failMode], failureMode: failMode };
         }
         return order;
       });
@@ -505,6 +569,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         id: `med-${state.clock}-${Math.random().toString(36).slice(2, 6)}`,
         actionType: `medication_${action.medication}`,
         targetMemberId: medAdmin?.id ?? null,
+        heardByMemberId: null,
         label: `${action.medication} ${action.dose}`,
         issuedAt: state.clock,
         dueAt: state.clock + 8,
@@ -512,6 +577,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         acknowledgedAt: null,
         completedAt: null,
         failureReason: null,
+        failureMode: null,
       };
 
       return {
@@ -568,6 +634,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         id: `iv-${state.clock}-${Math.random().toString(36).slice(2, 6)}`,
         actionType: action.io ? 'io_access' : 'iv_access',
         targetMemberId: ivPerson?.id ?? null,
+        heardByMemberId: null,
         label: action.io ? 'IO Access' : 'IV Access',
         issuedAt: state.clock,
         dueAt: state.clock + (action.io ? 10 : 15),
@@ -575,6 +642,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         acknowledgedAt: null,
         completedAt: null,
         failureReason: null,
+        failureMode: null,
       };
 
       return {
@@ -696,7 +764,8 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
     }
 
     case 'VIEW_DEBRIEF': {
-      return { ...state, phase: 'debrief' };
+      const analysis = generateDebriefAnalysis(state);
+      return { ...state, phase: 'debrief', debriefAnalysis: analysis };
     }
 
     case 'FIRE_EVENT': {
@@ -792,7 +861,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       const newPatient = { ...state.patient, rhythm: action.newRhythm };
       return {
         ...state,
-        patient: updateVitals(newPatient),
+        patient: updateVitals(newPatient, state.clock, state.compressionFraction),
         actionLog: [...state.actionLog, log(state, `Rhythm changed to ${action.newRhythm.replace(/_/g, ' ')}`, 'complication')],
       };
     }
@@ -832,10 +901,10 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       }
       const newTeam = state.team.map(m => {
         if (current && m.id === current.id) {
-          return { ...m, assignedRole: 'none' as const, confirmedRole: false, speechBubble: 'Switching out!', speechBubbleUntil: state.clock + 3 };
+          return { ...m, assignedRole: 'none' as const, confirmedRole: false, fatigueLevel: m.fatigueLevel, speechBubble: 'Switching out!', speechBubbleUntil: state.clock + 3 };
         }
         if (m.id === available.id) {
-          return { ...m, assignedRole: 'compressor' as const, confirmedRole: true, speechBubble: "I've got compressions!", speechBubbleUntil: state.clock + 3 };
+          return { ...m, assignedRole: 'compressor' as const, confirmedRole: true, fatigueLevel: 0, speechBubble: "I've got compressions!", speechBubbleUntil: state.clock + 3 };
         }
         return m;
       });

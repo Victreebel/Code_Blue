@@ -66,6 +66,29 @@ export function getEtCO2(cprInProgress: boolean, cprQuality: number, isROSC: boo
   return Math.floor(Math.random() * 5 + 5);
 }
 
+export function computePhysiology(
+  patient: import('./types').PatientState,
+  clock: number,
+  compressionFraction: number,
+): { perfusion: number; oxygenation: number; roscProbability: number } {
+  const basePerfusion = patient.cprInProgress ? patient.cprQuality * 0.7 : 0.05;
+  const perfusion = Math.min(1, Math.max(0, basePerfusion * (0.5 + compressionFraction * 0.5)));
+
+  const airwayBonus = patient.hasAdvancedAirway ? 0.35 : patient.cprInProgress ? 0.15 : 0;
+  const oxygenation = Math.min(1, Math.max(0, patient.oxygenationIndex * 0.3 + airwayBonus + perfusion * 0.3));
+
+  let roscProb = patient.roscProbability;
+  const timeDecay = Math.max(0, 1 - clock / 1200);
+  const cprBonus = compressionFraction > 0.6 ? 0.1 : compressionFraction > 0.4 ? 0 : -0.15;
+  const shockBonus = patient.shockCount > 0 && patient.lastShock > 0
+    ? (patient.lastShock < 120 ? 0.1 : 0.02) : 0;
+  const causeBonus = patient.reversibleCauseTreated ? 0.2 : patient.reversibleCauseIdentified ? 0.05 : -0.05;
+
+  roscProb = Math.min(1, Math.max(0, timeDecay * 0.4 + perfusion * 0.2 + cprBonus + shockBonus + causeBonus + oxygenation * 0.1));
+
+  return { perfusion, oxygenation, roscProbability: roscProb };
+}
+
 export interface ProtocolViolation {
   type: string;
   message: string;

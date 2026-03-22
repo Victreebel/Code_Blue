@@ -1,4 +1,4 @@
-import { type PendingOrder, type OrderStatus } from '../../engine/types';
+import { type PendingOrder, type OrderStatus, ORDER_FAILURE_LABELS } from '../../engine/types';
 import { formatTime } from '../../engine/gameReducer';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -69,23 +69,29 @@ export default function PendingOrdersPanel({ orders, clock }: PendingOrdersPanel
           {activeOrders.map(order => {
             const cfg = STATUS_CONFIG[order.status];
             const elapsed = Math.floor(clock - order.issuedAt);
+            const failLabel = order.failureMode ? ORDER_FAILURE_LABELS[order.failureMode] : order.failureReason;
             return (
               <motion.div
                 key={order.id}
                 initial={{ opacity: 0, x: -10 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: 10 }}
-                className={`flex items-center justify-between px-2 py-1 rounded text-[10px] ${cfg.bg} border border-gray-800`}
+                className={`px-2 py-1 rounded text-[10px] ${cfg.bg} border border-gray-800`}
               >
-                <div className="flex items-center gap-2 min-w-0 flex-1">
-                  <span className="text-gray-500 shrink-0">{formatTime(order.issuedAt)}</span>
-                  <span className="text-gray-300 truncate">{order.label}</span>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 min-w-0 flex-1">
+                    <span className="text-gray-500 shrink-0">{formatTime(order.issuedAt)}</span>
+                    <span className="text-gray-300 truncate">{order.label}</span>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <StatusDots status={order.status} />
+                    <span className={`font-bold ${cfg.color}`}>{cfg.label}</span>
+                    <span className="text-gray-600">{elapsed}s</span>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  <StatusDots status={order.status} />
-                  <span className={`font-bold ${cfg.color}`}>{cfg.label}</span>
-                  <span className="text-gray-600">{elapsed}s</span>
-                </div>
+                {failLabel && (order.status === 'failed' || order.status === 'missed') && (
+                  <div className="text-red-400/70 text-[9px] mt-0.5 pl-8 italic">{failLabel}</div>
+                )}
               </motion.div>
             );
           })}

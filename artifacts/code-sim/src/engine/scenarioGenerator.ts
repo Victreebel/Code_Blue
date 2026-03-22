@@ -1,9 +1,10 @@
 import {
   type Scenario, type ArrestRhythm, type ReversibleCause, type TeamMember,
   type ScheduledEvent, type ComplicationType, type StaffType, type Competence,
-  type Compliance, type TeamRole, H_CAUSES, T_CAUSES,
+  type Compliance, type TeamRole, type StaffArchetypeId, H_CAUSES, T_CAUSES,
   REVERSIBLE_CAUSE_LABELS,
 } from './types';
+import { STAFF_ARCHETYPES, getArchetypeForStaffType, getDefaultBehavior } from './staffArchetypes';
 
 const FIRST_NAMES = ['James', 'Sarah', 'Mike', 'Emily', 'Carlos', 'Priya', 'David', 'Aisha', 'Kevin', 'Lisa', 'Omar', 'Jen', 'Tyler', 'Maria', 'Raj', 'Nina', 'Andre', 'Kim', 'Alex', 'Pat'];
 const LAST_NAMES = ['Smith', 'Johnson', 'Williams', 'Brown', 'Jones', 'Garcia', 'Miller', 'Davis', 'Rodriguez', 'Wilson', 'Patel', 'Kim', 'Chen', 'Adams', 'Lee', 'Clark', 'Lewis', 'Young', 'Hall', 'Wright'];
@@ -51,12 +52,15 @@ function randomId(): string {
   return Math.random().toString(36).substr(2, 8);
 }
 
-function generateTeamMember(staffType: StaffType, excludeNames: Set<string>): TeamMember {
+function generateTeamMember(staffType: StaffType, excludeNames: Set<string>, forcedArchetype?: StaffArchetypeId): TeamMember {
   let name: string;
   do {
     name = `${pick(FIRST_NAMES)} ${pick(LAST_NAMES).charAt(0)}.`;
   } while (excludeNames.has(name));
   excludeNames.add(name);
+
+  const archetypeId = forcedArchetype ?? getArchetypeForStaffType(staffType);
+  const archetype = archetypeId ? STAFF_ARCHETYPES[archetypeId] : null;
 
   const competenceMap: Record<StaffType, Competence[]> = {
     attending: ['high', 'high', 'medium'],
@@ -78,12 +82,17 @@ function generateTeamMember(staffType: StaffType, excludeNames: Set<string>): Te
     student: ['cooperative', 'cooperative', 'cooperative'],
   };
 
+  const selfAssignRole = archetype && archetype.behavior.initiative > 0.5 && Math.random() < archetype.behavior.initiative
+    ? pick(archetype.preferredRoles) : null;
+
   return {
     id: randomId(),
     name,
     staffType,
-    competence: pick(competenceMap[staffType]),
-    compliance: pick(complianceMap[staffType]),
+    competence: archetype?.competence ?? pick(competenceMap[staffType]),
+    compliance: archetype?.compliance ?? pick(complianceMap[staffType]),
+    behavior: archetype?.behavior ?? getDefaultBehavior(),
+    archetypeId: archetypeId,
     assignedRole: 'none',
     confirmedRole: false,
     busy: false,
@@ -91,7 +100,9 @@ function generateTeamMember(staffType: StaffType, excludeNames: Set<string>): Te
     speechBubble: null,
     speechBubbleUntil: 0,
     inRoom: true,
-    selfAssignedRole: null,
+    selfAssignedRole: selfAssignRole,
+    lastActionTime: 0,
+    fatigueLevel: 0,
   };
 }
 
@@ -167,10 +178,10 @@ function generateSeedScenario(seedId: SeedScenarioId): Scenario {
 
   if (seedId === 'vfib_rosc') {
     const team: TeamMember[] = [
-      { ...generateTeamMember('nurse', usedNames), assignedRole: 'none', competence: 'high', compliance: 'cooperative' },
-      { ...generateTeamMember('nurse', usedNames), assignedRole: 'none', competence: 'medium', compliance: 'cooperative' },
-      { ...generateTeamMember('rt', usedNames), assignedRole: 'none', competence: 'high', compliance: 'cooperative' },
-      { ...generateTeamMember('tech', usedNames), assignedRole: 'none', competence: 'medium', compliance: 'cooperative' },
+      generateTeamMember('nurse', usedNames, 'experienced_nurse'),
+      generateTeamMember('nurse', usedNames, 'hesitant_new_nurse'),
+      generateTeamMember('rt', usedNames, 'reliable_rt'),
+      { ...generateTeamMember('tech', usedNames), competence: 'medium' },
     ];
     return {
       patientName: 'Robert Thompson',
@@ -198,10 +209,10 @@ function generateSeedScenario(seedId: SeedScenarioId): Scenario {
 
   if (seedId === 'pea_hypoxia') {
     const team: TeamMember[] = [
-      { ...generateTeamMember('nurse', usedNames), assignedRole: 'none', competence: 'medium', compliance: 'cooperative' },
-      { ...generateTeamMember('nurse', usedNames), assignedRole: 'none', competence: 'low', compliance: 'resistant' },
-      { ...generateTeamMember('tech', usedNames), assignedRole: 'none', competence: 'low', compliance: 'cooperative' },
-      { ...generateTeamMember('student', usedNames), assignedRole: 'none', competence: 'low', compliance: 'cooperative' },
+      generateTeamMember('nurse', usedNames, 'experienced_nurse'),
+      generateTeamMember('nurse', usedNames, 'hesitant_new_nurse'),
+      { ...generateTeamMember('tech', usedNames), competence: 'low' },
+      generateTeamMember('resident', usedNames, 'distractible_intern'),
     ];
     return {
       patientName: 'Margaret Robinson',
@@ -231,15 +242,15 @@ function generateSeedScenario(seedId: SeedScenarioId): Scenario {
   }
 
   const team: TeamMember[] = [
-    { ...generateTeamMember('nurse', usedNames), assignedRole: 'none', competence: 'medium', compliance: 'cooperative' },
-    { ...generateTeamMember('nurse', usedNames), assignedRole: 'none', competence: 'medium', compliance: 'cooperative' },
-    { ...generateTeamMember('nurse', usedNames), assignedRole: 'none', competence: 'low', compliance: 'resistant' },
-    { ...generateTeamMember('rt', usedNames), assignedRole: 'none', competence: 'medium', compliance: 'cooperative' },
-    { ...generateTeamMember('tech', usedNames), assignedRole: 'none', competence: 'low', compliance: 'cooperative' },
-    { ...generateTeamMember('resident', usedNames), assignedRole: 'none', competence: 'medium', compliance: 'independent' },
-    { ...generateTeamMember('student', usedNames), assignedRole: 'none', competence: 'low', compliance: 'cooperative' },
-    { ...generateTeamMember('student', usedNames), assignedRole: 'none', competence: 'low', compliance: 'cooperative' },
-    { ...generateTeamMember('attending', usedNames), assignedRole: 'none', competence: 'high', compliance: 'independent' },
+    generateTeamMember('nurse', usedNames, 'experienced_nurse'),
+    generateTeamMember('nurse', usedNames, 'hesitant_new_nurse'),
+    generateTeamMember('nurse', usedNames),
+    generateTeamMember('rt', usedNames, 'delayed_rt'),
+    { ...generateTeamMember('tech', usedNames), competence: 'low' },
+    generateTeamMember('resident', usedNames, 'eager_intern'),
+    generateTeamMember('resident', usedNames, 'distractible_intern'),
+    { ...generateTeamMember('student', usedNames), competence: 'low' },
+    generateTeamMember('attending', usedNames, 'interfering_senior'),
   ];
   return {
     patientName: 'William Harris',
@@ -292,14 +303,6 @@ export function generateScenario(difficulty: 'easy' | 'medium' | 'hard' = 'mediu
   if (difficulty === 'hard') coreTeam.push('resident', 'student');
 
   const initialTeam = coreTeam.map(st => generateTeamMember(st, usedNames));
-
-  const selfAssigners = initialTeam.filter(m => m.compliance === 'independent' || Math.random() > 0.7);
-  const roles: TeamRole[] = ['compressor', 'airway', 'iv_access', 'monitor_defib'];
-  selfAssigners.forEach((m, i) => {
-    if (i < roles.length && Math.random() > 0.4) {
-      m.selfAssignedRole = roles[i % roles.length];
-    }
-  });
 
   const scheduledEvents = generateScheduledEvents(difficulty, roscTime);
   const complaint = pick(CHIEF_COMPLAINTS[reversibleCause]);

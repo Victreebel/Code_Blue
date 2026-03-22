@@ -43,52 +43,64 @@ function ProtocolReminders({ state }: { state: GameState }) {
   const timeSinceEpi = patient.lastEpinephrine > 0 ? clock - patient.lastEpinephrine : clock;
   const timeSinceCPRStart = patient.cprInProgress ? clock - cprCycleStart : 0;
 
-  const reminders: { text: string; color: string; urgent: boolean }[] = [];
-
-  if (timeSinceRhythmCheck >= 110 && timeSinceRhythmCheck < 130) {
-    reminders.push({ text: 'Rhythm check due soon', color: 'text-yellow-400', urgent: false });
-  } else if (timeSinceRhythmCheck >= 130) {
-    reminders.push({ text: 'RHYTHM CHECK OVERDUE', color: 'text-red-400', urgent: true });
-  }
-
-  if ((patient.hasIV || patient.hasIO) && timeSinceEpi >= 170 && timeSinceEpi < 300) {
-    reminders.push({ text: 'Consider next epinephrine dose', color: 'text-yellow-400', urgent: false });
-  } else if ((patient.hasIV || patient.hasIO) && timeSinceEpi >= 300) {
-    reminders.push({ text: 'EPINEPHRINE OVERDUE', color: 'text-red-400', urgent: true });
-  }
-
-  if (timeSinceCPRStart >= 100 && patient.cprInProgress) {
-    reminders.push({ text: 'Consider compressor switch', color: 'text-yellow-400', urgent: false });
-  }
+  const reminders: { text: string; color: string; priority: number; urgent: boolean }[] = [];
 
   if (!patient.cprInProgress && clock > 5 && !['sinus', 'sinus_brady', 'sinus_tachy'].includes(patient.rhythm)) {
-    reminders.push({ text: 'CPR NOT IN PROGRESS', color: 'text-red-400', urgent: true });
+    reminders.push({ text: 'CPR NOT IN PROGRESS', color: 'text-red-400', priority: 100, urgent: true });
   }
 
   if (['sinus', 'sinus_brady', 'sinus_tachy'].includes(patient.rhythm) && clock > 10) {
     const timeSincePulseCheck = patient.lastPulseCheck > 0 ? clock - patient.lastPulseCheck : clock;
     if (timeSincePulseCheck > 10) {
-      reminders.push({ text: 'ORGANIZED RHYTHM — CHECK PULSE', color: 'text-pink-400', urgent: true });
+      reminders.push({ text: 'ORGANIZED RHYTHM — CHECK PULSE', color: 'text-pink-400', priority: 95, urgent: true });
     }
   }
 
+  if (timeSinceRhythmCheck >= 130) {
+    reminders.push({ text: 'RHYTHM CHECK OVERDUE', color: 'text-red-400', priority: 80, urgent: true });
+  } else if (timeSinceRhythmCheck >= 110) {
+    reminders.push({ text: 'Rhythm check due soon', color: 'text-yellow-400', priority: 30, urgent: false });
+  }
+
+  if ((patient.hasIV || patient.hasIO) && timeSinceEpi >= 300) {
+    reminders.push({ text: 'EPINEPHRINE OVERDUE', color: 'text-red-400', priority: 70, urgent: true });
+  } else if ((patient.hasIV || patient.hasIO) && timeSinceEpi >= 170) {
+    reminders.push({ text: 'Consider next epinephrine dose', color: 'text-yellow-400', priority: 25, urgent: false });
+  }
+
+  if (timeSinceCPRStart >= 100 && patient.cprInProgress) {
+    reminders.push({ text: 'Consider compressor switch', color: 'text-yellow-400', priority: 20, urgent: false });
+  }
+
   if (!patient.hasIV && !patient.hasIO && clock > 30) {
-    reminders.push({ text: 'No vascular access', color: 'text-orange-400', urgent: false });
+    reminders.push({ text: 'No vascular access', color: 'text-orange-400', priority: 15, urgent: false });
   }
 
   if (reminders.length === 0) return null;
 
+  reminders.sort((a, b) => b.priority - a.priority);
+
+  const topReminder = reminders[0];
+  const restReminders = reminders.slice(1);
+
   return (
     <div className="space-y-1">
-      {reminders.map((r, i) => (
-        <motion.div
+      <motion.div
+        className={`text-[11px] px-2 py-1.5 rounded font-bold ${topReminder.color} ${
+          topReminder.urgent ? 'bg-red-900/40 border border-red-800/50' : 'bg-gray-800/70'
+        }`}
+        animate={topReminder.urgent ? { opacity: [1, 0.6, 1] } : {}}
+        transition={{ duration: 1, repeat: Infinity }}
+      >
+        {topReminder.text}
+      </motion.div>
+      {restReminders.map((r, i) => (
+        <div
           key={i}
-          className={`text-[10px] px-2 py-1 rounded ${r.color} ${r.urgent ? 'bg-red-900/30 font-bold' : 'bg-gray-800/50'}`}
-          animate={r.urgent ? { opacity: [1, 0.5, 1] } : {}}
-          transition={{ duration: 0.8, repeat: Infinity }}
+          className={`text-[9px] px-2 py-0.5 rounded ${r.urgent ? r.color : 'text-gray-500'} bg-gray-800/30`}
         >
           {r.text}
-        </motion.div>
+        </div>
       ))}
     </div>
   );

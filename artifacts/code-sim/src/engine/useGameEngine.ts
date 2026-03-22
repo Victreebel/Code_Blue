@@ -2,7 +2,7 @@ import { useReducer, useCallback, useRef, useEffect } from 'react';
 import { gameReducer, initialState } from './gameReducer';
 import { type GameAction, type Scenario, type TeamRole, type MedicationType, type ReversibleCause, type ComplicationType, type Rhythm, type OrderStatus, SHOCKABLE_RHYTHMS, NON_SHOCKABLE_RHYTHMS } from './types';
 import { generateScenario, type SeedScenarioId } from './scenarioGenerator';
-import { processSelfAssignments, generateAmbientSpeech, handleComplication } from './teamAI';
+import { processSelfAssignments, generateAmbientSpeech, handleComplication, generateSpontaneousBehaviors } from './teamAI';
 import { generateNewTeamMember } from './scenarioGenerator';
 
 const TICK_RATE = 100;
@@ -108,6 +108,21 @@ export function useGameEngine() {
       const ambient = generateAmbientSpeech(state);
       for (const sp of ambient) {
         dispatch({ type: 'TEAM_SPEECH', memberId: sp.memberId, message: sp.message, duration: 4 });
+      }
+
+      const spontaneous = generateSpontaneousBehaviors(state);
+      for (const evt of spontaneous) {
+        dispatch({ type: 'TEAM_SPEECH', memberId: evt.memberId, message: evt.message, duration: 5 });
+        if (evt.eventType !== 'initiative') {
+          const member = state.team.find(m => m.id === evt.memberId);
+          const name = member?.name ?? 'Staff';
+          const logMsg = evt.eventType === 'clarification' ? `${name} asks for clarification`
+            : evt.eventType === 'distraction' ? `${name} is distracted`
+            : evt.eventType === 'wrong_task' ? `${name} performed wrong task`
+            : evt.eventType === 'duplicate' ? `${name} duplicated a task`
+            : `${name}: behavioral event`;
+          dispatch({ type: 'FIRE_EVENT', event: { time: state.clock, type: 'cpr_fatigue', fired: true } });
+        }
       }
     }
   }, [state.clock, state.running, state.phase, state.scenario]);
