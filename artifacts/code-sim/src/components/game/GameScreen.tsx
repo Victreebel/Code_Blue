@@ -16,6 +16,7 @@ interface GameScreenProps {
     orderCPR: () => void;
     orderStopCPR: () => void;
     orderRhythmCheck: () => void;
+    orderPulseCheck: () => void;
     orderShock: () => void;
     orderMedication: (med: MedicationType, dose: string) => void;
     orderAirway: (advanced: boolean) => void;
@@ -56,6 +57,13 @@ function ProtocolReminders({ state }: { state: GameState }) {
 
   if (!patient.cprInProgress && clock > 5 && !['sinus', 'sinus_brady', 'sinus_tachy'].includes(patient.rhythm)) {
     reminders.push({ text: 'CPR NOT IN PROGRESS', color: 'text-red-400', urgent: true });
+  }
+
+  if (['sinus', 'sinus_brady', 'sinus_tachy'].includes(patient.rhythm) && clock > 10) {
+    const timeSincePulseCheck = patient.lastPulseCheck > 0 ? clock - patient.lastPulseCheck : clock;
+    if (timeSincePulseCheck > 10) {
+      reminders.push({ text: 'ORGANIZED RHYTHM — CHECK PULSE', color: 'text-pink-400', urgent: true });
+    }
   }
 
   if (!patient.hasIV && !patient.hasIO && clock > 30) {
@@ -161,6 +169,7 @@ export default function GameScreen({ state, actions }: GameScreenProps) {
             onOrderCPR={actions.orderCPR}
             onOrderStopCPR={actions.orderStopCPR}
             onOrderRhythmCheck={actions.orderRhythmCheck}
+            onOrderPulseCheck={actions.orderPulseCheck}
             onOrderShock={actions.orderShock}
             onOrderMedication={actions.orderMedication}
             onOrderAirway={actions.orderAirway}

@@ -115,6 +115,7 @@ Interactive ACLS (Advanced Cardiac Life Support) code simulation game for reside
   - `CommandPanel.tsx` — Tabbed order interface (CPR, meds, airway, causes)
   - `EventLog.tsx` — Scrolling event timeline
   - `StopwatchWidget.tsx` — Manual stopwatch for timing
+- **Pulse Check Mechanic**: Player must explicitly check for a pulse to confirm ROSC (not auto-detected). Organized rhythms prompt "CHECK PULSE" reminders. Inappropriate pulse checks on shockable/asystole rhythms incur a -5 penalty. 10-second cooldown between checks.
 - **Game Flow**: Menu → Briefing → Active Code → Ended → Debrief → Menu
 - **Difficulty levels**: Intern (easy), Resident (medium), Attending (hard)
 

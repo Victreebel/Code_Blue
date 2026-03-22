@@ -116,6 +116,7 @@ export interface PatientState {
   cprInProgress: boolean;
   cprQuality: number;
   lastRhythmCheck: number;
+  lastPulseCheck: number;
   lastShock: number;
   shockCount: number;
   medications: MedicationRecord[];
@@ -164,6 +165,7 @@ export interface ScoreBreakdown {
   epinephrineTiming: number;
   defibrillationTiming: number;
   medicationChoices: number;
+  pulseChecks: number;
   closedLoopComm: number;
   teamManagement: number;
   reversibleCauses: number;
@@ -209,6 +211,7 @@ export interface GameState {
   score: ScoreBreakdown;
   stopwatch: StopwatchState;
   rhythmChecksDone: number;
+  pulseChecksDone: number;
   cprCycleStart: number;
   pendingCommands: string[];
   roomCapacity: number;
@@ -225,6 +228,7 @@ export type GameAction =
   | { type: 'ORDER_MEDICATION'; medication: MedicationType; dose: string }
   | { type: 'ORDER_SHOCK' }
   | { type: 'ORDER_RHYTHM_CHECK' }
+  | { type: 'ORDER_PULSE_CHECK' }
   | { type: 'ORDER_CPR' }
   | { type: 'ORDER_STOP_CPR' }
   | { type: 'ORDER_AIRWAY'; advanced: boolean }

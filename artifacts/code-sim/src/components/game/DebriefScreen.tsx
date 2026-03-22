@@ -76,9 +76,10 @@ export default function DebriefScreen({ state, onNewGame }: DebriefScreenProps) 
               <ScoreBar label="Epinephrine Timing" score={score.epinephrineTiming} max={15} color="bg-blue-500" />
               <ScoreBar label="Defibrillation" score={score.defibrillationTiming} max={15} color="bg-orange-500" />
               <ScoreBar label="Medication Choices" score={score.medicationChoices} max={10} color="bg-purple-500" />
+              <ScoreBar label="Pulse Checks" score={score.pulseChecks} max={10} color="bg-pink-500" />
               <ScoreBar label="Closed-Loop Communication" score={score.closedLoopComm} max={15} color="bg-cyan-500" />
               <ScoreBar label="Team Management" score={score.teamManagement} max={15} color="bg-yellow-500" />
-              <ScoreBar label="Reversible Causes" score={score.reversibleCauses} max={10} color="bg-pink-500" />
+              <ScoreBar label="Reversible Causes" score={score.reversibleCauses} max={10} color="bg-rose-500" />
               <ScoreBar label="Overall Leadership" score={score.overallLeadership} max={10} color="bg-indigo-500" />
               {score.penalties < 0 && (
                 <div className="text-xs text-red-400 mt-2">Penalties: {score.penalties} pts</div>
@@ -131,6 +132,10 @@ export default function DebriefScreen({ state, onNewGame }: DebriefScreenProps) 
               <div className="flex justify-between">
                 <span className="text-gray-500">Rhythm Checks</span>
                 <span>{state.rhythmChecksDone}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-500">Pulse Checks</span>
+                <span>{state.pulseChecksDone}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-500">Closed-Loop Rate</span>

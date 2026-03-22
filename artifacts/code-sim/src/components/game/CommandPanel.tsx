@@ -9,6 +9,7 @@ interface CommandPanelProps {
   onOrderCPR: () => void;
   onOrderStopCPR: () => void;
   onOrderRhythmCheck: () => void;
+  onOrderPulseCheck: () => void;
   onOrderShock: () => void;
   onOrderMedication: (med: MedicationType, dose: string) => void;
   onOrderAirway: (advanced: boolean) => void;
@@ -21,7 +22,7 @@ interface CommandPanelProps {
 type PanelTab = 'cpr' | 'meds' | 'airway' | 'causes' | 'other';
 
 export default function CommandPanel({
-  patient, onOrderCPR, onOrderStopCPR, onOrderRhythmCheck, onOrderShock,
+  patient, onOrderCPR, onOrderStopCPR, onOrderRhythmCheck, onOrderPulseCheck, onOrderShock,
   onOrderMedication, onOrderAirway, onOrderIVAccess, onIdentifyCause,
   onTreatCause, onCallTimeOfDeath,
 }: CommandPanelProps) {
@@ -78,6 +79,7 @@ export default function CommandPanel({
               : cmdBtn('⏸ Hold CPR (for rhythm check)', onOrderStopCPR, 'bg-yellow-900/60 text-yellow-300')
             }
             {cmdBtn('🔍 Rhythm Check', onOrderRhythmCheck, 'bg-green-900/60 text-green-300')}
+            {cmdBtn('🫀 Pulse Check', onOrderPulseCheck, 'bg-pink-900/60 text-pink-300')}
             {cmdBtn(
               `⚡ Defibrillate (200J)`,
               onOrderShock,

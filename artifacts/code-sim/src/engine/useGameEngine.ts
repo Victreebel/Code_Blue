@@ -120,6 +120,7 @@ export function useGameEngine() {
     orderCPR: () => dispatch({ type: 'ORDER_CPR' }),
     orderStopCPR: () => dispatch({ type: 'ORDER_STOP_CPR' }),
     orderRhythmCheck: () => dispatch({ type: 'ORDER_RHYTHM_CHECK' }),
+    orderPulseCheck: () => dispatch({ type: 'ORDER_PULSE_CHECK' }),
     orderShock: () => dispatch({ type: 'ORDER_SHOCK' }),
     orderMedication: (med: MedicationType, dose: string) => dispatch({ type: 'ORDER_MEDICATION', medication: med, dose }),
     orderAirway: (advanced: boolean) => dispatch({ type: 'ORDER_AIRWAY', advanced }),

@@ -7,6 +7,7 @@ export function calculateScore(state: GameState): ScoreBreakdown {
     epinephrineTiming: 0,
     defibrillationTiming: 0,
     medicationChoices: 0,
+    pulseChecks: 0,
     closedLoopComm: 0,
     teamManagement: 0,
     reversibleCauses: 0,
@@ -21,6 +22,7 @@ export function calculateScore(state: GameState): ScoreBreakdown {
   score.epinephrineTiming = scoreEpinephrine(state);
   score.defibrillationTiming = scoreDefibrillation(state);
   score.medicationChoices = scoreMedications(state);
+  score.pulseChecks = scorePulseChecks(state);
   score.closedLoopComm = scoreClosedLoop(state);
   score.teamManagement = scoreTeamManagement(state);
   score.reversibleCauses = scoreReversibleCauses(state);
@@ -31,6 +33,7 @@ export function calculateScore(state: GameState): ScoreBreakdown {
     score.epinephrineTiming +
     score.defibrillationTiming +
     score.medicationChoices +
+    score.pulseChecks +
     score.closedLoopComm +
     score.teamManagement +
     score.reversibleCauses +
@@ -132,6 +135,30 @@ function scoreReversibleCauses(state: GameState): number {
   if (state.patient.reversibleCauseIdentified) points += 5;
   if (state.patient.reversibleCauseTreated) points += 5;
   return points;
+}
+
+function scorePulseChecks(state: GameState): number {
+  const hadOrganizedRhythm = state.actionLog.some(l =>
+    l.action.includes('organized rhythm') || l.action.includes('Organized rhythm')
+  );
+
+  if (state.pulseChecksDone === 0) {
+    if (hadOrganizedRhythm) return 0;
+    return 5;
+  }
+
+  let points = 0;
+
+  const roscConfirmed = state.actionLog.some(l => l.action.includes('Pulse confirmed'));
+  if (roscConfirmed) points += 5;
+
+  const appropriateChecks = state.actionLog.filter(l =>
+    l.action.includes('Pulse check:') && !l.details?.includes('Unnecessary')
+  ).length;
+  if (appropriateChecks >= 1) points += 3;
+  if (appropriateChecks >= 2) points += 2;
+
+  return Math.min(10, points);
 }
 
 function scoreLeadership(state: GameState): number {

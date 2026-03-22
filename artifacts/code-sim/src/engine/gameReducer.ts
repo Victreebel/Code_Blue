@@ -27,6 +27,7 @@ export const initialPatient: PatientState = {
   cprInProgress: false,
   cprQuality: 0.7,
   lastRhythmCheck: 0,
+  lastPulseCheck: -999,
   lastShock: -999,
   shockCount: 0,
   medications: [],
@@ -42,6 +43,7 @@ export const initialScore: ScoreBreakdown = {
   epinephrineTiming: 0,
   defibrillationTiming: 0,
   medicationChoices: 0,
+  pulseChecks: 0,
   closedLoopComm: 0,
   teamManagement: 0,
   reversibleCauses: 0,
@@ -67,6 +69,7 @@ export const initialState: GameState = {
   score: { ...initialScore },
   stopwatch: { ...initialStopwatch },
   rhythmChecksDone: 0,
+  pulseChecksDone: 0,
   cprCycleStart: 0,
   pendingCommands: [],
   roomCapacity: 8,
@@ -142,17 +145,15 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
           !ROSC_RHYTHMS.includes(newPatient.rhythm)) {
         newPatient.rhythm = 'sinus';
         newPatient = updateVitals(newPatient);
-        newLog.push(log({ ...state, clock: newClock }, '*** ROSC ACHIEVED — Pulse detected! ***', 'system'));
-        return {
-          ...state,
-          clock: newClock,
-          patient: newPatient,
-          team: newTeam,
-          actionLog: newLog,
-          phase: 'ended',
-          running: false,
-          score: calculateScore({ ...state, clock: newClock, patient: newPatient, phase: 'ended' }),
-        };
+        newLog.push(log({ ...state, clock: newClock }, 'Monitor shows organized rhythm — check pulse!', 'system'));
+        const monitorPerson = newTeam.find(m => m.assignedRole === 'monitor_defib' && m.inRoom);
+        if (monitorPerson) {
+          newTeam = newTeam.map(m => m.id === monitorPerson.id ? {
+            ...m,
+            speechBubble: "I'm seeing an organized rhythm on the monitor!",
+            speechBubbleUntil: newClock + 6,
+          } : m);
+        }
       }
 
       newPatient = updateVitals(newPatient);
@@ -256,15 +257,120 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         lastRhythmCheck: state.clock,
       };
 
-      const rhythmDesc = isShockable(newPatient.rhythm)
-        ? `Rhythm check: ${newPatient.rhythm === 'vfib' ? 'V-Fib' : 'V-Tach'} — SHOCKABLE`
-        : `Rhythm check: ${newPatient.rhythm === 'asystole' ? 'Asystole' : 'PEA'} — Non-shockable`;
+      let rhythmDesc: string;
+      if (isShockable(newPatient.rhythm)) {
+        rhythmDesc = `Rhythm check: ${newPatient.rhythm === 'vfib' ? 'V-Fib' : 'V-Tach'} — SHOCKABLE`;
+      } else if (newPatient.rhythm === 'asystole') {
+        rhythmDesc = 'Rhythm check: Asystole — Non-shockable';
+      } else if (newPatient.rhythm === 'pea') {
+        rhythmDesc = 'Rhythm check: PEA — Non-shockable';
+      } else {
+        const label = newPatient.rhythm === 'sinus' ? 'Normal Sinus Rhythm'
+          : newPatient.rhythm === 'sinus_brady' ? 'Sinus Bradycardia' : 'Sinus Tachycardia';
+        rhythmDesc = `Rhythm check: ${label} — Organized rhythm, CHECK PULSE`;
+      }
 
       return {
         ...state,
         patient: newPatient,
         rhythmChecksDone: state.rhythmChecksDone + 1,
         actionLog: [...state.actionLog, log(state, rhythmDesc, 'command')],
+      };
+    }
+
+    case 'ORDER_PULSE_CHECK': {
+      const rhythm = state.patient.rhythm;
+
+      const timeSinceLastPulseCheck = state.patient.lastPulseCheck > 0
+        ? state.clock - state.patient.lastPulseCheck : Infinity;
+      if (timeSinceLastPulseCheck < 10) {
+        return {
+          ...state,
+          actionLog: [...state.actionLog, log(state, 'Pulse check too soon — wait before rechecking', 'system')],
+        };
+      }
+
+      const isInappropriate = SHOCKABLE_RHYTHMS.includes(rhythm) || rhythm === 'asystole';
+      let penalty = 0;
+      if (isInappropriate) {
+        penalty = -5;
+      }
+
+      const hasPulse = ROSC_RHYTHMS.includes(rhythm) &&
+        state.scenario?.roscAchievable === true &&
+        state.clock >= (state.scenario?.roscTime ?? Infinity) &&
+        state.patient.reversibleCauseTreated;
+
+      const newPatient = {
+        ...state.patient,
+        lastPulseCheck: state.clock,
+        cprInProgress: false,
+      };
+
+      const pulseChecker = state.team.find(m =>
+        m.inRoom && (m.assignedRole === 'compressor' || m.assignedRole === 'monitor_defib' || m.assignedRole !== 'none')
+      );
+
+      if (hasPulse) {
+        const newTeam = state.team.map(m => {
+          if (pulseChecker && m.id === pulseChecker.id) {
+            return { ...m, speechBubble: 'We have a pulse! Strong carotid pulse!', speechBubbleUntil: state.clock + 8 };
+          }
+          return m;
+        });
+        const finalState = {
+          ...state,
+          patient: newPatient,
+          team: newTeam,
+          pulseChecksDone: state.pulseChecksDone + 1,
+          phase: 'ended' as const,
+          running: false,
+          actionLog: [
+            ...state.actionLog,
+            log(state, 'Pulse check: PULSE PRESENT', 'command'),
+            log(state, '*** ROSC ACHIEVED — Pulse confirmed! ***', 'system'),
+          ],
+        };
+        return {
+          ...finalState,
+          score: calculateScore(finalState),
+        };
+      }
+
+      let pulseMsg = 'Pulse check: No pulse detected';
+      let speechMsg = 'No pulse! Continue CPR!';
+      if (SHOCKABLE_RHYTHMS.includes(rhythm)) {
+        pulseMsg = `Pulse check: No pulse — ${rhythm === 'vfib' ? 'V-Fib' : 'V-Tach'} on monitor`;
+        speechMsg = `No pulse — that's ${rhythm === 'vfib' ? 'V-fib' : 'V-tach'}, we need to shock!`;
+      } else if (rhythm === 'asystole') {
+        pulseMsg = 'Pulse check: No pulse — asystole on monitor';
+        speechMsg = "No pulse, it's flatline. Continue CPR!";
+      } else if (rhythm === 'pea') {
+        pulseMsg = 'Pulse check: No pulse — PEA (organized rhythm without pulse)';
+        speechMsg = 'No pulse despite organized rhythm — PEA! Continue CPR!';
+      } else if (ROSC_RHYTHMS.includes(rhythm)) {
+        pulseMsg = 'Pulse check: No pulse — organized rhythm but no perfusion (PEA)';
+        speechMsg = 'No pulse! Organized rhythm but no perfusion. Continue CPR!';
+      }
+
+      const newTeam = state.team.map(m => {
+        if (pulseChecker && m.id === pulseChecker.id) {
+          return { ...m, speechBubble: speechMsg, speechBubbleUntil: state.clock + 5 };
+        }
+        return m;
+      });
+
+      const details = isInappropriate
+        ? 'Unnecessary pulse check on non-perfusing rhythm — resume CPR immediately'
+        : 'Resume CPR immediately';
+
+      return {
+        ...state,
+        patient: newPatient,
+        team: newTeam,
+        pulseChecksDone: state.pulseChecksDone + 1,
+        score: { ...state.score, penalties: state.score.penalties + penalty },
+        actionLog: [...state.actionLog, log(state, pulseMsg, 'command', details)],
       };
     }
 
