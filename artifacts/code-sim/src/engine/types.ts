@@ -243,4 +243,9 @@ export type GameAction =
   | { type: 'TEAM_SPEECH'; memberId: string; message: string; duration: number }
   | { type: 'CLEAR_SPEECH'; memberId: string }
   | { type: 'MEMBER_SELF_ASSIGN'; memberId: string; role: TeamRole }
-  | { type: 'NEW_MEMBER_ARRIVES'; member: TeamMember };
+  | { type: 'NEW_MEMBER_ARRIVES'; member: TeamMember }
+  | { type: 'COMPLICATION_IV_LOST' }
+  | { type: 'COMPLICATION_EQUIPMENT_FAILURE' }
+  | { type: 'COMPLICATION_STAFF_LEAVES'; memberId: string }
+  | { type: 'COMPLICATION_RHYTHM_CHANGE'; newRhythm: Rhythm }
+  | { type: 'COMPLICATION_CPR_FATIGUE' };

@@ -554,6 +554,54 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       };
     }
 
+    case 'COMPLICATION_IV_LOST': {
+      return {
+        ...state,
+        patient: { ...state.patient, hasIV: false, hasIO: false },
+        actionLog: [...state.actionLog, log(state, 'Vascular access LOST — IV infiltrated', 'complication')],
+      };
+    }
+
+    case 'COMPLICATION_EQUIPMENT_FAILURE': {
+      return {
+        ...state,
+        patient: { ...state.patient, lastShock: state.clock + 15 },
+        actionLog: [...state.actionLog, log(state, 'Defibrillator malfunction — charging delayed 15s', 'complication')],
+      };
+    }
+
+    case 'COMPLICATION_STAFF_LEAVES': {
+      const leavingMember = state.team.find(m => m.id === action.memberId);
+      const newTeam = state.team.map(m => {
+        if (m.id === action.memberId) {
+          return { ...m, inRoom: false, assignedRole: 'none' as const, confirmedRole: false };
+        }
+        return m;
+      });
+      return {
+        ...state,
+        team: newTeam,
+        actionLog: [...state.actionLog, log(state, `${leavingMember?.name ?? 'A team member'} left the room`, 'complication')],
+      };
+    }
+
+    case 'COMPLICATION_RHYTHM_CHANGE': {
+      const newPatient = { ...state.patient, rhythm: action.newRhythm };
+      return {
+        ...state,
+        patient: updateVitals(newPatient),
+        actionLog: [...state.actionLog, log(state, `Rhythm changed to ${action.newRhythm.replace(/_/g, ' ')}`, 'complication')],
+      };
+    }
+
+    case 'COMPLICATION_CPR_FATIGUE': {
+      return {
+        ...state,
+        patient: { ...state.patient, cprQuality: Math.max(0.3, state.patient.cprQuality - 0.2) },
+        actionLog: [...state.actionLog, log(state, 'Compressor fatigued — CPR quality declining', 'complication')],
+      };
+    }
+
     default:
       return state;
   }

@@ -96,6 +96,7 @@ export default function VitalsMonitor({ patient, clock }: VitalsMonitorProps) {
       return () => clearInterval(interval);
     }
     setFlashHR(false);
+    return undefined;
   }, [isArrest]);
 
   return (

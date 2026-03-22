@@ -1,6 +1,6 @@
 import { useReducer, useCallback, useRef, useEffect } from 'react';
 import { gameReducer, initialState } from './gameReducer';
-import { type GameAction, type Scenario, type TeamRole, type MedicationType, type ReversibleCause, type ComplicationType } from './types';
+import { type GameAction, type Scenario, type TeamRole, type MedicationType, type ReversibleCause, type ComplicationType, type Rhythm, SHOCKABLE_RHYTHMS, NON_SHOCKABLE_RHYTHMS } from './types';
 import { generateScenario } from './scenarioGenerator';
 import { processSelfAssignments, generateAmbientSpeech, handleComplication } from './teamAI';
 import { generateNewTeamMember } from './scenarioGenerator';
@@ -72,8 +72,25 @@ export function useGameEngine() {
               dispatch({ type: 'NEW_MEMBER_ARRIVES', member: m });
             }
           }
+
           if (evt.type === 'iv_lost') {
-            dispatch({ type: 'TICK', delta: 0 });
+            dispatch({ type: 'COMPLICATION_IV_LOST' });
+          } else if (evt.type === 'equipment_failure') {
+            dispatch({ type: 'COMPLICATION_EQUIPMENT_FAILURE' });
+          } else if (evt.type === 'staff_leaves') {
+            const leaver = state.team.find(m =>
+              m.inRoom && m.assignedRole === 'none' && m.staffType !== 'nurse'
+            );
+            if (leaver) {
+              dispatch({ type: 'COMPLICATION_STAFF_LEAVES', memberId: leaver.id });
+            }
+          } else if (evt.type === 'rhythm_change') {
+            const allRhythms: Rhythm[] = [...SHOCKABLE_RHYTHMS, ...NON_SHOCKABLE_RHYTHMS];
+            const otherRhythms = allRhythms.filter(r => r !== state.patient.rhythm);
+            const newRhythm = otherRhythms[Math.floor(Math.random() * otherRhythms.length)];
+            dispatch({ type: 'COMPLICATION_RHYTHM_CHANGE', newRhythm });
+          } else if (evt.type === 'cpr_fatigue') {
+            dispatch({ type: 'COMPLICATION_CPR_FATIGUE' });
           }
         }
       }
