@@ -104,6 +104,21 @@ export interface MedicationRecord {
   timeGiven: number;
 }
 
+export type OrderStatus = 'issued' | 'heard' | 'acknowledged' | 'in_progress' | 'completed' | 'failed' | 'missed';
+
+export interface PendingOrder {
+  id: string;
+  actionType: string;
+  targetMemberId: string | null;
+  label: string;
+  issuedAt: number;
+  dueAt: number;
+  status: OrderStatus;
+  acknowledgedAt: number | null;
+  completedAt: number | null;
+  failureReason: string | null;
+}
+
 export interface PatientState {
   rhythm: Rhythm;
   hr: number;
@@ -213,10 +228,15 @@ export interface GameState {
   rhythmChecksDone: number;
   pulseChecksDone: number;
   cprCycleStart: number;
-  pendingCommands: string[];
+  pendingOrders: PendingOrder[];
   roomCapacity: number;
   closedLoopCount: number;
   closedLoopSuccess: number;
+  compressionFraction: number;
+  totalCPRTime: number;
+  totalInterruptionTime: number;
+  chaosLevel: number;
+  defibCharged: boolean;
 }
 
 export type GameAction =
@@ -252,4 +272,10 @@ export type GameAction =
   | { type: 'COMPLICATION_EQUIPMENT_FAILURE' }
   | { type: 'COMPLICATION_STAFF_LEAVES'; memberId: string }
   | { type: 'COMPLICATION_RHYTHM_CHANGE'; newRhythm: Rhythm }
-  | { type: 'COMPLICATION_CPR_FATIGUE' };
+  | { type: 'COMPLICATION_CPR_FATIGUE' }
+  | { type: 'CHARGE_DEFIB' }
+  | { type: 'REQUEST_COMPRESSOR_SWITCH' }
+  | { type: 'ANNOUNCE_CYCLE' }
+  | { type: 'CLEAR_ROOM' }
+  | { type: 'ADD_PENDING_ORDER'; order: PendingOrder }
+  | { type: 'UPDATE_ORDER_STATUS'; orderId: string; status: OrderStatus; failureReason?: string };

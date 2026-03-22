@@ -5,6 +5,8 @@ import TeamPanel from './TeamPanel';
 import CommandPanel from './CommandPanel';
 import EventLog from './EventLog';
 import StopwatchWidget from './StopwatchWidget';
+import PendingOrdersPanel from './PendingOrdersPanel';
+import LiveRoomCanvas from './LiveRoomCanvas';
 import { motion } from 'framer-motion';
 
 interface GameScreenProps {
@@ -18,6 +20,10 @@ interface GameScreenProps {
     orderRhythmCheck: () => void;
     orderPulseCheck: () => void;
     orderShock: () => void;
+    chargeDefib: () => void;
+    requestCompressorSwitch: () => void;
+    announceCycle: () => void;
+    clearRoom: () => void;
     orderMedication: (med: MedicationType, dose: string) => void;
     orderAirway: (advanced: boolean) => void;
     orderIVAccess: (io: boolean) => void;
@@ -88,10 +94,27 @@ function ProtocolReminders({ state }: { state: GameState }) {
   );
 }
 
-export default function GameScreen({ state, actions }: GameScreenProps) {
-  const inRoom = state.team.filter(m => m.inRoom);
-  const isOvercrowded = inRoom.length > state.roomCapacity;
+function CompressionFractionHUD({ fraction, cprQuality }: { fraction: number; cprQuality: number }) {
+  const pct = Math.round(fraction * 100);
+  const qualPct = Math.round(cprQuality * 100);
+  const fractionColor = pct >= 60 ? 'text-green-400' : pct >= 40 ? 'text-yellow-400' : 'text-red-400';
+  const qualColor = qualPct >= 80 ? 'text-green-400' : qualPct >= 60 ? 'text-yellow-400' : 'text-red-400';
 
+  return (
+    <div className="bg-gray-900/90 rounded-lg border border-gray-700 p-2">
+      <div className="flex items-center justify-between text-[10px]">
+        <span className="text-gray-500">CPR Fraction</span>
+        <span className={`font-mono font-bold ${fractionColor}`}>{pct}%</span>
+      </div>
+      <div className="flex items-center justify-between text-[10px] mt-0.5">
+        <span className="text-gray-500">Quality</span>
+        <span className={`font-mono font-bold ${qualColor}`}>{qualPct}%</span>
+      </div>
+    </div>
+  );
+}
+
+export default function GameScreen({ state, actions }: GameScreenProps) {
   return (
     <div className="h-screen bg-gray-950 flex flex-col overflow-hidden">
       <div className="bg-gray-900 border-b border-gray-700 px-4 py-2 flex items-center justify-between shrink-0">
@@ -132,19 +155,10 @@ export default function GameScreen({ state, actions }: GameScreenProps) {
         </div>
       </div>
 
-      {isOvercrowded && (
-        <motion.div
-          className="bg-red-900/30 border-b border-red-800 px-4 py-1 text-xs text-red-400 text-center"
-          animate={{ opacity: [1, 0.5, 1] }}
-          transition={{ duration: 1, repeat: Infinity }}
-        >
-          ⚠ ROOM OVERCROWDED — Consider removing non-essential personnel ({inRoom.length}/{state.roomCapacity})
-        </motion.div>
-      )}
-
-      <div className="flex-1 grid grid-cols-12 gap-3 p-3 min-h-0 overflow-hidden">
-        <div className="col-span-3 flex flex-col gap-3 overflow-y-auto">
+      <div className="flex-1 grid grid-cols-12 gap-2 p-2 min-h-0 overflow-hidden">
+        <div className="col-span-2 flex flex-col gap-2 overflow-y-auto">
           <VitalsMonitor patient={state.patient} clock={state.clock} />
+          <CompressionFractionHUD fraction={state.compressionFraction} cprQuality={state.patient.cprQuality} />
           <StopwatchWidget
             stopwatch={state.stopwatch}
             onToggle={actions.toggleStopwatch}
@@ -153,7 +167,14 @@ export default function GameScreen({ state, actions }: GameScreenProps) {
           <ProtocolReminders state={state} />
         </div>
 
-        <div className="col-span-3 overflow-y-auto">
+        <div className="col-span-3 flex flex-col gap-2 overflow-y-auto">
+          <LiveRoomCanvas
+            team={state.team}
+            patient={state.patient}
+            clock={state.clock}
+            roomCapacity={state.roomCapacity}
+            chaosLevel={state.chaosLevel}
+          />
           <TeamPanel
             team={state.team}
             onAssignRole={actions.assignRole}
@@ -163,14 +184,19 @@ export default function GameScreen({ state, actions }: GameScreenProps) {
           />
         </div>
 
-        <div className="col-span-3 overflow-y-auto">
+        <div className="col-span-3 flex flex-col gap-2 overflow-y-auto">
           <CommandPanel
             patient={state.patient}
+            defibCharged={state.defibCharged}
             onOrderCPR={actions.orderCPR}
             onOrderStopCPR={actions.orderStopCPR}
             onOrderRhythmCheck={actions.orderRhythmCheck}
             onOrderPulseCheck={actions.orderPulseCheck}
             onOrderShock={actions.orderShock}
+            onChargeDefib={actions.chargeDefib}
+            onRequestCompressorSwitch={actions.requestCompressorSwitch}
+            onAnnounceCycle={actions.announceCycle}
+            onClearRoom={actions.clearRoom}
             onOrderMedication={actions.orderMedication}
             onOrderAirway={actions.orderAirway}
             onOrderIVAccess={actions.orderIVAccess}
@@ -178,9 +204,10 @@ export default function GameScreen({ state, actions }: GameScreenProps) {
             onTreatCause={actions.treatCause}
             onCallTimeOfDeath={actions.callTimeOfDeath}
           />
+          <PendingOrdersPanel orders={state.pendingOrders} clock={state.clock} />
         </div>
 
-        <div className="col-span-3 min-h-0">
+        <div className="col-span-4 min-h-0">
           <EventLog entries={state.actionLog} />
         </div>
       </div>

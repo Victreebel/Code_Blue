@@ -106,16 +106,25 @@ Interactive ACLS (Advanced Cardiac Life Support) code simulation game for reside
   - `src/engine/gameReducer.ts` — Central game state reducer
   - `src/engine/useGameEngine.ts` — React hook wrapping reducer + game loop
 - **UI Components** (`src/components/game/`):
-  - `StartScreen.tsx` — Difficulty selection and instructions
+  - `StartScreen.tsx` — Difficulty selection, seed scenario picker, instructions
   - `BriefingScreen.tsx` — Patient briefing before code begins
-  - `GameScreen.tsx` — Main game with vitals monitor, team panel, command panel, event log
-  - `DebriefScreen.tsx` — Post-game scoring breakdown and timeline review
+  - `GameScreen.tsx` — Main game with vitals, room canvas, team panel, commands, event log
+  - `DebriefScreen.tsx` — Post-game scoring, replay timeline, action review
   - `VitalsMonitor.tsx` — ECG canvas + vital signs display
   - `TeamPanel.tsx` — NPC team members with role assignment
-  - `CommandPanel.tsx` — Tabbed order interface (CPR, meds, airway, causes)
+  - `CommandPanel.tsx` — Tabbed order interface (CPR/Defib, Meds, Airway/IV, H's&T's, Team/Other)
   - `EventLog.tsx` — Scrolling event timeline
   - `StopwatchWidget.tsx` — Manual stopwatch for timing
+  - `LiveRoomCanvas.tsx` — SVG room visualization with staff positions, CPR animation, speech bubbles, chaos meter
+  - `PendingOrdersPanel.tsx` — Pending order lifecycle display (issued→heard→ack→in_progress→completed/failed)
+  - `ReplayTimeline.tsx` — Color-coded event replay timeline in debrief with filters
+- **PendingOrder System**: Medications and IV/IO orders create pending orders that progress through lifecycle stages (issued→heard→acknowledged→in_progress→completed/failed/missed). Staff competence affects success rate.
+- **Chaos Meter**: Real-time chaos level calculated from overcrowding, unassigned roles, CPR gaps, failed orders, complications.
+- **Compression Fraction HUD**: Tracks total CPR time vs total code time. CPR quality degrades with compressor fatigue.
+- **Defibrillator Workflow**: Must charge defibrillator (200J) before shock can be delivered. Charge resets after each shock.
+- **New Team Actions**: Switch compressor, announce cycle status, clear room of non-essential personnel.
 - **Pulse Check Mechanic**: Player must explicitly check for a pulse to confirm ROSC (not auto-detected). Organized rhythms prompt "CHECK PULSE" reminders. Inappropriate pulse checks on shockable/asystole rhythms incur a -5 penalty. 10-second cooldown between checks.
+- **Seed Scenarios**: 3 predetermined scenarios for consistent testing: VF/ROSC, PEA/Hypoxia, Asystole/Overcrowded
 - **Game Flow**: Menu → Briefing → Active Code → Ended → Debrief → Menu
 - **Difficulty levels**: Intern (easy), Resident (medium), Attending (hard)
 

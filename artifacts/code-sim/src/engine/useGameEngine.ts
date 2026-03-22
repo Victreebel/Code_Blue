@@ -1,7 +1,7 @@
 import { useReducer, useCallback, useRef, useEffect } from 'react';
 import { gameReducer, initialState } from './gameReducer';
-import { type GameAction, type Scenario, type TeamRole, type MedicationType, type ReversibleCause, type ComplicationType, type Rhythm, SHOCKABLE_RHYTHMS, NON_SHOCKABLE_RHYTHMS } from './types';
-import { generateScenario } from './scenarioGenerator';
+import { type GameAction, type Scenario, type TeamRole, type MedicationType, type ReversibleCause, type ComplicationType, type Rhythm, type OrderStatus, SHOCKABLE_RHYTHMS, NON_SHOCKABLE_RHYTHMS } from './types';
+import { generateScenario, type SeedScenarioId } from './scenarioGenerator';
 import { processSelfAssignments, generateAmbientSpeech, handleComplication } from './teamAI';
 import { generateNewTeamMember } from './scenarioGenerator';
 
@@ -16,8 +16,8 @@ export function useGameEngine() {
   const aiCheckRef = useRef<number>(0);
   const firedEventsRef = useRef<Set<number>>(new Set());
 
-  const startGame = useCallback((difficulty: 'easy' | 'medium' | 'hard' = 'medium') => {
-    const scenario = generateScenario(difficulty);
+  const startGame = useCallback((difficulty: 'easy' | 'medium' | 'hard' = 'medium', seedId?: SeedScenarioId) => {
+    const scenario = generateScenario(difficulty, seedId);
     firedEventsRef.current = new Set();
     dispatch({ type: 'START_SCENARIO', scenario });
   }, []);
@@ -128,6 +128,10 @@ export function useGameEngine() {
     identifyCause: (cause: ReversibleCause) => dispatch({ type: 'IDENTIFY_CAUSE', cause }),
     treatCause: () => dispatch({ type: 'TREAT_CAUSE' }),
     kickMember: (memberId: string) => dispatch({ type: 'KICK_MEMBER', memberId }),
+    chargeDefib: () => dispatch({ type: 'CHARGE_DEFIB' }),
+    requestCompressorSwitch: () => dispatch({ type: 'REQUEST_COMPRESSOR_SWITCH' }),
+    announceCycle: () => dispatch({ type: 'ANNOUNCE_CYCLE' }),
+    clearRoom: () => dispatch({ type: 'CLEAR_ROOM' }),
     callTimeOfDeath: () => dispatch({ type: 'CALL_TIME_OF_DEATH' }),
     toggleStopwatch: () => dispatch({ type: 'TOGGLE_STOPWATCH' }),
     resetStopwatch: () => dispatch({ type: 'RESET_STOPWATCH' }),

@@ -132,7 +132,145 @@ function generateScheduledEvents(difficulty: 'easy' | 'medium' | 'hard', roscTim
   return events;
 }
 
-export function generateScenario(difficulty: 'easy' | 'medium' | 'hard' = 'medium'): Scenario {
+export type SeedScenarioId = 'vfib_rosc' | 'pea_hypoxia' | 'asystole_crowd';
+
+export interface SeedScenarioMeta {
+  id: SeedScenarioId;
+  title: string;
+  description: string;
+  difficulty: 'easy' | 'medium' | 'hard';
+}
+
+export const SEED_SCENARIOS: SeedScenarioMeta[] = [
+  {
+    id: 'vfib_rosc',
+    title: 'VF Arrest — ROSC Achievable',
+    description: 'Classic VF arrest in a 62yo male with MI. Moderate staff. ROSC achievable with good resuscitation.',
+    difficulty: 'medium',
+  },
+  {
+    id: 'pea_hypoxia',
+    title: 'PEA from Hypoxia',
+    description: '48yo female with severe pneumonia. PEA arrest. RT arrives late. Conditionally salvageable if hypoxia treated.',
+    difficulty: 'hard',
+  },
+  {
+    id: 'asystole_crowd',
+    title: 'Asystole — Overcrowded Room',
+    description: '78yo male, asystole. Too many people in the room. ROSC not achievable. Test your room management.',
+    difficulty: 'hard',
+  },
+];
+
+function generateSeedScenario(seedId: SeedScenarioId): Scenario {
+  const usedNames = new Set<string>();
+
+  if (seedId === 'vfib_rosc') {
+    const team: TeamMember[] = [
+      { ...generateTeamMember('nurse', usedNames), assignedRole: 'none', competence: 'high', compliance: 'cooperative' },
+      { ...generateTeamMember('nurse', usedNames), assignedRole: 'none', competence: 'medium', compliance: 'cooperative' },
+      { ...generateTeamMember('rt', usedNames), assignedRole: 'none', competence: 'high', compliance: 'cooperative' },
+      { ...generateTeamMember('tech', usedNames), assignedRole: 'none', competence: 'medium', compliance: 'cooperative' },
+    ];
+    return {
+      patientName: 'Robert Thompson',
+      patientAge: 62,
+      patientSex: 'M',
+      patientWeight: 85,
+      chiefComplaint: 'Acute chest pain radiating to jaw',
+      pmh: ['CAD', 'HTN', 'Prior MI'],
+      initialRhythm: 'vfib',
+      reversibleCause: 'mi',
+      roscAchievable: true,
+      roscConditions: 'ROSC achievable after treating MI and adequate resuscitation for 6 minutes',
+      roscTime: 360,
+      scheduledEvents: [
+        { time: 75, type: 'cpr_fatigue', fired: false },
+        { time: 120, type: 'new_staff_arrives', fired: false },
+        { time: 200, type: 'cpr_fatigue', fired: false },
+        { time: 280, type: 'lab_results', fired: false },
+      ],
+      initialTeam: team,
+      briefingText: 'Code Blue called. 62-year-old male patient, Robert Thompson, found unresponsive. Chief complaint: Acute chest pain radiating to jaw. PMH: CAD, HTN, Prior MI. No pulse detected. You are the code team leader.',
+      difficulty: 'medium',
+    };
+  }
+
+  if (seedId === 'pea_hypoxia') {
+    const team: TeamMember[] = [
+      { ...generateTeamMember('nurse', usedNames), assignedRole: 'none', competence: 'medium', compliance: 'cooperative' },
+      { ...generateTeamMember('nurse', usedNames), assignedRole: 'none', competence: 'low', compliance: 'resistant' },
+      { ...generateTeamMember('tech', usedNames), assignedRole: 'none', competence: 'low', compliance: 'cooperative' },
+      { ...generateTeamMember('student', usedNames), assignedRole: 'none', competence: 'low', compliance: 'cooperative' },
+    ];
+    return {
+      patientName: 'Margaret Robinson',
+      patientAge: 48,
+      patientSex: 'F',
+      patientWeight: 72,
+      chiefComplaint: 'Severe pneumonia with acute respiratory failure',
+      pmh: ['COPD', 'Asthma'],
+      initialRhythm: 'pea',
+      reversibleCause: 'hypoxia',
+      roscAchievable: true,
+      roscConditions: 'ROSC achievable if hypoxia addressed and adequate CPR maintained for 8 minutes',
+      roscTime: 480,
+      scheduledEvents: [
+        { time: 90, type: 'cpr_fatigue', fired: false },
+        { time: 150, type: 'difficult_airway', fired: false },
+        { time: 180, type: 'new_staff_arrives', fired: false },
+        { time: 240, type: 'iv_lost', fired: false },
+        { time: 300, type: 'cpr_fatigue', fired: false },
+        { time: 350, type: 'rhythm_change', fired: false },
+        { time: 420, type: 'new_staff_arrives', fired: false },
+      ],
+      initialTeam: team,
+      briefingText: 'Code Blue called. 48-year-old female patient, Margaret Robinson, found unresponsive. Chief complaint: Severe pneumonia with acute respiratory failure. PMH: COPD, Asthma. No pulse detected. You are the code team leader.',
+      difficulty: 'hard',
+    };
+  }
+
+  const team: TeamMember[] = [
+    { ...generateTeamMember('nurse', usedNames), assignedRole: 'none', competence: 'medium', compliance: 'cooperative' },
+    { ...generateTeamMember('nurse', usedNames), assignedRole: 'none', competence: 'medium', compliance: 'cooperative' },
+    { ...generateTeamMember('nurse', usedNames), assignedRole: 'none', competence: 'low', compliance: 'resistant' },
+    { ...generateTeamMember('rt', usedNames), assignedRole: 'none', competence: 'medium', compliance: 'cooperative' },
+    { ...generateTeamMember('tech', usedNames), assignedRole: 'none', competence: 'low', compliance: 'cooperative' },
+    { ...generateTeamMember('resident', usedNames), assignedRole: 'none', competence: 'medium', compliance: 'independent' },
+    { ...generateTeamMember('student', usedNames), assignedRole: 'none', competence: 'low', compliance: 'cooperative' },
+    { ...generateTeamMember('student', usedNames), assignedRole: 'none', competence: 'low', compliance: 'cooperative' },
+    { ...generateTeamMember('attending', usedNames), assignedRole: 'none', competence: 'high', compliance: 'independent' },
+  ];
+  return {
+    patientName: 'William Harris',
+    patientAge: 78,
+    patientSex: 'M',
+    patientWeight: 95,
+    chiefComplaint: 'Found unresponsive in bed, no preceding symptoms',
+    pmh: ['CHF', 'ESRD on HD', 'DM2', 'Prior CVA'],
+    initialRhythm: 'asystole',
+    reversibleCause: 'hyperkalemia',
+    roscAchievable: false,
+    roscConditions: 'ROSC not achievable in this scenario',
+    roscTime: 999999,
+    scheduledEvents: [
+      { time: 30, type: 'new_staff_arrives', fired: false },
+      { time: 60, type: 'new_staff_arrives', fired: false },
+      { time: 80, type: 'cpr_fatigue', fired: false },
+      { time: 100, type: 'overcrowding', fired: false },
+      { time: 120, type: 'family_arrives', fired: false },
+      { time: 160, type: 'new_staff_arrives', fired: false },
+      { time: 200, type: 'cpr_fatigue', fired: false },
+      { time: 250, type: 'staff_leaves', fired: false },
+    ],
+    initialTeam: team,
+    briefingText: 'Code Blue called. 78-year-old male patient, William Harris, found unresponsive in bed. PMH: CHF, ESRD on HD, DM2, Prior CVA. No pulse detected. Room is already crowded. You are the code team leader.',
+    difficulty: 'hard',
+  };
+}
+
+export function generateScenario(difficulty: 'easy' | 'medium' | 'hard' = 'medium', seedId?: SeedScenarioId): Scenario {
+  if (seedId) return generateSeedScenario(seedId);
   const rhythms: ArrestRhythm[] = ['vfib', 'vtach', 'pea', 'asystole'];
   const initialRhythm = pick(rhythms);
   const allCauses = [...H_CAUSES, ...T_CAUSES];

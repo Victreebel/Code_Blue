@@ -1,6 +1,6 @@
 import {
   type GameState, type GameAction, type PatientState, type ActionLogEntry,
-  type TeamMember, type StopwatchState, type ScoreBreakdown,
+  type TeamMember, type StopwatchState, type ScoreBreakdown, type PendingOrder, type OrderStatus,
   ROSC_RHYTHMS, SHOCKABLE_RHYTHMS,
 } from './types';
 import { getHRForRhythm, getBPForRhythm, getSpO2ForRhythm, getEtCO2, isShockable } from './aclsProtocol';
@@ -71,10 +71,15 @@ export const initialState: GameState = {
   rhythmChecksDone: 0,
   pulseChecksDone: 0,
   cprCycleStart: 0,
-  pendingCommands: [],
+  pendingOrders: [],
   roomCapacity: 8,
   closedLoopCount: 0,
   closedLoopSuccess: 0,
+  compressionFraction: 0,
+  totalCPRTime: 0,
+  totalInterruptionTime: 0,
+  chaosLevel: 0,
+  defibCharged: false,
 };
 
 function updateVitals(patient: PatientState): PatientState {
@@ -163,12 +168,68 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         newStopwatch.elapsed = newClock - newStopwatch.startTime;
       }
 
+      const delta = action.delta;
+      const newTotalCPR = state.totalCPRTime + (newPatient.cprInProgress ? delta : 0);
+      const newTotalInterruption = state.totalInterruptionTime + (!newPatient.cprInProgress && newClock > 5 && !ROSC_RHYTHMS.includes(newPatient.rhythm) ? delta : 0);
+      const compressionFraction = newClock > 0 ? newTotalCPR / newClock : 0;
+
+      let newOrders = state.pendingOrders.map(order => {
+        if (order.status === 'issued' && newClock - order.issuedAt > 1.5) {
+          return { ...order, status: 'heard' as OrderStatus };
+        }
+        if (order.status === 'heard' && newClock - order.issuedAt > 3) {
+          const target = newTeam.find(m => m.id === order.targetMemberId);
+          const willAck = target ? (target.competence === 'high' ? 0.95 : target.competence === 'medium' ? 0.8 : 0.6) : 0.7;
+          if (Math.random() < willAck) {
+            return { ...order, status: 'acknowledged' as OrderStatus, acknowledgedAt: newClock };
+          }
+          if (newClock > order.dueAt) {
+            return { ...order, status: 'missed' as OrderStatus, failureReason: 'Not acknowledged in time' };
+          }
+        }
+        if (order.status === 'acknowledged' && newClock - (order.acknowledgedAt ?? newClock) > 2) {
+          return { ...order, status: 'in_progress' as OrderStatus };
+        }
+        if (order.status === 'in_progress' && newClock >= order.dueAt) {
+          const target = newTeam.find(m => m.id === order.targetMemberId);
+          const willComplete = target ? (target.competence === 'high' ? 0.95 : target.competence === 'medium' ? 0.85 : 0.65) : 0.8;
+          if (Math.random() < willComplete) {
+            return { ...order, status: 'completed' as OrderStatus, completedAt: newClock };
+          }
+          return { ...order, status: 'failed' as OrderStatus, failureReason: 'Execution failed' };
+        }
+        return order;
+      });
+      newOrders = newOrders.filter(o => {
+        if (o.status === 'completed' || o.status === 'failed' || o.status === 'missed') {
+          return newClock - o.issuedAt < 30;
+        }
+        return true;
+      });
+
+      const inRoom = newTeam.filter(m => m.inRoom).length;
+      const unassigned = newTeam.filter(m => m.inRoom && m.assignedRole === 'none').length;
+      const complications = newLog.length - state.actionLog.length;
+      const overcrowded = inRoom > state.roomCapacity ? 15 : 0;
+      const chaosLevel = Math.min(100, Math.max(0,
+        overcrowded +
+        unassigned * 5 +
+        (newPatient.cprInProgress ? 0 : 20) +
+        (newOrders.filter(o => o.status === 'missed' || o.status === 'failed').length * 10) +
+        complications * 5
+      ));
+
       return {
         ...state,
         clock: newClock,
         patient: newPatient,
         team: newTeam,
         stopwatch: newStopwatch,
+        pendingOrders: newOrders,
+        totalCPRTime: newTotalCPR,
+        totalInterruptionTime: newTotalInterruption,
+        compressionFraction,
+        chaosLevel,
       };
     }
 
@@ -383,6 +444,13 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         };
       }
 
+      if (!state.defibCharged) {
+        return {
+          ...state,
+          actionLog: [...state.actionLog, log(state, 'Defibrillator not charged — charge first!', 'system')],
+        };
+      }
+
       const newPatient = {
         ...state.patient,
         lastShock: state.clock,
@@ -393,6 +461,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       return {
         ...state,
         patient: newPatient,
+        defibCharged: false,
         actionLog: [...state.actionLog, log(state, `Shock delivered (${newPatient.shockCount}) — 200J biphasic`, 'command', 'Resume CPR immediately')],
       };
     }
@@ -432,11 +501,25 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         return m;
       });
 
+      const medOrder: PendingOrder = {
+        id: `med-${state.clock}-${Math.random().toString(36).slice(2, 6)}`,
+        actionType: `medication_${action.medication}`,
+        targetMemberId: medAdmin?.id ?? null,
+        label: `${action.medication} ${action.dose}`,
+        issuedAt: state.clock,
+        dueAt: state.clock + 8,
+        status: 'issued',
+        acknowledgedAt: null,
+        completedAt: null,
+        failureReason: null,
+      };
+
       return {
         ...state,
         patient: newPatient,
         team: newTeam,
-        actionLog: [...state.actionLog, log(state, `${action.medication} ${action.dose} administered`, 'command')],
+        pendingOrders: [...state.pendingOrders, medOrder],
+        actionLog: [...state.actionLog, log(state, `${action.medication} ${action.dose} ordered`, 'command')],
       };
     }
 
@@ -481,6 +564,19 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         return m;
       });
 
+      const ivOrder: PendingOrder = {
+        id: `iv-${state.clock}-${Math.random().toString(36).slice(2, 6)}`,
+        actionType: action.io ? 'io_access' : 'iv_access',
+        targetMemberId: ivPerson?.id ?? null,
+        label: action.io ? 'IO Access' : 'IV Access',
+        issuedAt: state.clock,
+        dueAt: state.clock + (action.io ? 10 : 15),
+        status: 'issued',
+        acknowledgedAt: null,
+        completedAt: null,
+        failureReason: null,
+      };
+
       return {
         ...state,
         patient: {
@@ -489,6 +585,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
           hasIO: action.io ? true : state.patient.hasIO,
         },
         team: newTeam,
+        pendingOrders: [...state.pendingOrders, ivOrder],
         actionLog: [...state.actionLog, log(state, action.io ? 'IO access ordered' : 'IV access ordered', 'command')],
       };
     }
@@ -706,6 +803,98 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         patient: { ...state.patient, cprQuality: Math.max(0.3, state.patient.cprQuality - 0.2) },
         actionLog: [...state.actionLog, log(state, 'Compressor fatigued — CPR quality declining', 'complication')],
       };
+    }
+
+    case 'CHARGE_DEFIB': {
+      if (state.defibCharged) {
+        return { ...state, actionLog: [...state.actionLog, log(state, 'Defibrillator already charged', 'system')] };
+      }
+      const defibPerson = state.team.find(m => m.assignedRole === 'monitor_defib' && m.inRoom);
+      const newTeam = state.team.map(m => {
+        if (defibPerson && m.id === defibPerson.id) {
+          return { ...m, speechBubble: 'Charging to 200 joules!', speechBubbleUntil: state.clock + 4 };
+        }
+        return m;
+      });
+      return {
+        ...state,
+        defibCharged: true,
+        team: newTeam,
+        actionLog: [...state.actionLog, log(state, 'Defibrillator charging — 200J biphasic', 'command')],
+      };
+    }
+
+    case 'REQUEST_COMPRESSOR_SWITCH': {
+      const current = state.team.find(m => m.assignedRole === 'compressor' && m.inRoom);
+      const available = state.team.find(m => m.inRoom && m.assignedRole === 'none' && m.id !== current?.id);
+      if (!available) {
+        return { ...state, actionLog: [...state.actionLog, log(state, 'No one available to switch compressions!', 'system')] };
+      }
+      const newTeam = state.team.map(m => {
+        if (current && m.id === current.id) {
+          return { ...m, assignedRole: 'none' as const, confirmedRole: false, speechBubble: 'Switching out!', speechBubbleUntil: state.clock + 3 };
+        }
+        if (m.id === available.id) {
+          return { ...m, assignedRole: 'compressor' as const, confirmedRole: true, speechBubble: "I've got compressions!", speechBubbleUntil: state.clock + 3 };
+        }
+        return m;
+      });
+      return {
+        ...state,
+        team: newTeam,
+        patient: { ...state.patient, cprQuality: 0.85 },
+        cprCycleStart: state.clock,
+        actionLog: [...state.actionLog, log(state, `Compressor switch: ${available.name} taking over from ${current?.name ?? 'previous'}`, 'command')],
+      };
+    }
+
+    case 'ANNOUNCE_CYCLE': {
+      const timeSinceRhythmCheck = state.clock - state.patient.lastRhythmCheck;
+      const cycleMsg = `Cycle announcement: ${Math.floor(timeSinceRhythmCheck)}s since last rhythm check`;
+      return {
+        ...state,
+        actionLog: [...state.actionLog, log(state, cycleMsg, 'command', 'Approaching 2-min mark — prepare for rhythm check')],
+      };
+    }
+
+    case 'CLEAR_ROOM': {
+      const removed = state.team.filter(m => m.inRoom && m.assignedRole === 'none');
+      if (removed.length === 0) {
+        return { ...state, actionLog: [...state.actionLog, log(state, 'No non-essential personnel to remove', 'system')] };
+      }
+      const newTeam = state.team.map(m => {
+        if (m.inRoom && m.assignedRole === 'none') {
+          return { ...m, inRoom: false };
+        }
+        return m;
+      });
+      return {
+        ...state,
+        team: newTeam,
+        actionLog: [...state.actionLog, log(state, `Cleared room: removed ${removed.length} non-essential personnel`, 'command')],
+      };
+    }
+
+    case 'ADD_PENDING_ORDER': {
+      return {
+        ...state,
+        pendingOrders: [...state.pendingOrders, action.order],
+      };
+    }
+
+    case 'UPDATE_ORDER_STATUS': {
+      const newOrders = state.pendingOrders.map(o => {
+        if (o.id === action.orderId) {
+          return {
+            ...o,
+            status: action.status,
+            ...(action.status === 'completed' ? { completedAt: state.clock } : {}),
+            ...(action.failureReason ? { failureReason: action.failureReason } : {}),
+          };
+        }
+        return o;
+      });
+      return { ...state, pendingOrders: newOrders };
     }
 
     default:

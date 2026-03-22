@@ -1,0 +1,304 @@
+Now implement the architecture for the code simulation game prototype.
+
+Create a clean React + TypeScript project structure for this product with a playable vertical slice.
+
+Project structure:
+- /src
+  - /components
+    - TopHUD.tsx
+    - TeamRoster.tsx
+    - ActionPanel.tsx
+    - EventLog.tsx
+    - SpeechBubble.tsx
+    - LiveRoomCanvas.tsx
+    - PendingOrdersPanel.tsx
+    - DebriefScreen.tsx
+    - ReplayTimeline.tsx
+  - /engine
+    - gameLoop.ts
+    - scenarioGenerator.ts
+    - patientEngine.ts
+    - teamEngine.ts
+    - orderEngine.ts
+    - complicationEngine.ts
+    - scoringEngine.ts
+    - replayEngine.ts
+  - /store
+    - gameStore.ts
+  - /types
+    - game.ts
+  - /data
+    - staffTemplates.ts
+    - scenarios.ts
+    - complications.ts
+    - actions.ts
+  - App.tsx
+  - main.tsx
+
+Requirements:
+1. Build a single playable live code screen first
+2. Then implement debrief screen and replay timeline
+3. Use mocked but functional animation, not placeholder text-only screens
+4. Use buttons and dropdowns only, no text entry for gameplay
+5. Make the simulation update continuously on an internal timer
+
+Define TypeScript interfaces for:
+- ScenarioSeed
+- PatientState
+- TeamMember
+- TeamRole
+- PendingOrder
+- ActionEvent
+- ComplicationEvent
+- CodeScore
+- DebriefItem
+- ReplayMarker
+- RhythmType
+- ActionType
+- OrderStatus
+
+Suggested data model:
+
+RhythmType:
+- "vf"
+- "pvt"
+- "pea"
+- "asystole"
+
+OrderStatus:
+- "issued"
+- "heard"
+- "acknowledged"
+- "in_progress"
+- "completed"
+- "failed"
+- "missed"
+
+TeamRole:
+- "leader"
+- "compressor"
+- "airway"
+- "defib"
+- "meds"
+- "timekeeper"
+- "runner"
+- "observer"
+- "unassigned"
+
+PatientState fields:
+- rhythm
+- hasPulse
+- oxygenation
+- perfusion
+- etco2
+- airwaySecured
+- ivAccess
+- roscAchievable
+- roscAchieved
+- survivalWindowRemaining
+- causeCategory
+- compressionFraction
+- lastPulseCheckAt
+- lastRhythmCheckAt
+- lastShockAt
+- lastEpiAt
+- totalInterruptionSeconds
+
+TeamMember fields:
+- id
+- name
+- role
+- roleConfirmed
+- location
+- stress
+- reliability
+- acknowledgmentReliability
+- executionReliability
+- busyUntil
+- speech
+- activeTask
+- dismissed
+
+PendingOrder fields:
+- id
+- actionType
+- targetMemberId
+- label
+- issuedAt
+- dueAt
+- status
+- requiresClosedLoop
+- acknowledgedAt
+- completedAt
+- failureReason
+
+ActionEvent fields:
+- id
+- timestamp
+- actor
+- actionType
+- label
+- result
+- relatedOrderId
+
+ComplicationEvent fields:
+- id
+- timestamp
+- type
+- severity
+- resolved
+- description
+
+CodeScore fields:
+- clinical
+- timing
+- leadership
+- communication
+- compressionQuality
+- situationalAwareness
+- efficiency
+- total
+
+Core simulation logic:
+- game loop ticks every 250ms
+- elapsed code time updates continuously
+- patient state changes over time
+- orders expire if not acknowledged or completed
+- compressor fatigue appears if compressor role is not switched
+- pulse checks longer than threshold incur penalties
+- wrong timing of epi or shock affects score
+- some complications spawn randomly but plausibly
+- staff speak using short speech bubble strings based on state
+
+Implement basic scenario generation:
+- randomly pick one rhythm
+- randomly pick one cause category
+- randomly choose whether ROSC is achievable
+- randomly vary staff reliability
+- randomly queue a few possible complications
+
+Implement V1 complications:
+- overcrowded_room
+- compressor_fatigue
+- iv_infiltrated
+- rt_delayed
+- monitor_lead_disconnect
+- unclear_med_owner
+- prolonged_pulse_check
+- family_arrives
+
+Implement V1 actions:
+Leadership:
+- assign role
+- confirm role
+- redirect staff
+- request readback
+- clear room
+- assign timekeeper
+- request compressor switch
+
+ACLS:
+- rhythm check
+- pulse check
+- charge defibrillator
+- deliver shock
+- resume compressions
+- announce cycle
+
+Medications:
+- give epinephrine
+- give amiodarone
+
+Airway:
+- bag mask ventilation
+- call RT
+- place advanced airway
+- confirm ET tube
+- apply capnography
+
+End:
+- call time of death
+- transition to post ROSC care
+
+Scoring logic:
+Track and score:
+- correct rhythm branching
+- time to first shock for shockable rhythms
+- appropriate epi timing
+- compression interruptions
+- role assignment speed
+- closed-loop completion of orders
+- management of complications
+- inappropriate TOD
+- failure to control overcrowding when harmful
+
+UI design:
+TopHUD:
+- elapsed time
+- rhythm
+- pulse
+- ETCO2
+- chaos meter
+- score preview
+
+TeamRoster:
+- show all staff
+- current role
+- confirmed or unconfirmed role
+- active task
+- stress indicator
+
+ActionPanel:
+- tabbed categories
+- clicking an action may require selecting a staff target from dropdown
+- context-aware disabling when action is unavailable
+
+LiveRoomCanvas:
+- draw patient bed and room
+- animate staff as simple figures/cards around bed
+- animate compressor motion if compressions active
+- show speech bubbles
+- show flashing monitor area
+- show crowding visually when room overcrowded
+
+PendingOrdersPanel:
+- show active orders
+- show status color
+- show overdue state
+
+EventLog:
+- list recent actions and complications by timestamp
+
+DebriefScreen:
+- overall result
+- whether ROSC was achievable
+- total score
+- category scores
+- top mistakes
+- top strengths
+- recommended improvements
+
+ReplayTimeline:
+- horizontal timeline with markers for:
+  - rhythm checks
+  - pulse checks
+  - shocks
+  - epi
+  - role assignments
+  - complications
+  - ROSC
+  - TOD
+
+Behavior requirements:
+- orders should not auto-complete instantly
+- target staff may fail to acknowledge
+- player must sometimes confirm or redirect
+- speech bubbles should reflect confusion or confirmation
+- the system should feel active even when player does nothing
+
+Seed 3 example scenarios for testing:
+1. VF arrest, ROSC achievable, moderate staff reliability
+2. PEA arrest from hypoxia, conditionally salvageable, RT delayed
+3. Asystole, ROSC not achievable, overcrowded room and family interruption
+
+Deliver a polished working V1 with readable UI and mocked-but-real animation behavior.

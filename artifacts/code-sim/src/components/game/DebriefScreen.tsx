@@ -1,6 +1,7 @@
 import { type GameState, type ActionLogEntry, RHYTHM_LABELS, REVERSIBLE_CAUSE_LABELS } from '../../engine/types';
 import { formatTime } from '../../engine/gameReducer';
 import { getGrade } from '../../engine/scoringEngine';
+import ReplayTimeline from './ReplayTimeline';
 import { motion } from 'framer-motion';
 
 interface DebriefScreenProps {
@@ -37,9 +38,11 @@ export default function DebriefScreen({ state, onNewGame }: DebriefScreenProps) 
   const roscAchieved = actionLog.some(l => l.action.includes('ROSC'));
   const todCalled = actionLog.some(l => l.action.includes('Time of death'));
 
+  const cprFractionPct = Math.round(state.compressionFraction * 100);
+
   return (
     <div className="min-h-screen bg-gray-950 text-gray-200 p-6 overflow-y-auto">
-      <div className="max-w-4xl mx-auto">
+      <div className="max-w-5xl mx-auto">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -56,6 +59,16 @@ export default function DebriefScreen({ state, onNewGame }: DebriefScreenProps) 
               <span className="text-gray-500">Code Ended</span>
             )}
           </p>
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.15 }}
+          className="bg-gray-900 rounded-xl border border-gray-700 p-5 mb-6"
+        >
+          <h2 className="text-sm font-bold text-gray-300 tracking-wider mb-3">EVENT TIMELINE</h2>
+          <ReplayTimeline entries={actionLog} totalTime={clock} />
         </motion.div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -136,6 +149,12 @@ export default function DebriefScreen({ state, onNewGame }: DebriefScreenProps) 
               <div className="flex justify-between">
                 <span className="text-gray-500">Pulse Checks</span>
                 <span>{state.pulseChecksDone}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-500">Compression Fraction</span>
+                <span className={cprFractionPct >= 60 ? 'text-green-400' : cprFractionPct >= 40 ? 'text-yellow-400' : 'text-red-400'}>
+                  {cprFractionPct}%
+                </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-500">Closed-Loop Rate</span>

@@ -6,11 +6,16 @@ import { motion } from 'framer-motion';
 
 interface CommandPanelProps {
   patient: PatientState;
+  defibCharged: boolean;
   onOrderCPR: () => void;
   onOrderStopCPR: () => void;
   onOrderRhythmCheck: () => void;
   onOrderPulseCheck: () => void;
   onOrderShock: () => void;
+  onChargeDefib: () => void;
+  onRequestCompressorSwitch: () => void;
+  onAnnounceCycle: () => void;
+  onClearRoom: () => void;
   onOrderMedication: (med: MedicationType, dose: string) => void;
   onOrderAirway: (advanced: boolean) => void;
   onOrderIVAccess: (io: boolean) => void;
@@ -19,10 +24,11 @@ interface CommandPanelProps {
   onCallTimeOfDeath: () => void;
 }
 
-type PanelTab = 'cpr' | 'meds' | 'airway' | 'causes' | 'other';
+type PanelTab = 'cpr' | 'meds' | 'airway' | 'causes' | 'team';
 
 export default function CommandPanel({
-  patient, onOrderCPR, onOrderStopCPR, onOrderRhythmCheck, onOrderPulseCheck, onOrderShock,
+  patient, defibCharged, onOrderCPR, onOrderStopCPR, onOrderRhythmCheck, onOrderPulseCheck, onOrderShock,
+  onChargeDefib, onRequestCompressorSwitch, onAnnounceCycle, onClearRoom,
   onOrderMedication, onOrderAirway, onOrderIVAccess, onIdentifyCause,
   onTreatCause, onCallTimeOfDeath,
 }: CommandPanelProps) {
@@ -31,10 +37,10 @@ export default function CommandPanel({
 
   const tabs: { id: PanelTab; label: string; color: string }[] = [
     { id: 'cpr', label: 'CPR/Defib', color: 'text-red-400' },
-    { id: 'meds', label: 'Medications', color: 'text-blue-400' },
-    { id: 'airway', label: 'Airway/Access', color: 'text-cyan-400' },
+    { id: 'meds', label: 'Meds', color: 'text-blue-400' },
+    { id: 'airway', label: 'Airway/IV', color: 'text-cyan-400' },
     { id: 'causes', label: "H's & T's", color: 'text-purple-400' },
-    { id: 'other', label: 'Other', color: 'text-gray-400' },
+    { id: 'team', label: 'Team/Other', color: 'text-gray-400' },
   ];
 
   const cmdBtn = (label: string, onClick: () => void, color: string, disabled = false) => (
@@ -71,20 +77,30 @@ export default function CommandPanel({
         ))}
       </div>
 
-      <div className="space-y-1.5 max-h-[250px] overflow-y-auto pr-1">
+      <div className="space-y-1.5 max-h-[280px] overflow-y-auto pr-1">
         {activeTab === 'cpr' && (
           <>
             {!patient.cprInProgress
-              ? cmdBtn('▶ Start CPR', onOrderCPR, 'bg-red-900/60 text-red-300')
-              : cmdBtn('⏸ Hold CPR (for rhythm check)', onOrderStopCPR, 'bg-yellow-900/60 text-yellow-300')
+              ? cmdBtn('Start CPR', onOrderCPR, 'bg-red-900/60 text-red-300')
+              : cmdBtn('Hold CPR (for rhythm check)', onOrderStopCPR, 'bg-yellow-900/60 text-yellow-300')
             }
-            {cmdBtn('🔍 Rhythm Check', onOrderRhythmCheck, 'bg-green-900/60 text-green-300')}
-            {cmdBtn('🫀 Pulse Check', onOrderPulseCheck, 'bg-pink-900/60 text-pink-300')}
+            {cmdBtn('Rhythm Check', onOrderRhythmCheck, 'bg-green-900/60 text-green-300')}
+            {cmdBtn('Pulse Check', onOrderPulseCheck, 'bg-pink-900/60 text-pink-300')}
+            <div className="border-t border-gray-700 my-2" />
             {cmdBtn(
-              `⚡ Defibrillate (200J)`,
+              defibCharged ? 'Defib CHARGED — Ready' : 'Charge Defibrillator (200J)',
+              onChargeDefib,
+              defibCharged ? 'bg-orange-800/80 text-orange-200 font-bold' : 'bg-orange-900/60 text-orange-300',
+              defibCharged,
+            )}
+            {cmdBtn(
+              'Shock (Defibrillate)',
               onOrderShock,
               'bg-orange-900/60 text-orange-300',
-              !isShockable(patient.rhythm),
+              !isShockable(patient.rhythm) || !defibCharged,
+            )}
+            {!defibCharged && isShockable(patient.rhythm) && (
+              <p className="text-[10px] text-orange-400 px-1">Charge defib before shocking</p>
             )}
           </>
         )}
@@ -128,7 +144,7 @@ export default function CommandPanel({
               !patient.hasIV && !patient.hasIO,
             )}
             {(!patient.hasIV && !patient.hasIO) && (
-              <p className="text-[10px] text-red-400 mt-1 px-1">⚠ No IV/IO access — establish access first</p>
+              <p className="text-[10px] text-red-400 mt-1 px-1">No IV/IO access — establish access first</p>
             )}
           </>
         )}
@@ -143,7 +159,7 @@ export default function CommandPanel({
               patient.hasAdvancedAirway,
             )}
             {patient.hasAdvancedAirway && (
-              <p className="text-[10px] text-green-400 px-1">✓ Advanced airway in place</p>
+              <p className="text-[10px] text-green-400 px-1">Advanced airway in place</p>
             )}
             <div className="border-t border-gray-700 my-2" />
             {cmdBtn(
@@ -178,20 +194,24 @@ export default function CommandPanel({
             {patient.reversibleCauseIdentified && !patient.reversibleCauseTreated && (
               <>
                 <div className="border-t border-gray-700 my-2" />
-                {cmdBtn('💉 Treat Identified Cause', onTreatCause, 'bg-green-900/60 text-green-300')}
+                {cmdBtn('Treat Identified Cause', onTreatCause, 'bg-green-900/60 text-green-300')}
               </>
             )}
           </>
         )}
 
-        {activeTab === 'other' && (
+        {activeTab === 'team' && (
           <>
+            {cmdBtn('Switch Compressor', onRequestCompressorSwitch, 'bg-amber-900/60 text-amber-300')}
+            {cmdBtn('Announce Cycle Status', onAnnounceCycle, 'bg-indigo-900/60 text-indigo-300')}
+            {cmdBtn('Clear Room (Remove Non-Essential)', onClearRoom, 'bg-gray-800 text-gray-300')}
+            <div className="border-t border-gray-700 my-2" />
             {!confirmTOD ? (
               <button
                 onClick={() => setConfirmTOD(true)}
                 className="w-full text-left text-xs px-3 py-2 rounded bg-red-900/40 text-red-400 hover:bg-red-900/60"
               >
-                ☠ Call Time of Death
+                Call Time of Death
               </button>
             ) : (
               <motion.div
