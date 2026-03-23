@@ -1,0 +1,118 @@
+We need to fix a core simulation flaw: orders are applying clinical effects BEFORE they are completed.
+
+GOAL:
+Move all clinical effects (medications, IV/IO access) from order time to order COMPLETION time in the TICK loop.
+
+Make the following changes carefully without breaking existing logic.
+
+-----------------------------------
+1. UPDATE PendingOrder TYPE
+-----------------------------------
+Add a new field:
+
+effectApplied?: boolean
+
+Initialize this as false when creating new pending orders.
+
+-----------------------------------
+2. MODIFY ORDER_MEDICATION
+-----------------------------------
+Currently, ORDER_MEDICATION immediately:
+- updates patient.medications
+- sets lastEpinephrine
+- increments amiodaroneDoses
+
+REMOVE those immediate effects.
+
+ORDER_MEDICATION should ONLY:
+- create a PendingOrder
+- assign speech/busy to staff
+- log the order
+
+Do NOT modify patient state here except for logging.
+
+-----------------------------------
+3. MODIFY ORDER_IV_ACCESS
+-----------------------------------
+Currently, ORDER_IV_ACCESS immediately:
+- sets hasIV / hasIO
+
+REMOVE those immediate effects.
+
+ORDER_IV_ACCESS should ONLY:
+- create a PendingOrder
+- assign speech/busy to staff
+- log the order
+
+-----------------------------------
+4. APPLY EFFECTS IN TICK WHEN ORDER COMPLETES
+-----------------------------------
+In the TICK reducer, inside the pendingOrders loop:
+
+After an order transitions to:
+status === "completed"
+
+Add logic:
+
+IF order.effectApplied is not true:
+  apply the effect based on actionType
+
+Examples:
+
+if (order.actionType === "medication_epinephrine") {
+  newPatient.lastEpinephrine = newClock;
+  newPatient.medications.push({
+    type: "epinephrine",
+    dose: extract from order.label,
+    timeGiven: newClock
+  });
+}
+
+if (order.actionType === "medication_amiodarone") {
+  newPatient.amiodaroneDoses += 1;
+  newPatient.medications.push(...)
+}
+
+if (order.actionType === "iv_access") {
+  newPatient.hasIV = true;
+}
+
+if (order.actionType === "io_access") {
+  newPatient.hasIO = true;
+}
+
+After applying effect:
+set order.effectApplied = true
+
+-----------------------------------
+5. ENSURE FAILED / MISSED ORDERS DO NOTHING
+-----------------------------------
+If order.status is:
+- failed
+- missed
+
+DO NOT apply any clinical effect.
+
+-----------------------------------
+6. DO NOT BREAK:
+-----------------------------------
+- existing speech system
+- busy states
+- order lifecycle
+- action log
+- scoring system
+
+-----------------------------------
+7. TEST CONDITIONS
+-----------------------------------
+After implementing:
+
+- Ordering IV should NOT immediately give IV access
+- Epi should NOT affect patient until order completes
+- Failed orders should produce no clinical effect
+- Completed orders should apply effect exactly once
+
+-----------------------------------
+
+This change is critical to make the simulation realistic.
+Do not simplify or remove existing systems — only relocate when effects are applied.

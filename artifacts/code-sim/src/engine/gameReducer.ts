@@ -256,7 +256,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
               newLog.push(log({ ...state, clock: newClock },
                 `"${order.label}" duplicated — two people doing the same task`, 'team'));
             }
-            return { ...order, status: 'completed' as OrderStatus, completedAt: newClock };
+            return { ...order, status: 'completed' as OrderStatus, completedAt: newClock, effectApplied: false };
           }
 
           const failMode = determineOrderFailureMode(responder, { ...state, clock: newClock, pendingOrders: state.pendingOrders }, order.actionType);
@@ -264,6 +264,34 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         }
         return order;
       });
+
+      newOrders = newOrders.map(order => {
+        if (order.status === 'completed' && !order.effectApplied) {
+          const at = order.actionType;
+          if (at === 'medication_epinephrine') {
+            newPatient = { ...newPatient, lastEpinephrine: newClock, medications: [...newPatient.medications, { type: 'epinephrine' as const, dose: order.label.replace('epinephrine ', ''), timeGiven: newClock }] };
+          } else if (at === 'medication_amiodarone') {
+            newPatient = { ...newPatient, amiodaroneDoses: newPatient.amiodaroneDoses + 1, medications: [...newPatient.medications, { type: 'amiodarone' as const, dose: order.label.replace('amiodarone ', ''), timeGiven: newClock }] };
+          } else if (at === 'medication_lidocaine') {
+            newPatient = { ...newPatient, medications: [...newPatient.medications, { type: 'lidocaine' as const, dose: order.label.replace('lidocaine ', ''), timeGiven: newClock }] };
+          } else if (at === 'medication_bicarb') {
+            newPatient = { ...newPatient, medications: [...newPatient.medications, { type: 'bicarb' as const, dose: order.label.replace('bicarb ', ''), timeGiven: newClock }] };
+          } else if (at === 'medication_calcium') {
+            newPatient = { ...newPatient, medications: [...newPatient.medications, { type: 'calcium' as const, dose: order.label.replace('calcium ', ''), timeGiven: newClock }] };
+          } else if (at === 'medication_magnesium') {
+            newPatient = { ...newPatient, medications: [...newPatient.medications, { type: 'magnesium' as const, dose: order.label.replace('magnesium ', ''), timeGiven: newClock }] };
+          } else if (at === 'medication_atropine') {
+            newPatient = { ...newPatient, medications: [...newPatient.medications, { type: 'atropine' as const, dose: order.label.replace('atropine ', ''), timeGiven: newClock }] };
+          } else if (at === 'iv_access') {
+            newPatient = { ...newPatient, hasIV: true };
+          } else if (at === 'io_access') {
+            newPatient = { ...newPatient, hasIO: true };
+          }
+          return { ...order, effectApplied: true };
+        }
+        return order;
+      });
+
       newOrders = newOrders.filter(o => {
         if (o.status === 'completed' || o.status === 'failed' || o.status === 'missed') {
           return newClock - o.issuedAt < 30;
@@ -539,18 +567,6 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       }
 
       const medAdmin = state.team.find(m => (m.assignedRole === 'medication' || m.assignedRole === 'iv_access') && m.inRoom);
-      const medRecord = { type: action.medication, dose: action.dose, timeGiven: state.clock };
-      const newPatient = {
-        ...state.patient,
-        medications: [...state.patient.medications, medRecord],
-      };
-
-      if (action.medication === 'epinephrine') {
-        newPatient.lastEpinephrine = state.clock;
-      }
-      if (action.medication === 'amiodarone') {
-        newPatient.amiodaroneDoses += 1;
-      }
 
       const newTeam = state.team.map(m => {
         if (medAdmin && m.id === medAdmin.id) {
@@ -578,11 +594,11 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         completedAt: null,
         failureReason: null,
         failureMode: null,
+        effectApplied: false,
       };
 
       return {
         ...state,
-        patient: newPatient,
         team: newTeam,
         pendingOrders: [...state.pendingOrders, medOrder],
         actionLog: [...state.actionLog, log(state, `${action.medication} ${action.dose} ordered`, 'command')],
@@ -643,15 +659,11 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         completedAt: null,
         failureReason: null,
         failureMode: null,
+        effectApplied: false,
       };
 
       return {
         ...state,
-        patient: {
-          ...state.patient,
-          hasIV: action.io ? state.patient.hasIV : true,
-          hasIO: action.io ? true : state.patient.hasIO,
-        },
         team: newTeam,
         pendingOrders: [...state.pendingOrders, ivOrder],
         actionLog: [...state.actionLog, log(state, action.io ? 'IO access ordered' : 'IV access ordered', 'command')],

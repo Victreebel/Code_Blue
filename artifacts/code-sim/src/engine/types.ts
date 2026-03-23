@@ -155,6 +155,7 @@ export interface PendingOrder {
   completedAt: number | null;
   failureReason: string | null;
   failureMode: OrderFailureMode | null;
+  effectApplied?: boolean;
 }
 
 export interface PatientState {
