@@ -8,6 +8,12 @@ import { generateNewTeamMember } from './scenarioGenerator';
 const TICK_RATE = 100;
 const GAME_SPEED = 1;
 
+function formatTime(seconds: number): string {
+  const m = Math.floor(seconds / 60);
+  const s = Math.floor(seconds % 60);
+  return `${m}:${s.toString().padStart(2, '0')}`;
+}
+
 export function useGameEngine() {
   const [state, dispatch] = useReducer(gameReducer, initialState);
   const tickRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -15,6 +21,70 @@ export function useGameEngine() {
   const eventCheckRef = useRef<number>(0);
   const aiCheckRef = useRef<number>(0);
   const firedEventsRef = useRef<Set<number>>(new Set());
+  const prevPatientRef = useRef<typeof state.patient | null>(null);
+
+  useEffect(() => {
+    if (state.phase !== 'active') {
+      prevPatientRef.current = null;
+      return;
+    }
+    const prev = prevPatientRef.current;
+    const cur = state.patient;
+    const t = formatTime(state.clock);
+    if (!prev) {
+      prevPatientRef.current = cur;
+      return;
+    }
+
+    if (prev.hasIV !== cur.hasIV) {
+      console.log(`%c[${t}] hasIV: ${prev.hasIV} → ${cur.hasIV}`, 'color: #22d3ee; font-weight: bold');
+    }
+    if (prev.hasIO !== cur.hasIO) {
+      console.log(`%c[${t}] hasIO: ${prev.hasIO} → ${cur.hasIO}`, 'color: #22d3ee; font-weight: bold');
+    }
+    if (prev.rhythm !== cur.rhythm) {
+      console.log(`%c[${t}] rhythm: ${prev.rhythm} → ${cur.rhythm}`, 'color: #f59e0b; font-weight: bold');
+    }
+    if (prev.cprInProgress !== cur.cprInProgress) {
+      console.log(`%c[${t}] cprInProgress: ${prev.cprInProgress} → ${cur.cprInProgress}`, 'color: #a78bfa; font-weight: bold');
+    }
+    if (prev.hasAdvancedAirway !== cur.hasAdvancedAirway) {
+      console.log(`%c[${t}] hasAdvancedAirway: ${prev.hasAdvancedAirway} → ${cur.hasAdvancedAirway}`, 'color: #34d399; font-weight: bold');
+    }
+    if (prev.hasPulse !== cur.hasPulse) {
+      console.log(`%c[${t}] hasPulse: ${prev.hasPulse} → ${cur.hasPulse}`, 'color: #f43f5e; font-weight: bold');
+    }
+    if (prev.rolesConfirmed !== cur.rolesConfirmed) {
+      console.log(`%c[${t}] rolesConfirmed: ${prev.rolesConfirmed} → ${cur.rolesConfirmed}`, 'color: #94a3b8');
+    }
+    if (prev.defibCharged !== cur.defibCharged) {
+      console.log(`%c[${t}] defibCharged: ${prev.defibCharged} → ${cur.defibCharged}`, 'color: #fbbf24; font-weight: bold');
+    }
+    if (prev.medications.length !== cur.medications.length) {
+      const newMed = cur.medications[cur.medications.length - 1];
+      console.log(`%c[${t}] medication applied: ${newMed.type} ${newMed.dose}`, 'color: #fb923c; font-weight: bold');
+    }
+    if (Math.abs(prev.hr - cur.hr) >= 5) {
+      console.log(`[${t}] hr: ${prev.hr} → ${cur.hr}`);
+    }
+    if (Math.abs(prev.bp.systolic - cur.bp.systolic) >= 5) {
+      console.log(`[${t}] bp: ${prev.bp.systolic}/${prev.bp.diastolic} → ${cur.bp.systolic}/${cur.bp.diastolic}`);
+    }
+    if (Math.abs(prev.spo2 - cur.spo2) >= 2) {
+      console.log(`[${t}] spo2: ${prev.spo2} → ${cur.spo2}`);
+    }
+    if (Math.abs(prev.etco2 - cur.etco2) >= 3) {
+      console.log(`[${t}] etco2: ${prev.etco2} → ${cur.etco2}`);
+    }
+    if (prev.identifiedCause !== cur.identifiedCause) {
+      console.log(`%c[${t}] identifiedCause: ${prev.identifiedCause ?? 'none'} → ${cur.identifiedCause ?? 'none'}`, 'color: #e879f9; font-weight: bold');
+    }
+    if (prev.treatedCause !== cur.treatedCause) {
+      console.log(`%c[${t}] treatedCause: ${prev.treatedCause} → ${cur.treatedCause}`, 'color: #e879f9; font-weight: bold');
+    }
+
+    prevPatientRef.current = cur;
+  }, [state.patient, state.phase, state.clock]);
 
   const startGame = useCallback((difficulty: 'easy' | 'medium' | 'hard' = 'medium', seedId?: SeedScenarioId) => {
     const scenario = generateScenario(difficulty, seedId);
