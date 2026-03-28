@@ -1,10 +1,11 @@
-import { type PendingOrder, type OrderStatus, ORDER_FAILURE_LABELS } from '../../engine/types';
+import { type PendingOrder, type OrderStatus, type TeamMember, ORDER_FAILURE_LABELS } from '../../engine/types';
 import { formatTime } from '../../engine/gameReducer';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface PendingOrdersPanelProps {
   orders: PendingOrder[];
   clock: number;
+  team?: TeamMember[];
 }
 
 const STATUS_CONFIG: Record<OrderStatus, { label: string; color: string; bg: string }> = {
@@ -47,7 +48,7 @@ function StatusDots({ status }: { status: OrderStatus }) {
   );
 }
 
-export default function PendingOrdersPanel({ orders, clock }: PendingOrdersPanelProps) {
+export default function PendingOrdersPanel({ orders, clock, team }: PendingOrdersPanelProps) {
   const activeOrders = orders.filter(o => o.status !== 'completed' || clock - o.issuedAt < 10);
 
   if (activeOrders.length === 0) {
@@ -70,6 +71,8 @@ export default function PendingOrdersPanel({ orders, clock }: PendingOrdersPanel
             const cfg = STATUS_CONFIG[order.status];
             const elapsed = Math.floor(clock - order.issuedAt);
             const failLabel = order.failureMode ? ORDER_FAILURE_LABELS[order.failureMode] : order.failureReason;
+            const owner = order.heardByMemberId && team ? team.find(m => m.id === order.heardByMemberId) : null;
+            const isOverdue = elapsed > 20 && !['completed', 'failed', 'missed'].includes(order.status);
             return (
               <motion.div
                 key={order.id}
@@ -82,6 +85,8 @@ export default function PendingOrdersPanel({ orders, clock }: PendingOrdersPanel
                   <div className="flex items-center gap-2 min-w-0 flex-1">
                     <span className="text-gray-500 shrink-0">{formatTime(order.issuedAt)}</span>
                     <span className="text-gray-300 truncate">{order.label}</span>
+                    {owner && <span className="text-[9px] text-gray-500 shrink-0">[{owner.name.split(' ')[0]}]</span>}
+                    {isOverdue && <span className="text-[9px] text-orange-400 font-bold shrink-0">SLOW</span>}
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
                     <StatusDots status={order.status} />

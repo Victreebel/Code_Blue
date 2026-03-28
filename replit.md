@@ -105,19 +105,23 @@ Interactive ACLS (Advanced Cardiac Life Support) code simulation game for reside
   - `src/engine/scoringEngine.ts` — ACLS adherence scoring with grade calculation
   - `src/engine/gameReducer.ts` — Central game state reducer
   - `src/engine/useGameEngine.ts` — React hook wrapping reducer + game loop
+- **2.5D Visual Layout**: Full-screen isometric room view with CSS perspective transforms and depth simulation. Room is the centerpiece; all UI panels overlay it. Click staff/patient/defibrillator/door to interact via context menus. No typing required.
 - **UI Components** (`src/components/game/`):
   - `StartScreen.tsx` — Difficulty selection, seed scenario picker, instructions
   - `BriefingScreen.tsx` — Patient briefing before code begins
-  - `GameScreen.tsx` — Main game with vitals, room canvas, team panel, commands, event log
+  - `GameScreen.tsx` — Room-centric layout with HUD overlays (vitals top-left, orders/H's&T's/team top-right, event log bottom-right, critical alert banner in header)
+  - `IsometricRoom.tsx` — 2.5D room with CSS perspective, patient bed, crash cart, defibrillator, door, staff avatars with depth scaling/z-index, context menus, CPR animation, chaos tint, speech bubbles
   - `DebriefScreen.tsx` — Post-game scoring, replay timeline, action review
   - `VitalsMonitor.tsx` — ECG canvas + vital signs display
-  - `TeamPanel.tsx` — NPC team members with role assignment
-  - `CommandPanel.tsx` — Tabbed order interface (CPR/Defib, Meds, Airway/IV, H's&T's, Team/Other)
   - `EventLog.tsx` — Scrolling event timeline
   - `StopwatchWidget.tsx` — Manual stopwatch for timing
-  - `LiveRoomCanvas.tsx` — SVG room visualization with staff positions, CPR animation, speech bubbles, chaos meter
-  - `PendingOrdersPanel.tsx` — Pending order lifecycle display (issued→heard→ack→in_progress→completed/failed)
+  - `PendingOrdersPanel.tsx` — Pending order lifecycle with assignee names and overdue indicators
   - `ReplayTimeline.tsx` — Color-coded event replay timeline in debrief with filters
+  - `TeamPanel.tsx` — Legacy team panel (still available but not used in main game view)
+  - `CommandPanel.tsx` — Legacy command panel (still available but not used in main game view)
+  - `LiveRoomCanvas.tsx` — Legacy SVG room view (replaced by IsometricRoom)
+- **Critical Alert Banner**: Priority-sorted alerts in header: "NO CPR IN PROGRESS", "ORGANIZED RHYTHM — CHECK PULSE", "SHOCKABLE RHYTHM — CHARGE DEFIB", "RHYTHM CHECK OVERDUE", "EPINEPHRINE OVERDUE", "NO IV/IO ACCESS", "NO ONE ASSIGNED TO MEDS"
+- **Click Interactions**: Click staff → context menu with role assignment + role-specific actions (meds nurse gets medication buttons, airway gets airway buttons, IV person gets access buttons). Click patient → CPR/rhythm/pulse/airway/IV. Click defibrillator → charge/shock/medications. Click door → clear room.
 - **PendingOrder System**: Medications and IV/IO orders create pending orders that progress through lifecycle stages (issued→heard→acknowledged→in_progress→completed/failed/missed). Staff competence affects success rate. Rich failure modes: `wrong_person`, `prerequisite_missing`, `duplicate`, `abandoned`, `timeout`, `no_access`. **Deferred effects**: Clinical effects (medications, IV/IO access) are NOT applied when ordered — they only take effect when the order reaches `completed` status in the TICK loop. Failed/missed orders produce no clinical effect. The `effectApplied` flag ensures each effect is applied exactly once.
 - **Staff Archetypes** (`staffArchetypes.ts`): 8 behavior archetypes (experienced_nurse, hesitant_new_nurse, reliable_rt, delayed_rt, eager_intern, distractible_intern, efficient_pharmacist, interfering_senior) with unique BehaviorProfile traits, speech banks, delay patterns, clarification phrases, and wrong-task events.
 - **Physiology Realism** (`aclsProtocol.ts`): `computePhysiology()` calculates perfusionIndex, oxygenationIndex, roscProbability based on CPR quality, epinephrine timing, airway status, and reversible cause treatment. EtCO2 trend tracking.
