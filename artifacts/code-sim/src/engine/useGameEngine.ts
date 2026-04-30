@@ -68,6 +68,7 @@ export interface EngineActions {
 
   // §12 MVP action surface (used by CommandPanel)
   startCpr: () => void;
+  assignCompressor: () => void;
   switchCompressor: () => void;
   chargeDefib: () => void;
   shock: () => void;
@@ -177,6 +178,7 @@ export function useGameEngine(): UseGameEngineResult {
     assignRole: (memberId, role) => dispatchAction({ kind: 'assign_role', memberId, role }),
     confirmRole: (memberId) => dispatchAction({ kind: 'confirm_role', memberId }),
     startCpr: () => dispatchAction({ kind: 'order_cpr_start' }),
+    assignCompressor: () => dispatchAction({ kind: 'assign_compressor' }),
     pauseCpr: () => dispatchAction({ kind: 'order_cpr_pause' }),
     rhythmCheck: () => dispatchAction({ kind: 'order_rhythm_check' }),
     pulseCheck: () => dispatchAction({ kind: 'order_pulse_check' }),

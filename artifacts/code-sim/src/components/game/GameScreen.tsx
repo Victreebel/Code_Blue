@@ -29,7 +29,7 @@ function ProtocolReminders({ ui }: { ui: UIState }) {
   }
 
   if (isPerfusing && ui.clock > 10) {
-    reminders.push({ text: 'ORGANIZED RHYTHM — CHECK PULSE / DECLARE ROSC', color: 'text-pink-400', priority: 95, urgent: true });
+    reminders.push({ text: 'ORGANIZED RHYTHM — CHECK PULSE; ROSC DETECTS AUTOMATICALLY', color: 'text-pink-400', priority: 95, urgent: true });
   }
 
   const lastRhythm = ui.lastRhythmCheckAt ?? 0;

@@ -146,6 +146,35 @@ function applyUserAction(state: SimulationState, action: UserAction): Simulation
       s = { ...s, team: r.team, replay: r.replay };
       return s;
     }
+    case 'assign_compressor': {
+      // §12 MVP: "Assign Compressor" is not a timed order. It activates the initial
+      // compressor role only if no compressor is currently active/tracked.
+      if (s.clinical.currentCompressorId) return s;
+
+      const existing = s.team.members.find(m => m.assignedRole === 'compressor') ?? null;
+      if (existing) {
+        return {
+          ...s,
+          team: clearFatigue(s.team, existing.id),
+          clinical: { ...s.clinical, currentCompressorId: existing.id },
+        };
+      }
+
+      const candidates = s.team.members
+        .filter(m => m.inRoom && !m.isLeader && m.assignedRole !== 'none')
+        .slice()
+        .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+      const picked = candidates[0] ?? null;
+      if (!picked) return s;
+
+      const r = assignRole(s.team, s.replay, picked.id, 'compressor', clock);
+      return {
+        ...s,
+        team: clearFatigue(r.team, picked.id),
+        replay: r.replay,
+        clinical: { ...s.clinical, currentCompressorId: picked.id },
+      };
+    }
     case 'declare_rosc': {
       const valid = isPerfusing(s.rhythm.current) && s.rhythm.pulsePresent;
       const replay = append(s.replay, clock, 'user', 'user.declare_rosc', {
@@ -313,19 +342,42 @@ function applyOrderEffects(state: SimulationState, finalized: PendingOrder[]): S
         break;
       }
       case 'compressor_switch': {
-        const compressor = s.team.members.find(m => m.assignedRole === 'compressor');
-        if (compressor) {
-          const newTeam = clearFatigue(s.team, compressor.id);
+        const currentId = s.clinical.currentCompressorId;
+        const current = currentId ? s.team.members.find(m => m.id === currentId) ?? null : null;
+        const byRole = s.team.members.find(m => m.assignedRole === 'compressor') ?? null;
+        const active = current ?? byRole;
+        if (!active) break;
+
+        // Rotate to a different in-room, non-leader member when possible.
+        const rotateCandidates = s.team.members
+          .filter(m => m.inRoom && !m.isLeader && m.assignedRole !== 'none' && m.id !== active.id)
+          .slice()
+          .sort((a, b) => (a.fatigueLevel - b.fatigueLevel) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+        const next = rotateCandidates[0] ?? null;
+
+        if (!next) {
+          // Fallback: treat as "activate" the existing compressor.
           s = {
             ...s,
-            team: newTeam,
-            clinical: {
-              ...s.clinical,
-              lastCompressorSwitchAt: t,
-              currentCompressorId: compressor.id,
-            },
+            team: clearFatigue(s.team, active.id),
+            clinical: { ...s.clinical, lastCompressorSwitchAt: t, currentCompressorId: active.id },
           };
+          break;
         }
+
+        const newTeam: typeof s.team = {
+          members: s.team.members.map(m => {
+            if (m.id === active.id) return { ...m, assignedRole: next.assignedRole };
+            if (m.id === next.id) return { ...m, assignedRole: 'compressor' };
+            return m;
+          }),
+        };
+
+        s = {
+          ...s,
+          team: clearFatigue(newTeam, next.id),
+          clinical: { ...s.clinical, lastCompressorSwitchAt: t, currentCompressorId: next.id },
+        };
         break;
       }
       case 'iv_access':

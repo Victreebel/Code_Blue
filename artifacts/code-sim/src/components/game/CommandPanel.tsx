@@ -35,7 +35,7 @@ export default function CommandPanel({ ui, actions, pendingOrders }: CommandPane
           {ui.cprActive ? 'CPR running' : 'Start CPR'}
         </button>
 
-        <button onClick={actions.switchCompressor} className={btn('gray')}>
+        <button onClick={actions.assignCompressor} className={btn('gray')}>
           Assign Compressor
         </button>
 

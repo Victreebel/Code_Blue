@@ -3,6 +3,7 @@ import type { TeamRole, MedicationType } from './core';
 export type UserAction =
   | { kind: 'assign_role'; memberId: string; role: TeamRole }
   | { kind: 'confirm_role'; memberId: string }
+  | { kind: 'assign_compressor' }
   | { kind: 'order_cpr_start' }
   | { kind: 'order_cpr_pause' }
   | { kind: 'order_rhythm_check' }
