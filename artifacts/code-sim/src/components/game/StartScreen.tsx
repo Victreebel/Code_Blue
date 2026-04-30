@@ -1,20 +1,12 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { SEED_SCENARIOS, type SeedScenarioId } from '../../engine/scenarioGenerator';
 
 interface StartScreenProps {
-  onStart: (difficulty: 'easy' | 'medium' | 'hard', seedId?: SeedScenarioId) => void;
+  onStart: (seed?: string) => void;
 }
 
 export default function StartScreen({ onStart }: StartScreenProps) {
-  const [selectedDifficulty, setSelectedDifficulty] = useState<'easy' | 'medium' | 'hard'>('medium');
-  const [selectedSeed, setSelectedSeed] = useState<SeedScenarioId | null>(null);
-
-  const difficulties = [
-    { id: 'easy' as const, label: 'Intern', desc: 'Fewer team members, fewer complications, more forgiving timing', color: 'border-green-600 text-green-400' },
-    { id: 'medium' as const, label: 'Resident', desc: 'Standard team size, moderate complications, ACLS timing expected', color: 'border-yellow-600 text-yellow-400' },
-    { id: 'hard' as const, label: 'Attending', desc: 'Larger team, frequent complications, overcrowding, strict timing', color: 'border-red-600 text-red-400' },
-  ];
+  const [seed, setSeed] = useState('');
 
   return (
     <div className="min-h-screen bg-gray-950 flex items-center justify-center p-6">
@@ -36,64 +28,57 @@ export default function StartScreen({ onStart }: StartScreenProps) {
           </motion.div>
           <h1 className="text-4xl font-bold text-gray-100 mb-2">ACLS Code Simulator</h1>
           <p className="text-gray-500 text-sm max-w-md mx-auto">
-            Lead a cardiac arrest resuscitation. Manage your team, follow ACLS protocol,
-            identify reversible causes, and bring order to chaos.
+            Lead a witnessed cardiac arrest. Direct your team, follow ACLS protocol, and bring order to chaos.
           </p>
         </div>
 
-        <div className="space-y-3 mb-6">
-          {difficulties.map(d => (
-            <button
-              key={d.id}
-              onClick={() => { setSelectedDifficulty(d.id); setSelectedSeed(null); }}
-              className={`w-full p-4 rounded-lg border-2 text-left transition-all ${
-                selectedDifficulty === d.id && !selectedSeed
-                  ? `${d.color} bg-gray-900`
-                  : 'border-gray-800 text-gray-400 bg-gray-900/50 hover:border-gray-600'
-              }`}
-            >
-              <div className="font-bold text-sm">{d.label}</div>
-              <div className="text-xs text-gray-500 mt-0.5">{d.desc}</div>
-            </button>
-          ))}
+        <div
+          role="note"
+          aria-label="Educational disclaimer"
+          className="bg-amber-950/40 border border-amber-800/60 rounded-lg p-4 mb-6"
+        >
+          <div className="text-[10px] font-bold tracking-[0.2em] text-amber-300 mb-1">
+            EDUCATIONAL USE ONLY
+          </div>
+          <p className="text-[11px] text-amber-100/90 leading-relaxed">
+            This is a training and learning simulation. It is <span className="font-bold">not</span>{' '}
+            a medical device, is not a substitute for professional ACLS certification or clinical
+            judgment, and must not be used to direct real patient care. Clinical thresholds,
+            timings, and outcomes are simplified for teaching and may differ from current AHA
+            guidelines. By continuing you acknowledge this is a simulation only.
+          </p>
         </div>
 
-        <div className="mb-6">
-          <h3 className="text-xs font-bold text-gray-500 tracking-wider mb-2">OR CHOOSE A SCENARIO</h3>
-          <div className="space-y-2">
-            {SEED_SCENARIOS.map(s => (
-              <button
-                key={s.id}
-                onClick={() => { setSelectedSeed(s.id); setSelectedDifficulty(s.difficulty); }}
-                className={`w-full p-3 rounded-lg border text-left transition-all ${
-                  selectedSeed === s.id
-                    ? 'border-blue-500 bg-blue-950/40 text-blue-300'
-                    : 'border-gray-800 text-gray-400 bg-gray-900/50 hover:border-gray-600'
-                }`}
-              >
-                <div className="flex items-center justify-between">
-                  <span className="font-bold text-xs">{s.title}</span>
-                  <span className={`text-[10px] px-1.5 py-0.5 rounded ${
-                    s.difficulty === 'easy' ? 'bg-green-900/50 text-green-400' :
-                    s.difficulty === 'medium' ? 'bg-yellow-900/50 text-yellow-400' :
-                    'bg-red-900/50 text-red-400'
-                  }`}>
-                    {s.difficulty}
-                  </span>
-                </div>
-                <div className="text-[11px] text-gray-500 mt-0.5">{s.description}</div>
-              </button>
-            ))}
+        <div className="bg-gray-900/60 rounded-lg border border-gray-800 p-5 mb-6">
+          <h3 className="text-xs font-bold text-gray-300 mb-2 tracking-wider">SCENARIO</h3>
+          <div className="text-sm text-gray-200 font-bold mb-1">Witnessed VF Arrest — Bed 4</div>
+          <div className="text-xs text-gray-500 leading-relaxed">
+            58 yo M, prior MI, on heparin for chest pain. Bedside RN witnesses sudden collapse.
+            Telemetry shows ventricular fibrillation. You are the code leader. The team is converging.
+          </div>
+          <div className="mt-3 text-[11px] text-gray-500">
+            Real-time, 5–8 minutes. One scenario. Two scripted chaos events: compressor fatigue,
+            medication delay.
           </div>
         </div>
 
+        <div className="mb-6">
+          <label className="text-xs font-bold text-gray-500 tracking-wider mb-2 block">SEED (optional, for reproducible runs)</label>
+          <input
+            value={seed}
+            onChange={e => setSeed(e.target.value)}
+            placeholder="e.g. case-001"
+            className="w-full px-3 py-2 rounded bg-gray-900 border border-gray-800 text-sm text-gray-200 placeholder-gray-600 focus:outline-none focus:border-gray-700"
+          />
+        </div>
+
         <motion.button
-          onClick={() => onStart(selectedDifficulty, selectedSeed ?? undefined)}
+          onClick={() => onStart(seed.trim() || undefined)}
           className="w-full py-3 rounded-lg bg-red-700 text-white font-bold text-sm hover:bg-red-600 transition-colors tracking-wider"
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}
         >
-          {selectedSeed ? 'RUN SCENARIO' : 'RUN CODE'}
+          RUN CODE
         </motion.button>
 
         <div className="mt-8 bg-gray-900/60 rounded-lg border border-gray-800 p-4">
@@ -103,10 +88,8 @@ export default function StartScreen({ onStart }: StartScreenProps) {
             <li><span className="text-gray-300">Assign roles</span> to team members and confirm their acknowledgment</li>
             <li>Follow <span className="text-gray-300">ACLS protocol</span> — rhythm checks every 2 min, epi every 3-5 min</li>
             <li><span className="text-gray-300">Charge the defibrillator</span> before delivering a shock</li>
-            <li><span className="text-gray-300">Identify and treat</span> the reversible cause (H's and T's)</li>
-            <li>Handle <span className="text-gray-300">complications</span> — equipment failures, overcrowding, fatigue</li>
             <li><span className="text-gray-300">Switch compressors</span> every 2 minutes to maintain CPR quality</li>
-            <li><span className="text-gray-300">Clear the room</span> of non-essential personnel if overcrowded</li>
+            <li>Use <span className="text-gray-300">closed-loop confirmation</span> when an order needs verification</li>
           </ul>
         </div>
       </motion.div>

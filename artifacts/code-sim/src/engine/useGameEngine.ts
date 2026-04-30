@@ -1,229 +1,200 @@
-import { useReducer, useCallback, useRef, useEffect } from 'react';
-import { gameReducer, initialState } from './gameReducer';
-import { type GameAction, type Scenario, type TeamRole, type MedicationType, type ReversibleCause, type ComplicationType, type Rhythm, type OrderStatus, SHOCKABLE_RHYTHMS, NON_SHOCKABLE_RHYTHMS } from './types';
-import { generateScenario, type SeedScenarioId } from './scenarioGenerator';
-import { processSelfAssignments, generateAmbientSpeech, handleComplication, generateSpontaneousBehaviors } from './teamAI';
-import { generateNewTeamMember } from './scenarioGenerator';
+import { useCallback, useEffect, useReducer, useRef } from 'react';
+import {
+  initSimulationState,
+  startSimulation,
+  tickOnce,
+  dispatchUserAction,
+  finalizeAndScore,
+  type SimulationState,
+  type UserAction,
+} from './index';
+import { selectUIState, type UIState } from './ui/uiStateEngine';
+import { buildWitnessedVfArrest } from './scenario/witnessedVfArrest';
+import { createAccumulator, pollSteps } from './clock';
+import type { TeamRole, MedicationType } from './types/core';
+import type { ScenarioInput } from './types/scenario';
 
-const TICK_RATE = 100;
-const GAME_SPEED = 1;
+type Phase = SimulationState['phase'] | 'menu';
 
-function formatTime(seconds: number): string {
-  const m = Math.floor(seconds / 60);
-  const s = Math.floor(seconds % 60);
-  return `${m}:${s.toString().padStart(2, '0')}`;
+interface MenuState {
+  kind: 'menu';
+  scenarioInput: null;
+  state: null;
 }
 
-export function useGameEngine() {
-  const [state, dispatch] = useReducer(gameReducer, initialState);
-  const tickRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const lastTickRef = useRef<number>(0);
-  const eventCheckRef = useRef<number>(0);
-  const aiCheckRef = useRef<number>(0);
-  const firedEventsRef = useRef<Set<number>>(new Set());
-  const prevPatientRef = useRef<typeof state.patient | null>(null);
+interface ActiveState {
+  kind: 'sim';
+  scenarioInput: ScenarioInput;
+  state: SimulationState;
+}
 
-  useEffect(() => {
-    if (state.phase !== 'active') {
-      prevPatientRef.current = null;
-      return;
-    }
-    const prev = prevPatientRef.current;
-    const cur = state.patient;
-    const t = formatTime(state.clock);
-    if (!prev) {
-      prevPatientRef.current = cur;
-      return;
-    }
+type EngineWrapperState = MenuState | ActiveState;
 
-    if (prev.hasIV !== cur.hasIV) {
-      console.log(`%c[${t}] hasIV: ${prev.hasIV} → ${cur.hasIV}`, 'color: #22d3ee; font-weight: bold');
-    }
-    if (prev.hasIO !== cur.hasIO) {
-      console.log(`%c[${t}] hasIO: ${prev.hasIO} → ${cur.hasIO}`, 'color: #22d3ee; font-weight: bold');
-    }
-    if (prev.rhythm !== cur.rhythm) {
-      console.log(`%c[${t}] rhythm: ${prev.rhythm} → ${cur.rhythm}`, 'color: #f59e0b; font-weight: bold');
-    }
-    if (prev.cprInProgress !== cur.cprInProgress) {
-      console.log(`%c[${t}] cprInProgress: ${prev.cprInProgress} → ${cur.cprInProgress}`, 'color: #a78bfa; font-weight: bold');
-    }
-    if (prev.hasAdvancedAirway !== cur.hasAdvancedAirway) {
-      console.log(`%c[${t}] hasAdvancedAirway: ${prev.hasAdvancedAirway} → ${cur.hasAdvancedAirway}`, 'color: #34d399; font-weight: bold');
-    }
-    if (prev.hasPulse !== cur.hasPulse) {
-      console.log(`%c[${t}] hasPulse: ${prev.hasPulse} → ${cur.hasPulse}`, 'color: #f43f5e; font-weight: bold');
-    }
-    if (prev.rolesConfirmed !== cur.rolesConfirmed) {
-      console.log(`%c[${t}] rolesConfirmed: ${prev.rolesConfirmed} → ${cur.rolesConfirmed}`, 'color: #94a3b8');
-    }
-    if (prev.defibCharged !== cur.defibCharged) {
-      console.log(`%c[${t}] defibCharged: ${prev.defibCharged} → ${cur.defibCharged}`, 'color: #fbbf24; font-weight: bold');
-    }
-    if (prev.medications.length !== cur.medications.length) {
-      const newMed = cur.medications[cur.medications.length - 1];
-      console.log(`%c[${t}] medication applied: ${newMed.type} ${newMed.dose}`, 'color: #fb923c; font-weight: bold');
-    }
-    if (Math.abs(prev.hr - cur.hr) >= 5) {
-      console.log(`[${t}] hr: ${prev.hr} → ${cur.hr}`);
-    }
-    if (Math.abs(prev.bp.systolic - cur.bp.systolic) >= 5) {
-      console.log(`[${t}] bp: ${prev.bp.systolic}/${prev.bp.diastolic} → ${cur.bp.systolic}/${cur.bp.diastolic}`);
-    }
-    if (Math.abs(prev.spo2 - cur.spo2) >= 2) {
-      console.log(`[${t}] spo2: ${prev.spo2} → ${cur.spo2}`);
-    }
-    if (Math.abs(prev.etco2 - cur.etco2) >= 3) {
-      console.log(`[${t}] etco2: ${prev.etco2} → ${cur.etco2}`);
-    }
-    if (prev.identifiedCause !== cur.identifiedCause) {
-      console.log(`%c[${t}] identifiedCause: ${prev.identifiedCause ?? 'none'} → ${cur.identifiedCause ?? 'none'}`, 'color: #e879f9; font-weight: bold');
-    }
-    if (prev.treatedCause !== cur.treatedCause) {
-      console.log(`%c[${t}] treatedCause: ${prev.treatedCause} → ${cur.treatedCause}`, 'color: #e879f9; font-weight: bold');
-    }
+type EngineEvent =
+  | { kind: 'init'; scenarioInput: ScenarioInput }
+  | { kind: 'replace'; state: SimulationState }
+  | { kind: 'reset' };
 
-    prevPatientRef.current = cur;
-  }, [state.patient, state.phase, state.clock]);
+function reducer(prev: EngineWrapperState, ev: EngineEvent): EngineWrapperState {
+  if (ev.kind === 'init') {
+    const sim = initSimulationState(ev.scenarioInput);
+    return { kind: 'sim', scenarioInput: ev.scenarioInput, state: sim };
+  }
+  if (ev.kind === 'reset') {
+    return { kind: 'menu', scenarioInput: null, state: null };
+  }
+  if (prev.kind !== 'sim') return prev;
+  return { ...prev, state: ev.state };
+}
 
-  const startGame = useCallback((difficulty: 'easy' | 'medium' | 'hard' = 'medium', seedId?: SeedScenarioId) => {
-    const scenario = generateScenario(difficulty, seedId);
-    firedEventsRef.current = new Set();
-    dispatch({ type: 'START_SCENARIO', scenario });
+const INITIAL: EngineWrapperState = { kind: 'menu', scenarioInput: null, state: null };
+
+/**
+ * Engine actions. The UI-facing CommandPanel uses ONLY the §12 MVP subset:
+ *   startCpr, switchCompressor, chargeDefib, shock, medication (epi/amio),
+ *   rhythmCheck, pulseCheck, airwayBvm, requestClosedLoop.
+ * The remaining methods (pauseCpr, ivAccess, ioAccess, airwayAdvanced,
+ * announceCycle, declareRosc, callTimeOfDeath) are @internal — retained so
+ * the headless `replay()` API and scripted tests can drive every action the
+ * engine supports, but NOT exposed in the active-play UI.
+ */
+export interface EngineActions {
+  startGame: (seed?: string) => void;
+  beginCode: () => void;
+  resetToMenu: () => void;
+  viewDebrief: () => void;
+  assignRole: (memberId: string, role: TeamRole) => void;
+  confirmRole: (memberId: string) => void;
+
+  // §12 MVP action surface (used by CommandPanel)
+  startCpr: () => void;
+  switchCompressor: () => void;
+  chargeDefib: () => void;
+  shock: () => void;
+  medication: (med: MedicationType, doseMg: number) => void;
+  rhythmCheck: () => void;
+  pulseCheck: () => void;
+  airwayBvm: () => void;
+  requestClosedLoop: (orderId: string) => void;
+
+  /** @internal — engine/test only, not exposed in UI */
+  pauseCpr: () => void;
+  /** @internal */
+  ivAccess: () => void;
+  /** @internal */
+  ioAccess: () => void;
+  /** @internal */
+  airwayAdvanced: () => void;
+  /** @internal */
+  announceCycle: () => void;
+  /** @internal — gated; emits user.declare_rosc only */
+  declareRosc: () => void;
+  /** @internal */
+  callTimeOfDeath: () => void;
+}
+
+export interface UseGameEngineResult {
+  ui: UIState | null;
+  phase: Phase;
+  actions: EngineActions;
+  scenarioInput: ScenarioInput | null;
+  rawState: SimulationState | null;
+}
+
+export function useGameEngine(): UseGameEngineResult {
+  const [wrapper, dispatch] = useReducer(reducer, INITIAL);
+  const stateRef = useRef<SimulationState | null>(null);
+  stateRef.current = wrapper.kind === 'sim' ? wrapper.state : null;
+  const accRef = useRef(createAccumulator());
+
+  const dispatchAction = useCallback((act: UserAction) => {
+    if (!stateRef.current) return;
+    const next = dispatchUserAction(stateRef.current, act);
+    stateRef.current = next;
+    dispatch({ kind: 'replace', state: next });
+  }, []);
+
+  const startGame = useCallback((seed?: string) => {
+    const seedStr = seed && seed.length > 0 ? seed : `code_${Date.now()}`;
+    const input = buildWitnessedVfArrest(seedStr);
+    accRef.current = createAccumulator();
+    dispatch({ kind: 'init', scenarioInput: input });
   }, []);
 
   const beginCode = useCallback(() => {
-    lastTickRef.current = Date.now();
-    dispatch({ type: 'BEGIN_CODE' });
+    if (!stateRef.current) return;
+    accRef.current = createAccumulator();
+    const next = startSimulation(stateRef.current);
+    stateRef.current = next;
+    dispatch({ kind: 'replace', state: next });
+  }, []);
+
+  const resetToMenu = useCallback(() => {
+    accRef.current = createAccumulator();
+    dispatch({ kind: 'reset' });
+  }, []);
+
+  const viewDebrief = useCallback(() => {
+    if (!stateRef.current) return;
+    const next = finalizeAndScore(stateRef.current);
+    stateRef.current = next;
+    dispatch({ kind: 'replace', state: next });
   }, []);
 
   useEffect(() => {
-    if (state.running && state.phase === 'active') {
-      lastTickRef.current = Date.now();
-      tickRef.current = setInterval(() => {
-        const now = Date.now();
-        const delta = ((now - lastTickRef.current) / 1000) * GAME_SPEED;
-        lastTickRef.current = now;
-        dispatch({ type: 'TICK', delta });
-      }, TICK_RATE);
-    } else {
-      if (tickRef.current) {
-        clearInterval(tickRef.current);
-        tickRef.current = null;
+    if (wrapper.kind !== 'sim') return;
+    if (wrapper.state.phase !== 'active') return;
+    let raf: number | null = null;
+    const loop = (t: number) => {
+      const polled = pollSteps(accRef.current, t);
+      accRef.current = polled.nextAcc;
+      if (polled.steps > 0 && stateRef.current) {
+        let next = stateRef.current;
+        for (let i = 0; i < polled.steps; i++) {
+          if (next.phase !== 'active') break;
+          next = tickOnce(next);
+        }
+        if (next !== stateRef.current) {
+          stateRef.current = next;
+          dispatch({ kind: 'replace', state: next });
+        }
       }
-    }
-    return () => {
-      if (tickRef.current) clearInterval(tickRef.current);
+      if (stateRef.current && stateRef.current.phase === 'active') {
+        raf = requestAnimationFrame(loop);
+      }
     };
-  }, [state.running, state.phase]);
+    raf = requestAnimationFrame(loop);
+    return () => {
+      if (raf !== null) cancelAnimationFrame(raf);
+    };
+  }, [wrapper.kind === 'sim' ? wrapper.state.phase : 'menu']);
 
-  useEffect(() => {
-    if (!state.running || state.phase !== 'active' || !state.scenario) return;
-
-    const now = state.clock;
-
-    if (now - eventCheckRef.current > 1) {
-      eventCheckRef.current = now;
-
-      for (let i = 0; i < state.scenario.scheduledEvents.length; i++) {
-        const evt = state.scenario.scheduledEvents[i];
-        if (!firedEventsRef.current.has(i) && now >= evt.time) {
-          firedEventsRef.current.add(i);
-          dispatch({ type: 'FIRE_EVENT', event: evt });
-
-          const result = handleComplication(evt.type, state);
-          for (const msg of result.messages) {
-            if (msg.memberId) {
-              dispatch({ type: 'TEAM_SPEECH', memberId: msg.memberId, message: msg.message, duration: 6 });
-            }
-          }
-          if (result.newMembers) {
-            for (const m of result.newMembers) {
-              dispatch({ type: 'NEW_MEMBER_ARRIVES', member: m });
-            }
-          }
-
-          if (evt.type === 'iv_lost') {
-            dispatch({ type: 'COMPLICATION_IV_LOST' });
-          } else if (evt.type === 'equipment_failure') {
-            dispatch({ type: 'COMPLICATION_EQUIPMENT_FAILURE' });
-          } else if (evt.type === 'staff_leaves') {
-            const leaver = state.team.find(m =>
-              m.inRoom && m.assignedRole === 'none' && m.staffType !== 'nurse'
-            );
-            if (leaver) {
-              dispatch({ type: 'COMPLICATION_STAFF_LEAVES', memberId: leaver.id });
-            }
-          } else if (evt.type === 'rhythm_change') {
-            const allRhythms: Rhythm[] = [...SHOCKABLE_RHYTHMS, ...NON_SHOCKABLE_RHYTHMS];
-            const otherRhythms = allRhythms.filter(r => r !== state.patient.rhythm);
-            const newRhythm = otherRhythms[Math.floor(Math.random() * otherRhythms.length)];
-            dispatch({ type: 'COMPLICATION_RHYTHM_CHANGE', newRhythm });
-          } else if (evt.type === 'cpr_fatigue') {
-            dispatch({ type: 'COMPLICATION_CPR_FATIGUE' });
-          }
-        }
-      }
-    }
-
-    if (now - aiCheckRef.current > 3) {
-      aiCheckRef.current = now;
-
-      const selfAssigns = processSelfAssignments(state);
-      for (const sa of selfAssigns) {
-        dispatch({ type: 'MEMBER_SELF_ASSIGN', memberId: sa.memberId, role: sa.role });
-        dispatch({ type: 'TEAM_SPEECH', memberId: sa.memberId, message: sa.message, duration: 5 });
-      }
-
-      const ambient = generateAmbientSpeech(state);
-      for (const sp of ambient) {
-        dispatch({ type: 'TEAM_SPEECH', memberId: sp.memberId, message: sp.message, duration: 4 });
-      }
-
-      const spontaneous = generateSpontaneousBehaviors(state);
-      for (const evt of spontaneous) {
-        dispatch({ type: 'TEAM_SPEECH', memberId: evt.memberId, message: evt.message, duration: 5 });
-        if (evt.eventType !== 'initiative') {
-          const member = state.team.find(m => m.id === evt.memberId);
-          const name = member?.name ?? 'Staff';
-          const logMsg = evt.eventType === 'clarification' ? `${name} asks for clarification`
-            : evt.eventType === 'distraction' ? `${name} is distracted`
-            : evt.eventType === 'wrong_task' ? `${name} performed wrong task`
-            : evt.eventType === 'duplicate' ? `${name} duplicated a task`
-            : `${name}: behavioral event`;
-          dispatch({ type: 'FIRE_EVENT', event: { time: state.clock, type: 'cpr_fatigue', fired: true } });
-        }
-      }
-    }
-  }, [state.clock, state.running, state.phase, state.scenario]);
-
-  const actions = {
+  const actions: EngineActions = {
     startGame,
     beginCode,
-    assignRole: (memberId: string, role: TeamRole) => dispatch({ type: 'ASSIGN_ROLE', memberId, role }),
-    confirmRole: (memberId: string) => dispatch({ type: 'CONFIRM_ROLE', memberId }),
-    orderCPR: () => dispatch({ type: 'ORDER_CPR' }),
-    orderStopCPR: () => dispatch({ type: 'ORDER_STOP_CPR' }),
-    orderRhythmCheck: () => dispatch({ type: 'ORDER_RHYTHM_CHECK' }),
-    orderPulseCheck: () => dispatch({ type: 'ORDER_PULSE_CHECK' }),
-    orderShock: () => dispatch({ type: 'ORDER_SHOCK' }),
-    orderMedication: (med: MedicationType, dose: string) => dispatch({ type: 'ORDER_MEDICATION', medication: med, dose }),
-    orderAirway: (advanced: boolean) => dispatch({ type: 'ORDER_AIRWAY', advanced }),
-    orderIVAccess: (io: boolean) => dispatch({ type: 'ORDER_IV_ACCESS', io }),
-    identifyCause: (cause: ReversibleCause) => dispatch({ type: 'IDENTIFY_CAUSE', cause }),
-    treatCause: () => dispatch({ type: 'TREAT_CAUSE' }),
-    kickMember: (memberId: string) => dispatch({ type: 'KICK_MEMBER', memberId }),
-    chargeDefib: () => dispatch({ type: 'CHARGE_DEFIB' }),
-    requestCompressorSwitch: () => dispatch({ type: 'REQUEST_COMPRESSOR_SWITCH' }),
-    announceCycle: () => dispatch({ type: 'ANNOUNCE_CYCLE' }),
-    clearRoom: () => dispatch({ type: 'CLEAR_ROOM' }),
-    callTimeOfDeath: () => dispatch({ type: 'CALL_TIME_OF_DEATH' }),
-    toggleStopwatch: () => dispatch({ type: 'TOGGLE_STOPWATCH' }),
-    resetStopwatch: () => dispatch({ type: 'RESET_STOPWATCH' }),
-    pauseGame: () => dispatch({ type: 'PAUSE_GAME' }),
-    resumeGame: () => dispatch({ type: 'RESUME_GAME' }),
-    viewDebrief: () => dispatch({ type: 'VIEW_DEBRIEF' }),
+    resetToMenu,
+    viewDebrief,
+    assignRole: (memberId, role) => dispatchAction({ kind: 'assign_role', memberId, role }),
+    confirmRole: (memberId) => dispatchAction({ kind: 'confirm_role', memberId }),
+    startCpr: () => dispatchAction({ kind: 'order_cpr_start' }),
+    pauseCpr: () => dispatchAction({ kind: 'order_cpr_pause' }),
+    rhythmCheck: () => dispatchAction({ kind: 'order_rhythm_check' }),
+    pulseCheck: () => dispatchAction({ kind: 'order_pulse_check' }),
+    chargeDefib: () => dispatchAction({ kind: 'order_charge_defib' }),
+    shock: () => dispatchAction({ kind: 'order_shock' }),
+    ivAccess: () => dispatchAction({ kind: 'order_iv_access' }),
+    ioAccess: () => dispatchAction({ kind: 'order_io_access' }),
+    airwayBvm: () => dispatchAction({ kind: 'order_airway_bvm' }),
+    airwayAdvanced: () => dispatchAction({ kind: 'order_airway_advanced' }),
+    medication: (med, doseMg) => dispatchAction({ kind: 'order_medication', medication: med, doseMg }),
+    switchCompressor: () => dispatchAction({ kind: 'order_compressor_switch' }),
+    announceCycle: () => dispatchAction({ kind: 'order_announce_cycle' }),
+    requestClosedLoop: (orderId) => dispatchAction({ kind: 'request_closed_loop', orderId }),
+    callTimeOfDeath: () => dispatchAction({ kind: 'call_time_of_death' }),
+    declareRosc: () => dispatchAction({ kind: 'declare_rosc' }),
   };
 
-  return { state, actions };
+  const ui = wrapper.kind === 'sim' ? selectUIState(wrapper.state) : null;
+  const phase: Phase = wrapper.kind === 'sim' ? wrapper.state.phase : 'menu';
+  return { ui, phase, actions, scenarioInput: wrapper.scenarioInput, rawState: wrapper.kind === 'sim' ? wrapper.state : null };
 }

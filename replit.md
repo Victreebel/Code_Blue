@@ -93,46 +93,37 @@ Generated React Query hooks and fetch client from the OpenAPI spec (e.g. `useHea
 
 ### `artifacts/code-sim` (`@workspace/code-sim`)
 
-Interactive ACLS (Advanced Cardiac Life Support) code simulation game for resident physicians. Entirely frontend — no backend API needed.
+Interactive ACLS (Advanced Cardiac Life Support) code simulation per **CODE_BLUE_MASTER_SPEC_v1**. Entirely frontend — no backend API needed.
 
-- **Framework**: React + Vite + Tailwind CSS v4
-- **Animation**: framer-motion
-- **Architecture**: Game engine with `useReducer` pattern
-  - `src/engine/types.ts` — All game types, enums, labels
-  - `src/engine/aclsProtocol.ts` — ACLS protocol logic (rhythms, vitals, medication rules)
-  - `src/engine/scenarioGenerator.ts` — Random scenario generation (patients, teams, complications)
-  - `src/engine/teamAI.ts` — AI team member behaviors (self-assignment, speech, complication handling)
-  - `src/engine/scoringEngine.ts` — ACLS adherence scoring with grade calculation
-  - `src/engine/gameReducer.ts` — Central game state reducer
-  - `src/engine/useGameEngine.ts` — React hook wrapping reducer + game loop
-- **UI Components** (`src/components/game/`):
-  - `StartScreen.tsx` — Difficulty selection, seed scenario picker, instructions
-  - `BriefingScreen.tsx` — Patient briefing before code begins
-  - `GameScreen.tsx` — Main game with vitals, room canvas, team panel, commands, event log
-  - `DebriefScreen.tsx` — Post-game scoring, replay timeline, action review
-  - `VitalsMonitor.tsx` — ECG canvas + vital signs display
-  - `TeamPanel.tsx` — NPC team members with role assignment
-  - `CommandPanel.tsx` — Tabbed order interface (CPR/Defib, Meds, Airway/IV, H's&T's, Team/Other)
-  - `EventLog.tsx` — Scrolling event timeline
-  - `StopwatchWidget.tsx` — Manual stopwatch for timing
-  - `LiveRoomCanvas.tsx` — SVG room visualization with staff positions, CPR animation, speech bubbles, chaos meter
-  - `PendingOrdersPanel.tsx` — Pending order lifecycle display (issued→heard→ack→in_progress→completed/failed)
-  - `ReplayTimeline.tsx` — Color-coded event replay timeline in debrief with filters
-- **PendingOrder System**: Medications and IV/IO orders create pending orders that progress through lifecycle stages (issued→heard→acknowledged→in_progress→completed/failed/missed). Staff competence affects success rate. Rich failure modes: `wrong_person`, `prerequisite_missing`, `duplicate`, `abandoned`, `timeout`, `no_access`. **Deferred effects**: Clinical effects (medications, IV/IO access) are NOT applied when ordered — they only take effect when the order reaches `completed` status in the TICK loop. Failed/missed orders produce no clinical effect. The `effectApplied` flag ensures each effect is applied exactly once.
-- **Staff Archetypes** (`staffArchetypes.ts`): 8 behavior archetypes (experienced_nurse, hesitant_new_nurse, reliable_rt, delayed_rt, eager_intern, distractible_intern, efficient_pharmacist, interfering_senior) with unique BehaviorProfile traits, speech banks, delay patterns, clarification phrases, and wrong-task events.
-- **Physiology Realism** (`aclsProtocol.ts`): `computePhysiology()` calculates perfusionIndex, oxygenationIndex, roscProbability based on CPR quality, epinephrine timing, airway status, and reversible cause treatment. EtCO2 trend tracking.
-- **Compressor Fatigue**: CPR quality degrades over time when the same person compresses. Fatigue resets on compressor switch.
-- **Chaos Meter**: Real-time chaos level calculated from overcrowding, unassigned roles, CPR gaps, failed orders, complications.
-- **Compression Fraction HUD**: Tracks total CPR time vs total code time.
-- **Defibrillator Workflow**: Must charge defibrillator (200J) before shock can be delivered. Charge resets after each shock.
-- **New Team Actions**: Switch compressor, announce cycle status, clear room of non-essential personnel.
-- **Pulse Check Mechanic**: Player must explicitly check for a pulse to confirm ROSC (not auto-detected). Organized rhythms prompt "CHECK PULSE" reminders. Inappropriate pulse checks on shockable/asystole rhythms incur a -5 penalty. 10-second cooldown between checks.
-- **Seed Scenarios**: 3 predetermined scenarios for consistent testing: VF/ROSC, PEA/Hypoxia, Asystole/Overcrowded
-- **Game Flow**: Menu → Briefing → Active Code → Ended → Debrief → Menu
-- **Difficulty levels**: Intern (easy), Resident (medium), Attending (hard)
-- **Scoring**: 10 categories (rhythmCheckTiming, epinephrineTiming, defibrillationTiming, medicationChoices, pulseChecks, closedLoopComm, teamManagement, reversibleCauses, overallLeadership, roomControl) totaling 102 max + penalties. Room control has 5 sub-dimensions.
-- **Debrief Intelligence** (`scoringEngine.ts`): `generateDebriefAnalysis()` produces playerImpact rating, topMistakes/topStrengths with impact descriptions, primaryFailureDomain classification, and roomControlBreakdown (roleClarity, crowdControl, assignmentFollowThrough, ambiguityCorrection, delayRecovery).
-- **UI Priority Hierarchy**: Protocol reminders are priority-sorted; the most urgent reminder is visually dominant while secondary alerts are de-emphasized.
+- **Framework**: React + Vite + Tailwind CSS v4 + framer-motion
+- **Architecture**: Modular engine, fully deterministic. UI components are dumb selectors over `UIState`.
+- **Determinism**: Single seeded PRNG (mulberry32 + fnv1a string hash) in `src/engine/rng.ts`. **Zero `Math.random` calls in `src/engine`** — enforced by a guard test.
+- **Engine modules** (`src/engine/`):
+  - `rng.ts` — fnv1a + mulberry32 (`draw`, `drawInt`, `drawChoice`)
+  - `clock.ts` — fixed-step accumulator (`STEP_SECONDS = 0.1`)
+  - `clinical/aclsConstants.ts` — salvaged ACLS constants
+  - `types/` — pure type modules (core, scenario, rhythm, physiology, team, orders, clinical, replay, score, state, actions)
+  - `replay/replayEngine.ts` — append-only `ReplayEvent[]` (typed dotted eventTypes; never string-grepped)
+  - `scenario/witnessedVfArrest.ts` + `scenario/scenarioEngine.ts` — single scenario `witnessed_vf_rosc_v1`, with two scripted chaos events: `compressor_fatigue` (random 60–120s) and `medication_delay` (fires on first medication order, +35s)
+  - `rhythm/rhythmEngine.ts` — deterministic rhythm transitions including ROSC probability after shocks
+  - `physiology/physiologyEngine.ts` — vitals, EtCO2, perfusion (deterministic; no RNG calls during tick)
+  - `team/{archetypes,teamEngine}.ts` — 8 archetypes; team initialized from scenario; CONFIRM closes the loop on a role
+  - `orders/pendingOrdersEngine.ts` — orders pre-schedule their entire timeline at issuance (`scheduleOrder` computes heardAt/acknowledgedAt/inProgressAt/terminalAt + plannedOutcome). Tick only promotes status — no RNG consumed in tick. Terminal `OrderStatus` includes `completed | missed | failed | delayed | wrong_recipient`; `isTerminal()` exported helper.
+  - `scoring/schemeE.ts` — Scheme E with 5 buckets totaling 100, each with an `arithmetic` string. `effectiveCompletions(events)` helper treats `pendingOrder.completed` and `pendingOrder.delayed` as successful for clinical lookups; `pendingOrder.wrong_recipient` is counted separately as an assignment penalty:
+    - ACLS Timing (15) · CPR Continuity (20) · Defibrillation & Medication Protocol (15) · Delegation & Closed-Loop (25) · Leadership Under Chaos (25)
+  - `ui/uiStateEngine.ts` — `selectUIState()` produces a view-model consumed by all React components
+  - `replay/replayFormatter.ts` — `formatEvent`, `formatEvents`, `formatEventsAsText`, `formatClock` for text export of `ReplayEvent[]` (dedicated formatter; UI's `EventLog` keeps its rich rendering for in-game display).
+  - `index.ts` — composite `initSimulationState`, `startSimulation`, `tickOnce`, `dispatchUserAction`, `finalizeAndScore`, plus headless **`replay(seed, ScheduledAction[], options?) -> ReplayEvent[]`** API for deterministic re-runs / golden-trace tests.
+  - `useGameEngine.ts` — React hook with `requestAnimationFrame` loop and fixed-step accumulator
+- **ScoreReport shape**: `{ total, generatedAt, aclsTiming, cprContinuity, defibMed, delegationClc, leadershipChaos, buckets[], arithmetic: Record<id,string>, strengths: string[], misses: string[], teachingPoints: string[] }`. Each named bucket is a `ScoreBucket { id, label, max, awarded, arithmetic, reasons }`.
+- **ROSC gating**: `dispatch_user_action({kind:'declare_rosc'})` only ends the scenario when the current rhythm is perfusing AND `pulsePresent`. Otherwise it appends `user.declare_rosc` (with `valid:false`) and `system.rosc_declaration_rejected` and the simulation continues.
+- **UI components** (`src/components/game/`): `StartScreen` (with mandatory **EDUCATIONAL USE ONLY** disclaimer above the scenario card), `BriefingScreen`, `GameScreen`, `VitalsMonitor`, `StopwatchWidget`, `TeamPanel` (with CONFIRM buttons), `LiveRoomCanvas`, `CommandPanel`, `PendingOrdersPanel`, `EventLog`, `ReplayTimeline`, `DebriefScreen`.
+- **CommandPanel — exactly the §12 MVP action set** (single grid, no tabs, no H&Ts): Start CPR · Assign Compressor · Rotate Compressor · Charge Defib · SHOCK · Give Epinephrine 1mg · Give Amiodarone (300mg→150mg) · Rhythm Check · Pulse Check · Manage Airway · Ask for closed-loop confirmation (targets the most recent open order). Out-of-scope controls (Hold CPR, Announce Cycle, Declare ROSC button, Call Time of Death button, separate IV/IO/BVM/advanced-airway buttons, lidocaine/bicarb/calcium/magnesium, the END & DEBRIEF header shortcut, and per-order CLC quick-action) have been removed.
+- **Engine action surface boundary**: `EngineActions` interface (`useGameEngine.ts`) splits methods into the §12 MVP subset (UI-facing) vs `@internal` JSDoc-tagged methods (`pauseCpr`, `ivAccess`, `ioAccess`, `airwayAdvanced`, `announceCycle`, `declareRosc`, `callTimeOfDeath`) retained only for the headless `replay()` API and scripted tests.
+- **PendingOrders display**: `selectUIState()` keeps terminal orders (`completed | delayed | wrong_recipient | failed | missed`) visible for `TERMINAL_DISPLAY_SECONDS = 5` after their `terminalAt` so the queue-advancement UX shows the final state before fading out.
+- **Game flow**: Menu → Briefing → Active → Debrief. Real-time budget 5–8 minutes (300–480s). The scenario ends via budget timeout, via auto-ROSC (the engine emits `system.rosc_detected` and auto-finalizes with `outcome='rosc'` whenever a shock produces a perfusing rhythm with pulse — the §12 UI has no manual ROSC button), or via the gated `declare_rosc` / `call_time_of_death` engine actions (still available to the headless `replay()` API and tests).
+- **Scheme E leadership scoring (Leadership Under Chaos, max 25)**: rhythm-check cadence (max 5, in-UI signal — replaces the prior out-of-UI `announce_cycle` count) + chaos response (max 10) + decision/outcome (max 10).
+- **Tests** (`src/engine/__tests__/run.ts`, run with `pnpm --filter @workspace/code-sim run test`): Math.random guard, determinism, golden-trace event types, Scheme E bucket math, well-formed arithmetic strings, empty-replay floor, chaos firing windows, premature-ROSC rejection, `ScoreReport` named-bucket shape + narrative, `replay()` API determinism, `formatEvent` text format, shock-induced auto-ROSC reachable via §12 UI actions only. **13/13 passing.**
 
 ### `scripts` (`@workspace/scripts`)
 

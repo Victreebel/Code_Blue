@@ -1,75 +1,59 @@
-import { type Scenario, RHYTHM_LABELS, STAFF_TYPE_LABELS } from '../../engine/types';
 import { motion } from 'framer-motion';
+import type { ScenarioInput } from '../../engine/types/scenario';
 
 interface BriefingScreenProps {
-  scenario: Scenario;
+  scenarioInput: ScenarioInput;
   onBegin: () => void;
 }
 
-export default function BriefingScreen({ scenario, onBegin }: BriefingScreenProps) {
+export default function BriefingScreen({ scenarioInput, onBegin }: BriefingScreenProps) {
   return (
     <div className="min-h-screen bg-gray-950 flex items-center justify-center p-6">
       <motion.div
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
+        initial={{ opacity: 0, y: 30 }}
+        animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4 }}
-        className="max-w-xl w-full"
+        className="max-w-2xl w-full"
       >
-        <motion.div
-          className="text-center mb-6"
-          animate={{ opacity: [1, 0.5, 1] }}
-          transition={{ duration: 1, repeat: 3 }}
-        >
-          <div className="text-red-500 text-2xl font-bold tracking-[0.4em] mb-1">CODE BLUE</div>
-          <div className="text-gray-500 text-xs">INCOMING</div>
-        </motion.div>
-
-        <div className="bg-gray-900 rounded-xl border border-gray-700 p-6">
-          <div className="border-b border-gray-800 pb-4 mb-4">
-            <h2 className="text-lg font-bold text-gray-200">{scenario.patientName}</h2>
-            <p className="text-sm text-gray-400 mt-1">
-              {scenario.patientAge}-year-old {scenario.patientSex === 'M' ? 'male' : 'female'} | {scenario.patientWeight} kg
-            </p>
+        <div className="text-center mb-6">
+          <div className="inline-flex items-center gap-2 mb-3">
+            <div className="w-2 h-2 rounded-full bg-red-500" />
+            <span className="text-red-400 text-xs font-bold tracking-[0.3em]">CODE BLUE — BED 4</span>
+            <div className="w-2 h-2 rounded-full bg-red-500" />
           </div>
+          <h1 className="text-2xl font-bold text-gray-100">Witnessed Cardiac Arrest</h1>
+          <div className="text-xs text-gray-500 mt-1">Seed: {scenarioInput.seed}</div>
+        </div>
 
-          <div className="space-y-3 text-sm">
-            <div>
-              <span className="text-gray-500 text-xs">Chief Complaint:</span>
-              <p className="text-gray-200 mt-0.5">{scenario.chiefComplaint}</p>
-            </div>
+        <div className="bg-gray-900/70 rounded-lg border border-gray-800 p-5 mb-4">
+          <div className="text-xs font-bold text-gray-400 mb-2 tracking-wider">PATIENT</div>
+          <div className="text-sm text-gray-200 mb-1">
+            {scenarioInput.patientName}, {scenarioInput.patientAge}{scenarioInput.patientSex}, {scenarioInput.patientWeight} kg
+          </div>
+          <div className="text-xs text-gray-400">PMH: {scenarioInput.pmh.join(', ')}</div>
+          <div className="text-xs text-gray-400 mt-1">Chief: {scenarioInput.chiefComplaint}</div>
+        </div>
 
-            <div>
-              <span className="text-gray-500 text-xs">Past Medical History:</span>
-              <p className="text-gray-200 mt-0.5">{scenario.pmh.join(', ')}</p>
-            </div>
+        <div className="bg-gray-900/70 rounded-lg border border-gray-800 p-5 mb-4">
+          <div className="text-xs font-bold text-gray-400 mb-2 tracking-wider">BRIEFING</div>
+          <pre className="text-xs text-gray-300 whitespace-pre-wrap font-sans leading-relaxed">{scenarioInput.briefingText}</pre>
+        </div>
 
-            <div>
-              <span className="text-gray-500 text-xs">Situation:</span>
-              <p className="text-gray-300 mt-0.5 leading-relaxed">{scenario.briefingText}</p>
-            </div>
-
-            <div className="bg-gray-800/60 rounded-lg p-3 mt-4">
-              <span className="text-gray-500 text-xs">Initial Team Available:</span>
-              <div className="flex flex-wrap gap-2 mt-1.5">
-                {scenario.initialTeam.map(m => (
-                  <span key={m.id} className="text-xs bg-gray-700/60 text-gray-300 px-2 py-0.5 rounded">
-                    {m.name} ({STAFF_TYPE_LABELS[m.staffType]})
-                  </span>
-                ))}
+        <div className="bg-gray-900/70 rounded-lg border border-gray-800 p-5 mb-6">
+          <div className="text-xs font-bold text-gray-400 mb-2 tracking-wider">YOUR TEAM</div>
+          <div className="space-y-1.5">
+            {scenarioInput.team.map(m => (
+              <div key={m.id} className="flex items-center justify-between text-xs">
+                <span className={m.isLeader ? 'text-amber-300 font-bold' : 'text-gray-300'}>{m.name}</span>
+                <span className="text-gray-500">{m.staffType.toUpperCase()} — {m.initialRole}</span>
               </div>
-            </div>
-
-            <div className="bg-red-900/20 rounded-lg p-3 border border-red-900/40">
-              <p className="text-xs text-red-400">
-                Patient is unresponsive. No pulse. You are the code team leader. The clock starts when you begin.
-              </p>
-            </div>
+            ))}
           </div>
         </div>
 
         <motion.button
           onClick={onBegin}
-          className="w-full mt-6 py-3 rounded-lg bg-red-700 text-white font-bold text-sm hover:bg-red-600 transition-colors tracking-wider"
+          className="w-full py-3 rounded-lg bg-red-700 text-white font-bold text-sm hover:bg-red-600 transition-colors tracking-wider"
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}
         >

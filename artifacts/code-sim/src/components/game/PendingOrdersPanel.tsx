@@ -1,101 +1,53 @@
-import { type PendingOrder, type OrderStatus, ORDER_FAILURE_LABELS } from '../../engine/types';
-import { formatTime } from '../../engine/gameReducer';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
+import type { PendingOrder } from '../../engine/types/orders';
 
 interface PendingOrdersPanelProps {
   orders: PendingOrder[];
   clock: number;
 }
 
-const STATUS_CONFIG: Record<OrderStatus, { label: string; color: string; bg: string }> = {
-  issued: { label: 'ORDERED', color: 'text-yellow-400', bg: 'bg-yellow-900/30' },
-  heard: { label: 'HEARD', color: 'text-amber-300', bg: 'bg-amber-900/20' },
-  acknowledged: { label: 'ACK', color: 'text-blue-400', bg: 'bg-blue-900/30' },
-  in_progress: { label: 'IN PROGRESS', color: 'text-cyan-400', bg: 'bg-cyan-900/30' },
-  completed: { label: 'DONE', color: 'text-green-400', bg: 'bg-green-900/30' },
-  failed: { label: 'FAILED', color: 'text-red-400', bg: 'bg-red-900/30' },
-  missed: { label: 'MISSED', color: 'text-red-500', bg: 'bg-red-900/40' },
+const STATUS_COLORS: Record<string, string> = {
+  issued: 'text-gray-400 bg-gray-800/60',
+  heard: 'text-blue-300 bg-blue-900/40',
+  acknowledged: 'text-amber-200 bg-amber-900/40',
+  in_progress: 'text-green-300 bg-green-900/40',
+  completed: 'text-green-400 bg-green-900/60',
+  delayed: 'text-yellow-300 bg-yellow-900/40',
+  wrong_recipient: 'text-orange-300 bg-orange-900/40',
+  failed: 'text-red-400 bg-red-900/40',
+  missed: 'text-red-500 bg-red-950/60',
 };
 
-function StatusDots({ status }: { status: OrderStatus }) {
-  const stages: OrderStatus[] = ['issued', 'heard', 'acknowledged', 'in_progress', 'completed'];
-  const currentIndex = stages.indexOf(status);
-  const isFailed = status === 'failed' || status === 'missed';
-
-  return (
-    <div className="flex items-center gap-0.5">
-      {stages.map((stage, i) => {
-        const isActive = i <= currentIndex && !isFailed;
-        const isCurrent = i === currentIndex && !isFailed;
-        return (
-          <div key={stage} className="flex items-center">
-            <motion.div
-              className={`w-1.5 h-1.5 rounded-full ${
-                isFailed ? 'bg-red-500' :
-                isActive ? 'bg-green-400' : 'bg-gray-700'
-              }`}
-              animate={isCurrent ? { scale: [1, 1.3, 1] } : {}}
-              transition={{ duration: 1, repeat: Infinity }}
-            />
-            {i < stages.length - 1 && (
-              <div className={`w-2 h-px ${isActive && i < currentIndex ? 'bg-green-600' : 'bg-gray-700'}`} />
-            )}
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
 export default function PendingOrdersPanel({ orders, clock }: PendingOrdersPanelProps) {
-  const activeOrders = orders.filter(o => o.status !== 'completed' || clock - o.issuedAt < 10);
-
-  if (activeOrders.length === 0) {
-    return (
-      <div className="bg-gray-900/90 rounded-lg border border-gray-700 p-3">
-        <h3 className="text-xs font-bold text-gray-500 tracking-wider">PENDING ORDERS</h3>
-        <p className="text-[10px] text-gray-600 mt-2">No active orders</p>
-      </div>
-    );
-  }
-
   return (
-    <div className="bg-gray-900/90 rounded-lg border border-gray-700 p-3">
-      <h3 className="text-xs font-bold text-gray-300 tracking-wider mb-2">
-        PENDING ORDERS ({activeOrders.filter(o => !['completed', 'failed', 'missed'].includes(o.status)).length})
-      </h3>
-      <div className="space-y-1.5 max-h-32 overflow-y-auto">
-        <AnimatePresence mode="popLayout">
-          {activeOrders.map(order => {
-            const cfg = STATUS_CONFIG[order.status];
-            const elapsed = Math.floor(clock - order.issuedAt);
-            const failLabel = order.failureMode ? ORDER_FAILURE_LABELS[order.failureMode] : order.failureReason;
-            return (
-              <motion.div
-                key={order.id}
-                initial={{ opacity: 0, x: -10 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: 10 }}
-                className={`px-2 py-1 rounded text-[10px] ${cfg.bg} border border-gray-800`}
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 min-w-0 flex-1">
-                    <span className="text-gray-500 shrink-0">{formatTime(order.issuedAt)}</span>
-                    <span className="text-gray-300 truncate">{order.label}</span>
-                  </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <StatusDots status={order.status} />
-                    <span className={`font-bold ${cfg.color}`}>{cfg.label}</span>
-                    <span className="text-gray-600">{elapsed}s</span>
-                  </div>
-                </div>
-                {failLabel && (order.status === 'failed' || order.status === 'missed') && (
-                  <div className="text-red-400/70 text-[9px] mt-0.5 pl-8 italic">{failLabel}</div>
-                )}
-              </motion.div>
-            );
-          })}
-        </AnimatePresence>
+    <div className="bg-gray-900/70 border border-gray-800 rounded-lg p-2 flex-1 min-h-0 overflow-y-auto">
+      <div className="text-[10px] text-gray-500 tracking-wider mb-2">PENDING ORDERS ({orders.length})</div>
+      {orders.length === 0 && (
+        <div className="text-[11px] text-gray-600 italic">No orders in flight.</div>
+      )}
+      <div className="space-y-1.5">
+        {orders.map(o => {
+          const elapsed = clock - o.issuedAt;
+          return (
+            <motion.div
+              key={o.id}
+              initial={{ opacity: 0, y: 4 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="bg-black/30 border border-gray-800 rounded p-1.5"
+            >
+              <div className="flex items-center justify-between">
+                <div className="text-[11px] text-gray-200 font-bold truncate">{o.label}</div>
+                <span className={`text-[9px] px-1 py-0.5 rounded uppercase font-bold ${STATUS_COLORS[o.status] ?? ''}`}>
+                  {o.status.replace('_', ' ')}
+                </span>
+              </div>
+              <div className="flex items-center justify-between mt-0.5 text-[10px]">
+                <span className="text-gray-500">→ {o.targetRole ?? 'unassigned'}</span>
+                <span className="text-gray-500 font-mono">{elapsed.toFixed(1)}s</span>
+              </div>
+            </motion.div>
+          );
+        })}
       </div>
     </div>
   );
