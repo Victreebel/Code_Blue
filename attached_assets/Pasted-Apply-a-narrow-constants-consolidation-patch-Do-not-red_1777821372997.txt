@@ -1,0 +1,47 @@
+Apply a narrow constants-consolidation patch.
+
+Do not redesign.
+Do not rebuild.
+Do not add features.
+Do not change simulator behavior.
+Do not touch scoring weights.
+Do not change the 11 MVP action buttons.
+Do not touch replay, chaos, scenario definitions, or engine determinism.
+Do not delete sidebar.tsx in this patch.
+
+Goal:
+Remove duplicated hard-coded ACLS timing/dose literals from schemeE.ts, GameScreen.tsx ProtocolReminders, and CommandPanel.tsx by centralizing them in aclsConstants.ts.
+
+Patch requirements:
+
+1. In aclsConstants.ts, add/export constants for:
+- RHYTHM_CHECK_INTERVAL_SECONDS = existing rhythm check interval value
+- RHYTHM_CHECK_GRACE_SECONDS = 10
+- EPI_MIN_INTERVAL_SECONDS = existing epi min value
+- EPI_MAX_INTERVAL_SECONDS = existing epi max value
+- EPI_WARNING_LEAD_SECONDS = 10
+- AMIODARONE_FIRST_DOSE_MG = 300
+- AMIODARONE_SUBSEQUENT_DOSE_MG = 150
+
+If equivalent constants already exist under names like RHYTHM_CHECK_INTERVAL or EPI_MIN_INTERVAL, do not duplicate semantic values unnecessarily. Either rename carefully if safe, or export aliases while preserving existing imports.
+
+2. In schemeE.ts:
+- Replace rhythm-check hard-coded thresholds 110 and 130 with expressions derived from RHYTHM_CHECK_INTERVAL_SECONDS ± RHYTHM_CHECK_GRACE_SECONDS.
+- Replace epinephrine timing hard-codes 180 and 300 with EPI_MIN_INTERVAL_SECONDS and EPI_MAX_INTERVAL_SECONDS.
+- Replace amiodarone first-dose hard-code 300 with AMIODARONE_FIRST_DOSE_MG.
+
+3. In GameScreen.tsx ProtocolReminders:
+- Replace hard-coded 130 and 110 with expressions derived from RHYTHM_CHECK_INTERVAL_SECONDS ± RHYTHM_CHECK_GRACE_SECONDS.
+- Replace hard-coded 300 with EPI_MAX_INTERVAL_SECONDS.
+- Replace hard-coded 170 with EPI_MIN_INTERVAL_SECONDS - EPI_WARNING_LEAD_SECONDS.
+
+4. In CommandPanel.tsx:
+- Replace inline amiodarone dose literals 300 and 150 with AMIODARONE_FIRST_DOSE_MG and AMIODARONE_SUBSEQUENT_DOSE_MG.
+- Do not otherwise move logic or change UI behavior.
+
+5. Add or update tests only if existing tests require it.
+6. Run typecheck and tests.
+7. Show exact diff and test results.
+
+Expected result:
+No user-visible behavior changes. Same scoring behavior. Same reminders. Same buttons. Constants are centralized so future AHA verification edits do not drift across files.

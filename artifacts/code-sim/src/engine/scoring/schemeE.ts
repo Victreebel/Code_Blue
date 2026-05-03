@@ -1,6 +1,14 @@
 import type { ScoreBucket, ScoreReport } from '../types/score';
 import type { ReplayState, ReplayEvent } from '../types/replay';
 import type { ScenarioState } from '../types/scenario';
+import {
+  RHYTHM_CHECK_INTERVAL_SECONDS,
+  RHYTHM_CHECK_GRACE_SECONDS,
+  EPI_MIN_INTERVAL_SECONDS,
+  EPI_MAX_INTERVAL_SECONDS,
+  AMIODARONE_FIRST_DOSE_MG,
+  AMIODARONE_SUBSEQUENT_DOSE_MG,
+} from '../clinical/aclsConstants';
 
 interface BucketContext {
   events: ReplayEvent[];
@@ -88,7 +96,7 @@ function bucketAclsTiming({ events, scenario }: BucketContext): ScoreBucket {
       intervals.push(rc.timestamp - prev);
       prev = rc.timestamp;
     }
-    const offCount = intervals.filter(i => i > 130 || (i < 110 && intervals.indexOf(i) > 0)).length;
+    const offCount = intervals.filter(i => i > RHYTHM_CHECK_INTERVAL_SECONDS + RHYTHM_CHECK_GRACE_SECONDS || (i < RHYTHM_CHECK_INTERVAL_SECONDS - RHYTHM_CHECK_GRACE_SECONDS && intervals.indexOf(i) > 0)).length;
     intervalScore = Math.max(0, 5 - offCount * 2);
     intervalDetail = `${intervalScore} (${rhythmChecks.length} checks, ${offCount} off-cadence)`;
     reasons.push(`${rhythmChecks.length} rhythm checks performed; ${offCount} off the 2-minute cadence.`);
@@ -218,7 +226,7 @@ function bucketDefibMed({ events }: BucketContext): ScoreBucket {
       if (prev !== null) intervals.push(e.timestamp - prev);
       prev = e.timestamp;
     }
-    const inWindow = intervals.filter(i => i >= 180 && i <= 300).length;
+    const inWindow = intervals.filter(i => i >= EPI_MIN_INTERVAL_SECONDS && i <= EPI_MAX_INTERVAL_SECONDS).length;
     if (intervals.length === 0) {
       epiScore = 3;
       reasons.push(`Epi given once at ${epiCompletions[0].timestamp.toFixed(0)}s.`);
@@ -235,14 +243,14 @@ function bucketDefibMed({ events }: BucketContext): ScoreBucket {
   let amioScore = 0;
   if (amio.length === 0) {
     reasons.push('No amiodarone given (consider after 2nd shock).');
-  } else if (amio.length >= 1 && amio[0].payload.doseMg === 300) {
+  } else if (amio.length >= 1 && amio[0].payload.doseMg === AMIODARONE_FIRST_DOSE_MG) {
     amioScore += 3;
-    reasons.push('First amiodarone dose 300mg.');
+    reasons.push(`First amiodarone dose ${AMIODARONE_FIRST_DOSE_MG}mg.`);
   } else if (amio.length >= 1) {
     amioScore += 1;
     reasons.push('First amiodarone dose at non-protocol amount.');
   }
-  if (amio.length >= 2 && amio[1].payload.doseMg === 150) {
+  if (amio.length >= 2 && amio[1].payload.doseMg === AMIODARONE_SUBSEQUENT_DOSE_MG) {
     amioScore += 2;
     reasons.push('Second amiodarone dose 150mg.');
   }

@@ -3,6 +3,13 @@ import type { UIState } from '../../engine/ui/uiStateEngine';
 import type { ScenarioInput } from '../../engine/types/scenario';
 import type { EngineActions } from '../../engine/useGameEngine';
 import { formatTime, RHYTHM_LABELS } from '../../engine/types/core';
+import {
+  RHYTHM_CHECK_INTERVAL_SECONDS,
+  RHYTHM_CHECK_GRACE_SECONDS,
+  EPI_MAX_INTERVAL_SECONDS,
+  EPI_MIN_INTERVAL_SECONDS,
+  EPI_WARNING_LEAD_SECONDS,
+} from '../../engine/clinical/aclsConstants';
 import VitalsMonitor from './VitalsMonitor';
 import TeamPanel from './TeamPanel';
 import CommandPanel from './CommandPanel';
@@ -34,16 +41,16 @@ function ProtocolReminders({ ui }: { ui: UIState }) {
 
   const lastRhythm = ui.lastRhythmCheckAt ?? 0;
   const timeSinceRhythmCheck = ui.clock - lastRhythm;
-  if (timeSinceRhythmCheck >= 130) {
+  if (timeSinceRhythmCheck >= RHYTHM_CHECK_INTERVAL_SECONDS + RHYTHM_CHECK_GRACE_SECONDS) {
     reminders.push({ text: 'RHYTHM CHECK OVERDUE', color: 'text-red-400', priority: 80, urgent: true });
-  } else if (timeSinceRhythmCheck >= 110) {
+  } else if (timeSinceRhythmCheck >= RHYTHM_CHECK_INTERVAL_SECONDS - RHYTHM_CHECK_GRACE_SECONDS) {
     reminders.push({ text: 'Rhythm check due soon', color: 'text-yellow-400', priority: 30, urgent: false });
   }
 
   if ((ui.hasIVAccess || ui.hasIOAccess) && ui.lastEpiAt !== null) {
     const t = ui.clock - ui.lastEpiAt;
-    if (t >= 300) reminders.push({ text: 'EPINEPHRINE OVERDUE', color: 'text-red-400', priority: 70, urgent: true });
-    else if (t >= 170) reminders.push({ text: 'Consider next epinephrine dose', color: 'text-yellow-400', priority: 25, urgent: false });
+    if (t >= EPI_MAX_INTERVAL_SECONDS) reminders.push({ text: 'EPINEPHRINE OVERDUE', color: 'text-red-400', priority: 70, urgent: true });
+    else if (t >= EPI_MIN_INTERVAL_SECONDS - EPI_WARNING_LEAD_SECONDS) reminders.push({ text: 'Consider next epinephrine dose', color: 'text-yellow-400', priority: 25, urgent: false });
   }
 
   if (!ui.hasIVAccess && !ui.hasIOAccess && ui.clock > 30) {

@@ -1,6 +1,7 @@
 import type { UIState } from '../../engine/ui/uiStateEngine';
 import type { EngineActions } from '../../engine/useGameEngine';
 import type { PendingOrder } from '../../engine/types/orders';
+import { AMIODARONE_FIRST_DOSE_MG, AMIODARONE_SUBSEQUENT_DOSE_MG } from '../../engine/clinical/aclsConstants';
 
 interface CommandPanelProps {
   ui: UIState;
@@ -20,7 +21,7 @@ function mostRecentOpenOrder(orders: PendingOrder[]): PendingOrder | null {
 export default function CommandPanel({ ui, actions, pendingOrders }: CommandPanelProps) {
   const isShockable = ui.rhythm === 'vfib' || ui.rhythm === 'vtach';
   const hasAccess = ui.hasIVAccess || ui.hasIOAccess;
-  const amioDose = ui.amiodaroneDoses === 0 ? 300 : 150;
+  const amioDose = ui.amiodaroneDoses === 0 ? AMIODARONE_FIRST_DOSE_MG : AMIODARONE_SUBSEQUENT_DOSE_MG;
   const openOrder = mostRecentOpenOrder(pendingOrders);
 
   return (
