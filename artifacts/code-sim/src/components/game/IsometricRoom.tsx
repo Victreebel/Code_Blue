@@ -195,6 +195,41 @@ const NON_TERMINAL = new Set(['issued', 'heard', 'acknowledged', 'in_progress'])
 
 interface FurnitureProps { zone: RoomZone }
 
+/** Semi-transparent ellipse shadow on the floor plane under an iso box */
+function IsoFloorShadow({ cx, cy, w, h, fh, color = '#000' }: {
+  cx: number; cy: number; w: number; h: number; fh: number; color?: string;
+}) {
+  const shadowCy = cy + fh + h * 0.1;
+  return (
+    <ellipse
+      cx={cx} cy={shadowCy}
+      rx={w * 0.42} ry={(h + fh) * 0.18}
+      fill={color} opacity="0.28"
+    />
+  );
+}
+
+/** Small isometric caster wheel drawn at the base corner of a cart */
+function IsoCaster({ x, y, color = '#1f2937' }: { x: number; y: number; color?: string }) {
+  return (
+    <g>
+      <ellipse cx={x} cy={y} rx={3.2} ry={2.0} fill={color} stroke="#374151" strokeWidth="0.6" opacity="0.92" />
+      <ellipse cx={x} cy={y} rx={1.4} ry={0.9} fill="#111827" opacity="0.7" />
+    </g>
+  );
+}
+
+/** Small bed leg nub at the base corner of the bed frame */
+function BedLegNub({ x, y }: { x: number; y: number }) {
+  return (
+    <rect
+      x={x - 3} y={y - 2} width={6} height={4}
+      rx={1}
+      fill="#0b1d3a" stroke="#1d4ed8" strokeWidth="0.7" opacity="0.9"
+    />
+  );
+}
+
 function PatientBedFurniture({ zone, cprActive }: FurnitureProps & { cprActive: boolean }) {
   const { cx, cy } = zone;
 
@@ -223,8 +258,21 @@ function PatientBedFurniture({ zone, cprActive }: FurnitureProps & { cprActive: 
   const poleY0 = cy - bH / 2 + 2;   // base of pole (sits on mattress level)
   const poleY1 = poleY0 - 36;        // top of pole
 
+  // Bed leg nub positions: 4 bottom corners of the base box
+  // Left face: bottom-left=(cx-bW/2, cy+railFh), bottom-right=(cx, cy+bH/2+railFh)
+  // Right face: bottom-left=(cx, cy+bH/2+railFh), bottom-right=(cx+bW/2, cy+railFh)
+  const legNubs = [
+    { x: cx - bW / 2 + 4, y: cy + railFh },
+    { x: cx - 4,           y: cy + bH / 2 + railFh },
+    { x: cx + 4,           y: cy + bH / 2 + railFh },
+    { x: cx + bW / 2 - 4,  y: cy + railFh },
+  ];
+
   return (
     <g opacity="0.93">
+      {/* Floor shadow */}
+      <IsoFloorShadow cx={cx} cy={cy} w={bW} h={bH} fh={railFh} color="#1e3a5f" />
+
       {/* Full-length side rails — drawn as proper extruded wall faces */}
       <polygon points={isoLeftFace(cx, cy, bW, bH, railFh)}
         fill={railFill} stroke={railStroke} strokeWidth="0.8" />
@@ -273,6 +321,9 @@ function PatientBedFurniture({ zone, cprActive }: FurnitureProps & { cprActive: 
       {/* Drip line from bag to patient */}
       <line x1={poleX} y1={poleY1 + 4} x2={poleX} y2={poleY0 - 2}
         stroke="#60a5fa" strokeWidth="0.6" opacity="0.45" />
+
+      {/* Bed leg foot-cap nubs at base corners */}
+      {legNubs.map((n, i) => <BedLegNub key={i} x={n.x} y={n.y} />)}
     </g>
   );
 }
@@ -316,8 +367,20 @@ function DefibFurniture({ zone, charged }: FurnitureProps & { charged: boolean }
   const monTopLeft  = { x: monCx - monW / 2, y: monCy };
   const monTopRight = { x: monCx + monW / 2, y: monCy };
 
+  // Caster positions: 3 visible bottom corners of the cart base
+  // Left face bottom: (baseCx-baseW/2, baseCy+baseFh) and (baseCx, baseCy+baseH/2+baseFh)
+  // Right face bottom: (baseCx+baseW/2, baseCy+baseFh) and same bottom-most point
+  const defibCasters = [
+    { x: baseCx - baseW / 2 + 3, y: baseCy + baseFh },
+    { x: baseCx,                  y: baseCy + baseH / 2 + baseFh },
+    { x: baseCx + baseW / 2 - 3,  y: baseCy + baseFh },
+  ];
+
   return (
     <g opacity="0.93">
+      {/* Floor shadow */}
+      <IsoFloorShadow cx={baseCx} cy={baseCy} w={baseW} h={baseH} fh={baseFh} color="#3b0808" />
+
       {/* Cart base — wide, low, wheeled platform */}
       <polygon points={isoLeftFace(baseCx, baseCy, baseW, baseH, baseFh)}
         fill="#1a0505" stroke="#ef444430" strokeWidth="0.5" />
@@ -366,6 +429,9 @@ function DefibFurniture({ zone, charged }: FurnitureProps & { charged: boolean }
         fill="#374151" stroke="#6b7280" strokeWidth="0.8" />
       <circle cx={monTopRight.x + 10} cy={monTopRight.y - 5} r={3}
         fill="#374151" stroke="#6b7280" strokeWidth="0.8" />
+
+      {/* Wheel casters at base corners of cart */}
+      {defibCasters.map((c, i) => <IsoCaster key={i} x={c.x} y={c.y} color="#2d0a0a" />)}
     </g>
   );
 }
@@ -390,8 +456,18 @@ function MedCartFurniture({ zone }: FurnitureProps) {
   // Work surface: thin slab slightly wider than body
   const surfW = bW + 8, surfH = bH + 6;
 
+  // Caster positions: 3 visible bottom corners of the crash cart base
+  const medCasters = [
+    { x: boxCx - bW / 2 + 2, y: boxCy + bFh },
+    { x: boxCx,               y: boxCy + bH / 2 + bFh },
+    { x: boxCx + bW / 2 - 2,  y: boxCy + bFh },
+  ];
+
   return (
     <g opacity="0.92">
+      {/* Floor shadow */}
+      <IsoFloorShadow cx={boxCx} cy={boxCy} w={bW} h={bH} fh={bFh} color="#0a2a0a" />
+
       {/* Tower body — left and right faces */}
       <polygon points={isoLeftFace(boxCx, boxCy, bW, bH, bFh)}
         fill="#0a180a" stroke="#22c55e40" strokeWidth="0.5" />
@@ -423,6 +499,9 @@ function MedCartFurniture({ zone }: FurnitureProps) {
       {/* Small supply tray outline on work surface */}
       <polygon points={isoSlab(boxCx - 2, boxCy - 2, surfW * 0.5, surfH * 0.55)}
         fill="none" stroke="#4ade8060" strokeWidth="0.8" />
+
+      {/* Wheel casters at base corners */}
+      {medCasters.map((c, i) => <IsoCaster key={i} x={c.x} y={c.y} color="#0d1a0d" />)}
     </g>
   );
 }
@@ -445,8 +524,18 @@ function AirwayCartFurniture({ zone, hasAdvanced }: FurnitureProps & { hasAdvanc
   const canCx = boxCx + 18, canCy = boxCy - bH / 2 - 2;
   const canW = 22, canH = 14, canFh = 8;
 
+  // Caster positions: 3 visible bottom corners of the airway cart base
+  const airwayCasters = [
+    { x: boxCx - bW / 2 + 4, y: boxCy + bFh },
+    { x: boxCx,               y: boxCy + bH / 2 + bFh },
+    { x: boxCx + bW / 2 - 4,  y: boxCy + bFh },
+  ];
+
   return (
     <g opacity="0.93">
+      {/* Floor shadow */}
+      <IsoFloorShadow cx={boxCx} cy={boxCy} w={bW} h={bH} fh={bFh} color="#1a1000" />
+
       {/* Wide cart body */}
       <polygon points={isoLeftFace(boxCx, boxCy, bW, bH, bFh)}
         fill="#1a1404" stroke="#f59e0b40" strokeWidth="0.5" />
@@ -490,6 +579,9 @@ function AirwayCartFurniture({ zone, hasAdvanced }: FurnitureProps & { hasAdvanc
       {/* Drip line */}
       <line x1={poleCx} y1={poleCy - 33} x2={poleCx} y2={poleCy - 8}
         stroke={poleColor} strokeWidth="0.6" opacity="0.4" />
+
+      {/* Wheel casters at base corners */}
+      {airwayCasters.map((c, i) => <IsoCaster key={i} x={c.x} y={c.y} color="#1a1000" />)}
     </g>
   );
 }
