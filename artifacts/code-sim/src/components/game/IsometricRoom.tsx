@@ -197,230 +197,367 @@ interface FurnitureProps { zone: RoomZone }
 
 function PatientBedFurniture({ zone, cprActive }: FurnitureProps & { cprActive: boolean }) {
   const { cx, cy } = zone;
-  // Mattress surface (inset)
-  const mattW = 195, mattH = 96;
-  // Head-board: thin box at top of diamond (toward upper iso point)
-  const headCy = cy - zone.h / 2 + 14; // near top diamond point
-  const headW = 145, headH = 16, headFh = 11;
-  // Foot-board: thinner box near bottom diamond point
-  const footCy = cy + zone.h / 2 - 12;
-  const footW = 120, footH = 13, footFh = 8;
-  // Pillow: tiny diamond just south of head board
-  const pillowCy = headCy + 22;
+
+  // Bed frame: elongated ~2:1 footprint, full-length side rails as extruded walls
+  const bW = 238, bH = 116, railFh = 16;
 
   const mattFill   = cprActive ? '#1a3a6a' : '#1a3560';
-  const railFill   = '#0e2040';
+  const railFill   = '#0b1d3a';
+  const railFillR  = '#081526';
   const railTop    = '#2563eb';
   const railStroke = '#3b82f680';
 
+  // Head board: near top diamond point, elevated ~8 units (lower cy = higher visually)
+  const headCy = cy - bH / 2 + 6;
+  const headW = 148, headH = 14, headFh = 18;
+
+  // Foot board: near bottom diamond point
+  const footCy = cy + bH / 2 - 8;
+  const footW = 116, footH = 12, footFh = 11;
+
+  // Pillow: small diamond just south of head board
+  const pillowCy = headCy + 22;
+
+  // IV pole: rises from left side of head end
+  const poleX  = cx - bW / 4 + 4;
+  const poleY0 = cy - bH / 2 + 2;   // base of pole (sits on mattress level)
+  const poleY1 = poleY0 - 36;        // top of pole
+
   return (
-    <g opacity="0.92">
-      {/* Mattress */}
-      <polygon points={isoSlab(cx, cy, mattW, mattH)}
-        fill={mattFill} stroke="#3b82f650" strokeWidth="1" />
+    <g opacity="0.93">
+      {/* Full-length side rails — drawn as proper extruded wall faces */}
+      <polygon points={isoLeftFace(cx, cy, bW, bH, railFh)}
+        fill={railFill} stroke={railStroke} strokeWidth="0.8" />
+      <polygon points={isoRightFace(cx, cy, bW, bH, railFh)}
+        fill={railFillR} stroke={railStroke} strokeWidth="0.8" />
+
+      {/* Mattress surface */}
+      <polygon points={isoSlab(cx, cy, bW, bH)}
+        fill={mattFill} stroke="#3b82f660" strokeWidth="1.2" />
+
+      {/* Rail cap lines along top edges for visual depth */}
+      <line x1={cx - bW / 2} y1={cy} x2={cx} y2={cy - bH / 2}
+        stroke="#1d4ed8" strokeWidth="1.8" opacity="0.7" />
+      <line x1={cx + bW / 2} y1={cy} x2={cx} y2={cy - bH / 2}
+        stroke="#1d4ed8" strokeWidth="1.8" opacity="0.7" />
 
       {/* Head board */}
       <polygon points={isoLeftFace(cx, headCy, headW, headH, headFh)}
         fill={railFill} stroke={railStroke} strokeWidth="0.5" />
       <polygon points={isoRightFace(cx, headCy, headW, headH, headFh)}
-        fill="#0a1830" stroke={railStroke} strokeWidth="0.5" />
+        fill={railFillR} stroke={railStroke} strokeWidth="0.5" />
       <polygon points={isoSlab(cx, headCy, headW, headH)}
-        fill={railTop} stroke="#60a5fa" strokeWidth="1" />
+        fill={railTop} stroke="#60a5fa" strokeWidth="1.2" />
 
       {/* Pillow */}
-      <polygon points={isoSlab(cx, pillowCy, 55, 26)}
-        fill="#e2e8f0" stroke="#94a3b8" strokeWidth="0.8" opacity="0.55" />
-
-      {/* Left bed rail (line along left edge of mattress) */}
-      <line
-        x1={cx - mattW / 2} y1={cy}
-        x2={cx}              y2={cy - mattH / 2}
-        stroke="#1d4ed8" strokeWidth="1.2" opacity="0.6" />
-      {/* Right bed rail */}
-      <line
-        x1={cx + mattW / 2} y1={cy}
-        x2={cx}              y2={cy - mattH / 2}
-        stroke="#1d4ed8" strokeWidth="1.2" opacity="0.6" />
+      <polygon points={isoSlab(cx + 6, pillowCy, 54, 24)}
+        fill="#e2e8f0" stroke="#94a3b8" strokeWidth="0.8" opacity="0.5" />
 
       {/* Foot board */}
       <polygon points={isoLeftFace(cx, footCy, footW, footH, footFh)}
         fill={railFill} stroke={railStroke} strokeWidth="0.5" />
       <polygon points={isoRightFace(cx, footCy, footW, footH, footFh)}
-        fill="#0a1830" stroke={railStroke} strokeWidth="0.5" />
+        fill={railFillR} stroke={railStroke} strokeWidth="0.5" />
       <polygon points={isoSlab(cx, footCy, footW, footH)}
         fill={railTop} stroke="#60a5fa" strokeWidth="1" />
+
+      {/* IV pole — vertical line at head end */}
+      <line x1={poleX} y1={poleY0} x2={poleX} y2={poleY1}
+        stroke="#9ca3af" strokeWidth="2" />
+      {/* Cross-bar */}
+      <line x1={poleX - 9} y1={poleY1 + 3} x2={poleX + 9} y2={poleY1 + 3}
+        stroke="#9ca3af" strokeWidth="1.8" />
+      {/* IV bag hanging on pole */}
+      <ellipse cx={poleX} cy={poleY1 + 1} rx={5} ry={3}
+        fill="#0f172a" stroke="#60a5fa" strokeWidth="0.9" opacity="0.85" />
+      {/* Drip line from bag to patient */}
+      <line x1={poleX} y1={poleY1 + 4} x2={poleX} y2={poleY0 - 2}
+        stroke="#60a5fa" strokeWidth="0.6" opacity="0.45" />
     </g>
   );
 }
 
 function DefibFurniture({ zone, charged }: FurnitureProps & { charged: boolean }) {
   const { cx, cy } = zone;
-  // Main defibrillator cart body — sits right-of-centre on the tile
-  const boxCx = cx + 18, boxCy = cy - 8;
-  const bW = 70, bH = 36, bFh = 30;
   const screenColor = charged ? '#fbbf24' : '#22d3ee';
 
-  // Screen rectangle within the right face of the monitor
-  // Right face corners: (cx+w/2,cy), (cx,cy+h/2), (cx,cy+h/2+fh), (cx+w/2,cy+fh)
-  const rfTL = { x: boxCx + bW / 2,           y: boxCy };
-  const rfBL = { x: boxCx,                     y: boxCy + bH / 2 };
-  const rfBR = { x: boxCx,                     y: boxCy + bH / 2 + bFh };
-  const rfTR = { x: boxCx + bW / 2,            y: boxCy + bFh };
-  // Screen inset (70% of face)
-  const sw = 0.65, sh = 0.6, ox = 0.15, oy = 0.2;
-  function lerp2(a: {x:number,y:number}, b: {x:number,y:number}, t: number) {
+  // ── Low wheeled cart base (wide, shallow) ──────────────────────────
+  const baseCx = cx + 6, baseCy = cy + 4;
+  const baseW = 78, baseH = 44, baseFh = 10;
+
+  // ── Portrait-oriented monitor unit sitting on the cart ─────────────
+  // Narrower footprint, taller face — "portrait" silhouette
+  const monCx = cx + 6, monCy = cy - 10;
+  const monW = 44, monH = 24, monFh = 50;
+
+  // Right face of monitor: A→B→C→D
+  // A=(monCx+monW/2, monCy), B=(monCx, monCy+monH/2),
+  // C=(monCx, monCy+monH/2+monFh), D=(monCx+monW/2, monCy+monFh)
+  const rfA = { x: monCx + monW / 2, y: monCy };
+  const rfB = { x: monCx,            y: monCy + monH / 2 };
+  const rfC = { x: monCx,            y: monCy + monH / 2 + monFh };
+  const rfD = { x: monCx + monW / 2, y: monCy + monFh };
+
+  function lerp2(a: { x: number; y: number }, b: { x: number; y: number }, t: number) {
     return { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t };
   }
-  const scrTL = lerp2(lerp2(rfTL, rfBL, oy),         lerp2(rfTR, rfBR, oy),         ox);
-  const scrTR = lerp2(lerp2(rfTL, rfBL, oy),         lerp2(rfTR, rfBR, oy),         ox + sw);
-  const scrBL = lerp2(lerp2(rfTL, rfBL, oy + sh),    lerp2(rfTR, rfBR, oy + sh),    ox);
-  const scrBR = lerp2(lerp2(rfTL, rfBL, oy + sh),    lerp2(rfTR, rfBR, oy + sh),    ox + sw);
+
+  // Screen inset: 70% of right face area
+  const ox = 0.12, oy = 0.10, sw = 0.76, sh = 0.78;
+  const scrTL = lerp2(lerp2(rfA, rfB, oy),      lerp2(rfD, rfC, oy),      ox);
+  const scrTR = lerp2(lerp2(rfA, rfB, oy),      lerp2(rfD, rfC, oy),      ox + sw);
+  const scrBL = lerp2(lerp2(rfA, rfB, oy + sh), lerp2(rfD, rfC, oy + sh), ox);
+  const scrBR = lerp2(lerp2(rfA, rfB, oy + sh), lerp2(rfD, rfC, oy + sh), ox + sw);
+
+  // SHOCK button dot on right face (lower-left area)
+  const shockBtn = lerp2(lerp2(rfA, rfB, 0.88), lerp2(rfD, rfC, 0.88), 0.35);
+
+  // Paddle holster stubs: short lines projecting from sides of monitor top
+  const monTopLeft  = { x: monCx - monW / 2, y: monCy };
+  const monTopRight = { x: monCx + monW / 2, y: monCy };
 
   return (
     <g opacity="0.93">
-      <polygon points={isoLeftFace(boxCx, boxCy, bW, bH, bFh)}
-        fill="#1a0808" stroke="#ef444440" strokeWidth="0.5" />
-      <polygon points={isoRightFace(boxCx, boxCy, bW, bH, bFh)}
-        fill="#250d0d" stroke="#ef444440" strokeWidth="0.5" />
-      <polygon points={isoSlab(boxCx, boxCy, bW, bH)}
-        fill="#3b1212" stroke="#ef4444" strokeWidth="1" />
-      {/* Monitor screen */}
+      {/* Cart base — wide, low, wheeled platform */}
+      <polygon points={isoLeftFace(baseCx, baseCy, baseW, baseH, baseFh)}
+        fill="#1a0505" stroke="#ef444430" strokeWidth="0.5" />
+      <polygon points={isoRightFace(baseCx, baseCy, baseW, baseH, baseFh)}
+        fill="#220808" stroke="#ef444430" strokeWidth="0.5" />
+      <polygon points={isoSlab(baseCx, baseCy, baseW, baseH)}
+        fill="#2a0e0e" stroke="#ef444450" strokeWidth="0.8" />
+
+      {/* Monitor unit — portrait box (tall, narrow) */}
+      <polygon points={isoLeftFace(monCx, monCy, monW, monH, monFh)}
+        fill="#1a0808" stroke="#ef444450" strokeWidth="0.6" />
+      <polygon points={isoRightFace(monCx, monCy, monW, monH, monFh)}
+        fill="#250d0d" stroke="#ef444450" strokeWidth="0.6" />
+      <polygon points={isoSlab(monCx, monCy, monW, monH)}
+        fill="#3b1212" stroke="#ef4444" strokeWidth="1.2"
+        filter={charged ? 'url(#iso-glow-amber)' : undefined} />
+
+      {/* Monitor screen — fills ~70% of right face */}
       <polygon
         points={`${scrTL.x},${scrTL.y} ${scrTR.x},${scrTR.y} ${scrBR.x},${scrBR.y} ${scrBL.x},${scrBL.y}`}
         fill={charged ? '#78350f' : '#0c2a2e'}
         stroke={screenColor}
-        strokeWidth="1"
-        opacity="0.9"
+        strokeWidth="1.2"
+        opacity="0.95"
       />
-      {/* Screen glow line (EKG trace) */}
+      {/* EKG trace line across screen */}
       <line
-        x1={(scrTL.x + scrBL.x) / 2} y1={(scrTL.y + scrBL.y) / 2}
-        x2={(scrTR.x + scrBR.x) / 2} y2={(scrTR.y + scrBR.y) / 2}
-        stroke={screenColor} strokeWidth="1" opacity="0.7"
+        x1={scrTL.x + (scrBL.x - scrTL.x) * 0.5} y1={scrTL.y + (scrBL.y - scrTL.y) * 0.5}
+        x2={scrTR.x + (scrBR.x - scrTR.x) * 0.5} y2={scrTR.y + (scrBR.y - scrTR.y) * 0.5}
+        stroke={screenColor} strokeWidth="1" opacity="0.65"
       />
-      {/* Paddles on top */}
-      <line x1={boxCx - 4} y1={boxCy - bH / 2 + 2} x2={boxCx - 18} y2={boxCy - bH / 2 - 5}
-        stroke="#9ca3af" strokeWidth="1.5" />
-      <line x1={boxCx + 10} y1={boxCy - bH / 2 + 4} x2={boxCx + 22} y2={boxCy - bH / 2 - 4}
-        stroke="#9ca3af" strokeWidth="1.5" />
+
+      {/* SHOCK button — prominent red dot on monitor face */}
+      <circle cx={shockBtn.x} cy={shockBtn.y} r={3.5}
+        fill={charged ? '#ef4444' : '#7f1d1d'} stroke="#fca5a5" strokeWidth="0.8" opacity="0.95" />
+
+      {/* Paddle holster stubs — short lines on left and right of monitor top */}
+      <line x1={monTopLeft.x} y1={monTopLeft.y}
+            x2={monTopLeft.x - 10} y2={monTopLeft.y - 6}
+        stroke="#9ca3af" strokeWidth="2.2" strokeLinecap="round" />
+      <line x1={monTopRight.x} y1={monTopRight.y}
+            x2={monTopRight.x + 10} y2={monTopRight.y - 5}
+        stroke="#9ca3af" strokeWidth="2.2" strokeLinecap="round" />
+      {/* Paddle heads (small circles at end of holster stubs) */}
+      <circle cx={monTopLeft.x - 10} cy={monTopLeft.y - 6} r={3}
+        fill="#374151" stroke="#6b7280" strokeWidth="0.8" />
+      <circle cx={monTopRight.x + 10} cy={monTopRight.y - 5} r={3}
+        fill="#374151" stroke="#6b7280" strokeWidth="0.8" />
     </g>
   );
 }
 
 function MedCartFurniture({ zone }: FurnitureProps) {
   const { cx, cy } = zone;
-  const boxCx = cx - 8, boxCy = cy - 6;
-  const bW = 65, bH = 35, bFh = 26;
+  // Crash cart: narrow footprint, tall tower body
+  const boxCx = cx - 6, boxCy = cy - 4;
+  const bW = 50, bH = 26, bFh = 50;
+
+  // Left face corner points for drawer geometry
+  // TL=(boxCx-bW/2, boxCy), TR=(boxCx, boxCy+bH/2)
+  // BL=(boxCx-bW/2, boxCy+bFh), BR=(boxCx, boxCy+bH/2+bFh)
+  const lfTLx = boxCx - bW / 2, lfTLy = boxCy;
+  const lfTRx = boxCx,          lfTRy = boxCy + bH / 2;
+  const lfBLx = boxCx - bW / 2, lfBLy = boxCy + bFh;
+  const lfBRx = boxCx,          lfBRy = boxCy + bH / 2 + bFh;
+
+  // 4 drawers: dividers at 25%, 50%, 75% of face height
+  const divTs = [0.25, 0.50, 0.75];
+
+  // Work surface: thin slab slightly wider than body
+  const surfW = bW + 8, surfH = bH + 6;
 
   return (
-    <g opacity="0.9">
+    <g opacity="0.92">
+      {/* Tower body — left and right faces */}
       <polygon points={isoLeftFace(boxCx, boxCy, bW, bH, bFh)}
         fill="#0a180a" stroke="#22c55e40" strokeWidth="0.5" />
       <polygon points={isoRightFace(boxCx, boxCy, bW, bH, bFh)}
         fill="#0e1e0e" stroke="#22c55e40" strokeWidth="0.5" />
-      <polygon points={isoSlab(boxCx, boxCy, bW, bH)}
-        fill="#1a3a1a" stroke="#22c55e" strokeWidth="1" />
-      {/* Drawer divider lines on left face */}
-      {[0.35, 0.65].map((t, i) => {
-        const lf = isoLeftFace(boxCx, boxCy, bW, bH, bFh).split(' ').map(p => ({ x: +p.split(',')[0], y: +p.split(',')[1] }));
-        const y1 = lf[0].y + (lf[1].y - lf[0].y) * t + (lf[3].y - lf[0].y) * 0;
-        const x1 = lf[0].x + (lf[1].x - lf[0].x) * t;
-        const y2 = lf[3].y + (lf[2].y - lf[3].y) * t;
-        const x2 = lf[3].x + (lf[2].x - lf[3].x) * t;
-        return <line key={i} x1={x1} y1={y1} x2={x2} y2={y2} stroke="#22c55e50" strokeWidth="0.8" />;
+
+      {/* 4 drawer rows — divider lines on left face */}
+      {divTs.map((t, i) => {
+        const x1 = lfTLx; const y1 = lfTLy + (lfBLy - lfTLy) * t;
+        const x2 = lfTRx; const y2 = lfTRy + (lfBRy - lfTRy) * t;
+        return <line key={i} x1={x1} y1={y1} x2={x2} y2={y2} stroke="#22c55e60" strokeWidth="1" />;
       })}
-      {/* IV bag/bottle silhouette on top */}
-      <ellipse cx={boxCx + 5} cy={boxCy - bH / 2 - 2} rx={7} ry={4}
-        fill="#052e16" stroke="#4ade80" strokeWidth="0.8" opacity="0.85" />
-      {/* Drip line */}
-      <line x1={boxCx + 5} y1={boxCy - bH / 2 + 2} x2={boxCx + 5} y2={boxCy - bH / 2 + 10}
-        stroke="#4ade80" strokeWidth="0.6" opacity="0.6" />
+
+      {/* Pull handles — one per drawer, small circles on left face */}
+      {[0.125, 0.375, 0.625, 0.875].map((t, i) => {
+        // Midpoint of each drawer band, centered horizontally on the face
+        const hx = lfTLx + (lfTRx - lfTLx) * 0.5;
+        const hy = lfTLy + (lfBLy - lfTLy) * t + (lfTRy - lfTLy) * 0.5;
+        return (
+          <circle key={i} cx={hx} cy={hy} r={2.4}
+            fill="#166534" stroke="#4ade80" strokeWidth="0.8" opacity="0.9" />
+        );
+      })}
+
+      {/* Work surface top — slightly wider than body */}
+      <polygon points={isoSlab(boxCx, boxCy, surfW, surfH)}
+        fill="#1a3a1a" stroke="#22c55e" strokeWidth="1.2" />
+
+      {/* Small supply tray outline on work surface */}
+      <polygon points={isoSlab(boxCx - 2, boxCy - 2, surfW * 0.5, surfH * 0.55)}
+        fill="none" stroke="#4ade8060" strokeWidth="0.8" />
     </g>
   );
 }
 
 function AirwayCartFurniture({ zone, hasAdvanced }: FurnitureProps & { hasAdvanced: boolean }) {
   const { cx, cy } = zone;
-  const boxCx = cx + 5, boxCy = cy - 4;
-  const bW = 72, bH = 40, bFh = 22;
-  // IV / airway pole — sits to the right of the cart
-  const poleCx = cx + 55, poleCy = cy;
+
+  // Wide, low footprint — distinct from the tall narrow crash cart
+  const boxCx = cx, boxCy = cy - 2;
+  const bW = 96, bH = 54, bFh = 16;
+
+  // IV / airway pole — sits near right edge of cart
+  const poleCx = cx + 52, poleCy = cy - 4;
+  const poleColor = hasAdvanced ? '#4ade80' : '#6b7280';
+
+  // BVM bag: two overlapping ellipses on top face, slightly angled
+  const bvmCx = boxCx - 16, bvmCy = boxCy - bH / 2 - 4;
+
+  // Suction canister: small box to the right on top
+  const canCx = boxCx + 18, canCy = boxCy - bH / 2 - 2;
+  const canW = 22, canH = 14, canFh = 8;
 
   return (
     <g opacity="0.93">
-      {/* Cart body */}
+      {/* Wide cart body */}
       <polygon points={isoLeftFace(boxCx, boxCy, bW, bH, bFh)}
         fill="#1a1404" stroke="#f59e0b40" strokeWidth="0.5" />
       <polygon points={isoRightFace(boxCx, boxCy, bW, bH, bFh)}
         fill="#211a05" stroke="#f59e0b40" strokeWidth="0.5" />
       <polygon points={isoSlab(boxCx, boxCy, bW, bH)}
-        fill="#2d2206" stroke="#f59e0b" strokeWidth="1" />
-      {/* Drawer dividers on right face */}
-      {[0.4, 0.72].map((t, i) => {
-        const lf = isoRightFace(boxCx, boxCy, bW, bH, bFh).split(' ').map(p => ({ x: +p.split(',')[0], y: +p.split(',')[1] }));
-        const x1 = lf[0].x + (lf[1].x - lf[0].x) * t;
-        const y1 = lf[0].y + (lf[1].y - lf[0].y) * t;
-        const x2 = lf[3].x + (lf[2].x - lf[3].x) * t;
-        const y2 = lf[3].y + (lf[2].y - lf[3].y) * t;
-        return <line key={i} x1={x1} y1={y1} x2={x2} y2={y2} stroke="#f59e0b50" strokeWidth="0.8" />;
-      })}
-      {/* Tubes / BVM bag on top */}
-      <ellipse cx={boxCx - 6} cy={boxCy - bH / 2 - 3} rx={10} ry={5}
-        fill="#1c1003" stroke="#fcd34d" strokeWidth="0.9" opacity="0.9" />
-      <line x1={boxCx - 6} y1={boxCy - bH / 2 + 2} x2={boxCx + 10} y2={boxCy - bH / 2 + 8}
-        stroke="#fcd34d" strokeWidth="0.7" opacity="0.55" />
+        fill="#2d2206" stroke="#f59e0b" strokeWidth="1.1" />
 
-      {/* Airway pole (IV stand) */}
-      <line x1={poleCx} y1={poleCy - bH / 2 - 2} x2={poleCx} y2={poleCy - bH / 2 - 28}
-        stroke={hasAdvanced ? '#4ade80' : '#6b7280'} strokeWidth="1.5" />
-      {/* Hook / cross-bar at top */}
-      <line x1={poleCx - 7} y1={poleCy - bH / 2 - 26} x2={poleCx + 7} y2={poleCy - bH / 2 - 26}
-        stroke={hasAdvanced ? '#4ade80' : '#6b7280'} strokeWidth="1.5" />
+      {/* BVM bag — two overlapping ellipses at a slight angle */}
+      <ellipse cx={bvmCx - 5} cy={bvmCy + 2} rx={13} ry={6}
+        fill="#1c1003" stroke="#fcd34d" strokeWidth="0.9" opacity="0.85"
+        transform={`rotate(-8, ${bvmCx - 5}, ${bvmCy + 2})`} />
+      <ellipse cx={bvmCx + 6} cy={bvmCy - 1} rx={11} ry={5}
+        fill="#251500" stroke="#fcd34d" strokeWidth="0.9" opacity="0.9"
+        transform={`rotate(6, ${bvmCx + 6}, ${bvmCy - 1})`} />
+      {/* Connector tube between BVM and airway */}
+      <line x1={bvmCx + 12} y1={bvmCy + 1} x2={bvmCx + 22} y2={bvmCy + 5}
+        stroke="#fcd34d" strokeWidth="1.1" opacity="0.55" />
+
+      {/* Suction canister — small cylinder/box on top right of cart */}
+      <polygon points={isoLeftFace(canCx, canCy, canW, canH, canFh)}
+        fill="#120e00" stroke="#f59e0b30" strokeWidth="0.5" />
+      <polygon points={isoRightFace(canCx, canCy, canW, canH, canFh)}
+        fill="#1a1400" stroke="#f59e0b30" strokeWidth="0.5" />
+      <polygon points={isoSlab(canCx, canCy, canW, canH)}
+        fill="#292100" stroke="#f59e0b80" strokeWidth="0.8" />
+      {/* Canister label line */}
+      <line x1={canCx + canW / 2} y1={canCy} x2={canCx} y2={canCy + canH / 2}
+        stroke="#f59e0b40" strokeWidth="0.6" />
+
+      {/* Airway / IV pole */}
+      <line x1={poleCx} y1={poleCy} x2={poleCx} y2={poleCy - 36}
+        stroke={poleColor} strokeWidth="1.8" />
+      {/* Cross-bar at top */}
+      <line x1={poleCx - 8} y1={poleCy - 34} x2={poleCx + 8} y2={poleCy - 34}
+        stroke={poleColor} strokeWidth="1.8" />
       {/* IV bag on pole */}
-      <ellipse cx={poleCx} cy={poleCy - bH / 2 - 28} rx={5} ry={3}
+      <ellipse cx={poleCx} cy={poleCy - 36} rx={5} ry={3}
         fill={hasAdvanced ? '#052e16' : '#111827'}
-        stroke={hasAdvanced ? '#4ade80' : '#374151'} strokeWidth="0.8" opacity="0.9" />
+        stroke={poleColor} strokeWidth="0.9" opacity="0.95" />
+      {/* Drip line */}
+      <line x1={poleCx} y1={poleCy - 33} x2={poleCx} y2={poleCy - 8}
+        stroke={poleColor} strokeWidth="0.6" opacity="0.4" />
     </g>
   );
 }
 
 function DoorFurniture({ zone }: FurnitureProps) {
-  const { cx, cy, w, h } = zone;
-  // The door tile diamond: top=(cx,cy-h/2), right=(cx+w/2,cy), bottom=(cx,cy+h/2), left=(cx-w/2,cy)
-  // Draw a door arch rising from the tile's top face
-  const topY = cy - h / 2; // top diamond point y
-  const archH = 32;        // how high the arch rises above the tile
+  const { cx, cy } = zone;
 
-  // Left pillar of door frame (left side of top diamond point)
-  const lx1 = cx - 18, lx2 = cx - 18;
-  const rx1 = cx + 18, rx2 = cx + 18;
-  const baseY = topY + 4;
-  const archTopY = topY - archH;
+  // Door frame geometry: flat-top ICU-style door rising above the floor tile
+  // Frame dimensions
+  const doorW = 38;   // half-width of door opening
+  const doorH = 46;   // height of door from base to lintel
+  const wallT = 6;    // wall thickness (jamb depth)
+  const frameStroke = '#4b5563';
+
+  const baseY  = cy - 4;             // base of door frame
+  const topY   = baseY - doorH;      // top of door opening (lintel underside)
+  const lx     = cx - doorW;         // left inner edge
+  const rx     = cx + doorW;         // right inner edge
+  const lxO    = lx - wallT;         // left outer edge (wall jamb)
+  const rxO    = rx + wallT;         // right outer edge (wall jamb)
+
+  // Window pane: in the upper third of the door panel
+  const winY1  = topY + 4;
+  const winY2  = topY + doorH * 0.32;
+  const winX1  = cx - doorW * 0.52;
+  const winX2  = cx + doorW * 0.52;
+
+  // Lever handle: small angled line + base circle on right side of door
+  const handleY = baseY - doorH * 0.45;
+  const handleX = cx + doorW * 0.55;
 
   return (
-    <g opacity="0.85">
-      {/* Left door pillar */}
-      <line x1={lx1} y1={baseY} x2={lx2} y2={archTopY + 8}
-        stroke="#6b7280" strokeWidth="2.5" />
-      {/* Right door pillar */}
-      <line x1={rx1} y1={baseY} x2={rx2} y2={archTopY + 8}
-        stroke="#6b7280" strokeWidth="2.5" />
-      {/* Arch (semicircle) */}
-      <path
-        d={`M ${lx1} ${archTopY + 8} Q ${cx} ${archTopY - 6} ${rx1} ${archTopY + 8}`}
-        fill="none" stroke="#6b7280" strokeWidth="2.5"
-      />
-      {/* Door panel fill */}
-      <path
-        d={`M ${lx1 + 2} ${baseY} L ${lx1 + 2} ${archTopY + 9} Q ${cx} ${archTopY - 4} ${rx1 - 2} ${archTopY + 9} L ${rx1 - 2} ${baseY} Z`}
-        fill="#111827" stroke="none" opacity="0.7"
-      />
-      {/* Door handle dot */}
-      <circle cx={cx + 10} cy={(baseY + archTopY) / 2 + 4} r={2.5}
-        fill="#9ca3af" opacity="0.85" />
-      {/* Lintel (top bar) */}
-      <line x1={lx1 - 3} y1={archTopY + 8} x2={rx1 + 3} y2={archTopY + 8}
-        stroke="#4b5563" strokeWidth="1" />
+    <g opacity="0.88">
+      {/* Left wall jamb — thin extruded slab (wall thickness) */}
+      <rect x={lxO} y={topY} width={wallT} height={doorH}
+        fill="#1f2937" stroke={frameStroke} strokeWidth="0.8" />
+
+      {/* Right wall jamb */}
+      <rect x={rx} y={topY} width={wallT} height={doorH}
+        fill="#1f2937" stroke={frameStroke} strokeWidth="0.8" />
+
+      {/* Lintel slab across the top */}
+      <rect x={lxO} y={topY - 5} width={rxO - lxO} height={5}
+        fill="#374151" stroke={frameStroke} strokeWidth="0.8" />
+
+      {/* Door panel — dark fill */}
+      <rect x={lx} y={topY} width={rx - lx} height={doorH}
+        fill="#111827" stroke={frameStroke} strokeWidth="1" opacity="0.88" />
+
+      {/* Window pane — upper third of door */}
+      <rect x={winX1} y={winY1} width={winX2 - winX1} height={winY2 - winY1}
+        fill="#1e3a5f" stroke="#3b82f6" strokeWidth="0.9" opacity="0.85" />
+      {/* Window cross-bars */}
+      <line x1={(winX1 + winX2) / 2} y1={winY1} x2={(winX1 + winX2) / 2} y2={winY2}
+        stroke="#3b82f640" strokeWidth="0.7" />
+      <line x1={winX1} y1={(winY1 + winY2) / 2} x2={winX2} y2={(winY1 + winY2) / 2}
+        stroke="#3b82f640" strokeWidth="0.7" />
+
+      {/* Lever handle — angled line from a base circle */}
+      <circle cx={handleX} cy={handleY} r={2.2}
+        fill="#6b7280" stroke="#9ca3af" strokeWidth="0.7" />
+      <line x1={handleX} y1={handleY}
+            x2={handleX + 8} y2={handleY + 5}
+        stroke="#9ca3af" strokeWidth="1.8" strokeLinecap="round" />
+
+      {/* Door-stop strip along bottom */}
+      <line x1={lx} y1={baseY} x2={rx} y2={baseY}
+        stroke="#374151" strokeWidth="1.5" />
     </g>
   );
 }
