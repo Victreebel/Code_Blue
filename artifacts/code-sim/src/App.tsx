@@ -4,6 +4,18 @@ import GameScreen from './components/game/GameScreen';
 import DebriefScreen from './components/game/DebriefScreen';
 import { useGameEngine } from './engine/useGameEngine';
 
+function DevRestartButton({ onRestart }: { onRestart: () => void }) {
+  return (
+    <button
+      onClick={onRestart}
+      title="DEV: Return to start screen"
+      className="fixed bottom-3 right-3 z-50 px-2 py-1 rounded text-[10px] font-mono font-bold bg-gray-900 border border-gray-700 text-gray-500 hover:border-red-700 hover:text-red-400 hover:bg-red-950/40 transition-colors"
+    >
+      DEV ↺
+    </button>
+  );
+}
+
 function App() {
   const { ui, phase, actions, scenarioInput } = useGameEngine();
 
@@ -12,11 +24,21 @@ function App() {
   }
 
   if (phase === 'briefing') {
-    return <BriefingScreen scenarioInput={scenarioInput} onBegin={actions.beginCode} />;
+    return (
+      <>
+        <BriefingScreen scenarioInput={scenarioInput} onBegin={actions.beginCode} />
+        <DevRestartButton onRestart={actions.resetToMenu} />
+      </>
+    );
   }
 
   if (phase === 'debrief') {
-    return <DebriefScreen ui={ui} scenarioInput={scenarioInput} onNewGame={() => actions.startGame()} />;
+    return (
+      <>
+        <DebriefScreen ui={ui} scenarioInput={scenarioInput} onNewGame={() => actions.startGame()} />
+        <DevRestartButton onRestart={actions.resetToMenu} />
+      </>
+    );
   }
 
   if (phase === 'ended') {
@@ -47,11 +69,17 @@ function App() {
             </button>
           </div>
         </div>
+        <DevRestartButton onRestart={actions.resetToMenu} />
       </div>
     );
   }
 
-  return <GameScreen ui={ui} scenarioInput={scenarioInput} actions={actions} />;
+  return (
+    <>
+      <GameScreen ui={ui} scenarioInput={scenarioInput} actions={actions} />
+      <DevRestartButton onRestart={actions.resetToMenu} />
+    </>
+  );
 }
 
 export default App;
