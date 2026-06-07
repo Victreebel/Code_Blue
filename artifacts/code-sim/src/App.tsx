@@ -2,7 +2,11 @@ import StartScreen from './components/game/StartScreen';
 import BriefingScreen from './components/game/BriefingScreen';
 import GameScreen from './components/game/GameScreen';
 import DebriefScreen from './components/game/DebriefScreen';
+import DevScorePanel from './components/game/DevScorePanel';
 import { useGameEngine } from './engine/useGameEngine';
+import { isDevMode } from './engine/devMode';
+
+const DEV_MODE = isDevMode();
 
 function DevRestartButton({ onRestart }: { onRestart: () => void }) {
   return (
@@ -17,7 +21,7 @@ function DevRestartButton({ onRestart }: { onRestart: () => void }) {
 }
 
 function App() {
-  const { ui, phase, actions, scenarioInput } = useGameEngine();
+  const { ui, phase, actions, scenarioInput, rawState } = useGameEngine();
 
   if (phase === 'menu' || !ui || !scenarioInput) {
     return <StartScreen onStart={actions.startGame} />;
@@ -77,6 +81,13 @@ function App() {
   return (
     <>
       <GameScreen ui={ui} scenarioInput={scenarioInput} actions={actions} />
+      {DEV_MODE && rawState && phase === 'active' && (
+        <DevScorePanel
+          replay={rawState.replay}
+          scenario={rawState.scenario}
+          clock={rawState.clock}
+        />
+      )}
       <DevRestartButton onRestart={actions.resetToMenu} />
     </>
   );
