@@ -654,6 +654,103 @@ function DoorFurniture({ zone }: FurnitureProps) {
   );
 }
 
+/* ── Floor plan minimap ───────────────────────────────────────────── */
+
+const MAP_X_MIN = 80, MAP_X_MAX = 920;   // isometric X span of the room
+const MAP_Y_MIN = 60, MAP_Y_MAX = 530;   // isometric Y span of the room
+const MAP_W = 90, MAP_H = 60;            // minimap canvas size (px)
+
+const MINIMAP_ZONE_COLOR: Record<ZoneId, { fill: string; stroke: string }> = {
+  airway_station:     { fill: '#78350f',  stroke: '#f59e0b' },
+  medication_station: { fill: '#14532d',  stroke: '#22c55e' },
+  defib_station:      { fill: '#450a0a',  stroke: '#ef4444' },
+  patient_bed:        { fill: '#1e3a5f',  stroke: '#3b82f6' },
+  door:               { fill: '#111827',  stroke: '#6b7280' },
+};
+
+function zoneToMap(cx: number, cy: number, w: number, h: number) {
+  const mx = ((cx - MAP_X_MIN) / (MAP_X_MAX - MAP_X_MIN)) * MAP_W;
+  const my = ((cy - MAP_Y_MIN) / (MAP_Y_MAX - MAP_Y_MIN)) * MAP_H;
+  const mw = (w / (MAP_X_MAX - MAP_X_MIN)) * MAP_W;
+  const mh = (h / (MAP_Y_MAX - MAP_Y_MIN)) * MAP_H;
+  return { mx, my, mw, mh };
+}
+
+const MINIMAP_ZONE_LABELS: Record<ZoneId, string> = {
+  airway_station: 'AIR', medication_station: 'MED', defib_station: 'DEF',
+  patient_bed: 'BED', door: 'DR',
+};
+
+interface MinimapProps {
+  activeZone: ZoneId | null;
+}
+
+function FloorPlanMinimap({ activeZone }: MinimapProps) {
+  return (
+    <svg
+      width={MAP_W}
+      height={MAP_H}
+      viewBox={`0 0 ${MAP_W} ${MAP_H}`}
+      style={{ display: 'block' }}
+    >
+      {/* Room floor */}
+      <rect x={0} y={0} width={MAP_W} height={MAP_H} fill="#060a14" rx={2} />
+
+      {/* Zones */}
+      {ZONES.map(z => {
+        const { mx, my, mw, mh } = zoneToMap(z.cx, z.cy, z.w, z.h);
+        const col = MINIMAP_ZONE_COLOR[z.id];
+        const isActive = activeZone === z.id;
+        const rx = mx - mw / 2, ry = my - mh / 2;
+
+        return (
+          <g key={z.id}>
+            <rect
+              x={rx} y={ry} width={mw} height={mh}
+              fill={col.fill}
+              stroke={col.stroke}
+              strokeWidth={isActive ? 2 : 0.8}
+              opacity={isActive ? 1 : 0.75}
+              rx={1}
+            />
+            {isActive && (
+              <rect
+                x={rx - 1} y={ry - 1} width={mw + 2} height={mh + 2}
+                fill="none"
+                stroke={col.stroke}
+                strokeWidth={1.5}
+                opacity={0.5}
+                rx={2}
+              />
+            )}
+            <text
+              x={rx + mw / 2}
+              y={ry + mh / 2 + 2.5}
+              textAnchor="middle"
+              fontSize={4.5}
+              fontWeight="bold"
+              fill={col.stroke}
+              fontFamily="monospace"
+              opacity={0.9}
+            >
+              {MINIMAP_ZONE_LABELS[z.id]}
+            </text>
+          </g>
+        );
+      })}
+
+      {/* North label */}
+      <text x={MAP_W / 2} y={5} textAnchor="middle" fontSize={3.5} fill="#374151" fontFamily="monospace">
+        AIRWAY END
+      </text>
+      {/* South label */}
+      <text x={MAP_W / 2} y={MAP_H - 1} textAnchor="middle" fontSize={3.5} fill="#374151" fontFamily="monospace">
+        DOOR
+      </text>
+    </svg>
+  );
+}
+
 /* ── Main component ───────────────────────────────────────────────── */
 
 interface IsometricRoomProps {
@@ -681,6 +778,8 @@ const ZONE_TAG_COLOR: Record<ZoneId, string> = {
 
 export default function IsometricRoom({ ui, actions }: IsometricRoomProps) {
   const [menu, setMenu] = useState<ActiveMenu | null>(null);
+  const [minimapVisible, setMinimapVisible] = useState(true);
+  const [hoveredZone, setHoveredZone] = useState<ZoneId | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
   /* Callout tag visibility — visible for first 8 s, then fade out */
@@ -986,6 +1085,8 @@ export default function IsometricRoom({ ui, actions }: IsometricRoomProps) {
               height: `${(z.h / VIEW_H) * 100 * 1.2}%`,
               zIndex: 5,
             }}
+            onMouseEnter={() => setHoveredZone(z.id)}
+            onMouseLeave={() => setHoveredZone(null)}
             onClick={e => {
               e.stopPropagation();
               flashZoneTag(z.id);
@@ -1206,6 +1307,37 @@ export default function IsometricRoom({ ui, actions }: IsometricRoomProps) {
         )}
       </AnimatePresence>
       </div>{/* ── end inner scene div ── */}
+
+      {/* ── Floor plan minimap ── */}
+      <div
+        className="absolute z-30"
+        style={{ bottom: '2.5rem', right: '0.75rem' }}
+        onClick={e => e.stopPropagation()}
+      >
+        {/* Toggle button */}
+        <button
+          onClick={() => setMinimapVisible(v => !v)}
+          className="block ml-auto mb-0.5 px-1.5 py-px rounded text-[8px] font-bold tracking-widest border border-gray-700 bg-gray-900/80 text-gray-500 hover:text-gray-300 hover:border-gray-500 transition-colors leading-none"
+          title={minimapVisible ? 'Hide floor plan' : 'Show floor plan'}
+        >
+          {minimapVisible ? 'MAP ▾' : 'MAP ▸'}
+        </button>
+
+        <AnimatePresence>
+          {minimapVisible && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.85, y: 4 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.85, y: 4 }}
+              transition={{ duration: 0.15 }}
+              className="rounded border border-gray-700/70 overflow-hidden shadow-xl"
+              style={{ background: 'rgba(6,10,20,0.82)', backdropFilter: 'blur(4px)' }}
+            >
+              <FloorPlanMinimap activeZone={hoveredZone} />
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
 
       {/* ── Chaos meter bar ── */}
       <div className="absolute bottom-2 left-1/2 -translate-x-1/2 z-10 flex flex-col items-center gap-0.5" style={{ width: 200 }}>
