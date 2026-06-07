@@ -92,6 +92,11 @@ export interface EngineActions {
   declareRosc: () => void;
   /** @internal */
   callTimeOfDeath: () => void;
+
+  /** Identify a reversible cause (H's & T's) — UI only, no engine action */
+  identifyCause: (causeId: string) => void;
+  /** Initiate treatment of identified reversible cause — UI only, no engine action */
+  treatCause: (causeId: string) => void;
 }
 
 export interface UseGameEngineResult {
@@ -194,6 +199,8 @@ export function useGameEngine(): UseGameEngineResult {
     requestClosedLoop: (orderId) => dispatchAction({ kind: 'request_closed_loop', orderId }),
     callTimeOfDeath: () => dispatchAction({ kind: 'call_time_of_death' }),
     declareRosc: () => dispatchAction({ kind: 'declare_rosc' }),
+    identifyCause: (_causeId: string) => { /* UI tracking only */ },
+    treatCause: (_causeId: string) => { /* UI tracking only */ },
   };
 
   const ui = wrapper.kind === 'sim' ? selectUIState(wrapper.state) : null;
