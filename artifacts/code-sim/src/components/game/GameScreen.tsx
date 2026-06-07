@@ -18,9 +18,7 @@ import EventLog from './EventLog';
 import StopwatchWidget from './StopwatchWidget';
 import PendingOrdersPanel from './PendingOrdersPanel';
 import LiveRoomCanvas from './LiveRoomCanvas';
-import SpatialRoomView from './SpatialRoomView';
-
-type ViewMode = 'classic' | 'spatial';
+import SpatialRoomCanvas from './SpatialRoomCanvas';
 
 interface GameScreenProps {
   ui: UIState;
@@ -83,8 +81,10 @@ function ProtocolReminders({ ui }: { ui: UIState }) {
   );
 }
 
+type ViewMode = 'flat' | 'spatial';
+
 export default function GameScreen({ ui, scenarioInput, actions }: GameScreenProps) {
-  const [viewMode, setViewMode] = useState<ViewMode>('classic');
+  const [viewMode, setViewMode] = useState<ViewMode>('flat');
 
   return (
     <div className="h-screen bg-gray-950 flex flex-col overflow-hidden">
@@ -106,38 +106,41 @@ export default function GameScreen({ ui, scenarioInput, actions }: GameScreenPro
           <span className="text-amber-300 text-xs">{RHYTHM_LABELS[ui.rhythm]}</span>
         </div>
 
-        <div className="flex items-center gap-3">
-          {/* View toggle */}
-          <div className="flex rounded overflow-hidden border border-gray-700 text-[10px]">
-            <button
-              onClick={() => setViewMode('classic')}
-              className={`px-2 py-1 transition-colors ${
-                viewMode === 'classic'
-                  ? 'bg-gray-600 text-gray-100'
-                  : 'bg-gray-900 text-gray-500 hover:bg-gray-800'
-              }`}
-            >
-              Classic
-            </button>
-            <button
-              onClick={() => setViewMode('spatial')}
-              className={`px-2 py-1 transition-colors ${
-                viewMode === 'spatial'
-                  ? 'bg-blue-800 text-blue-100'
-                  : 'bg-gray-900 text-gray-500 hover:bg-gray-800'
-              }`}
-            >
-              ◈ Spatial
-            </button>
-          </div>
-
+        <div className="flex items-center gap-4">
           <div className="font-mono text-lg text-gray-200">{formatTime(ui.clock)}</div>
+
+          {ui.phase === 'active' && (
+            <div className="flex items-center gap-0.5 bg-gray-800 border border-gray-700 rounded-md p-0.5">
+              <button
+                onClick={() => setViewMode('flat')}
+                className={`text-[10px] px-2 py-1 rounded font-semibold transition-colors ${
+                  viewMode === 'flat'
+                    ? 'bg-gray-600 text-gray-100'
+                    : 'text-gray-500 hover:text-gray-300'
+                }`}
+                title="Flat panel layout"
+              >
+                ⊞ Flat
+              </button>
+              <button
+                onClick={() => setViewMode('spatial')}
+                className={`text-[10px] px-2 py-1 rounded font-semibold transition-colors ${
+                  viewMode === 'spatial'
+                    ? 'bg-gray-600 text-gray-100'
+                    : 'text-gray-500 hover:text-gray-300'
+                }`}
+                title="Isometric room view"
+              >
+                ◈ Spatial
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
       {/* ── Body ── */}
-      {viewMode === 'classic' ? (
-        /* ── CLASSIC LAYOUT (unchanged) ── */
+      {viewMode === 'flat' ? (
+        /* ── FLAT LAYOUT (default) ── */
         <div className="flex-1 grid grid-cols-12 gap-2 p-2 min-h-0 overflow-hidden">
           <div className="col-span-2 flex flex-col gap-2 overflow-y-auto">
             <VitalsMonitor ui={ui} />
@@ -162,26 +165,22 @@ export default function GameScreen({ ui, scenarioInput, actions }: GameScreenPro
       ) : (
         /* ── SPATIAL LAYOUT ── */
         <div className="flex-1 grid grid-cols-12 gap-2 p-2 min-h-0 overflow-hidden">
-          {/* Vitals + timers + reminders — unchanged */}
           <div className="col-span-2 flex flex-col gap-2 overflow-y-auto">
             <VitalsMonitor ui={ui} />
             <StopwatchWidget clock={ui.clock} lastEpiAt={ui.lastEpiAt} lastRhythmCheckAt={ui.lastRhythmCheckAt} />
             <ProtocolReminders ui={ui} />
           </div>
 
-          {/* Spatial room — expanded */}
-          <div className="col-span-5 min-h-0 overflow-hidden">
-            <SpatialRoomView ui={ui} actions={actions} />
-          </div>
-
-          {/* Classic command panel — always visible, slightly narrower */}
-          <div className="col-span-3 flex flex-col gap-2 overflow-y-auto">
-            <CommandPanel ui={ui} actions={actions} pendingOrders={ui.pendingOrders} />
+          <div className="col-span-5 flex flex-col gap-2 overflow-y-auto">
+            <SpatialRoomCanvas ui={ui} actions={actions} />
             <PendingOrdersPanel orders={ui.pendingOrders} clock={ui.clock} />
           </div>
 
-          {/* Event log — compressed */}
-          <div className="col-span-2 min-h-0">
+          <div className="col-span-2 flex flex-col gap-2 overflow-y-auto">
+            <TeamPanel team={ui.team} onAssignRole={actions.assignRole} onConfirmRole={actions.confirmRole} />
+          </div>
+
+          <div className="col-span-3 min-h-0">
             <EventLog events={ui.recentLog} team={ui.team} />
           </div>
         </div>
