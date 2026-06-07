@@ -38,6 +38,22 @@ function isoRightFace(cx: number, cy: number, w: number, h: number, fh: number):
   ].join(' ');
 }
 
+/* ── Isometric furniture helpers ──────────────────────────────────── */
+
+/** A thin "slab" top face — handy for rails, shelves, table-tops */
+function isoSlab(cx: number, cy: number, w: number, h: number): string {
+  return isoFloor(cx, cy, w, h);
+}
+
+/** Vertical wall / panel face oriented on the left side */
+function isoPanel(cx: number, cy: number, w: number, h: number, fh: number) {
+  return {
+    top:   isoFloor(cx, cy, w, h),
+    left:  isoLeftFace(cx, cy, w, h, fh),
+    right: isoRightFace(cx, cy, w, h, fh),
+  };
+}
+
 /* ── Room object definitions ──────────────────────────────────────── */
 
 interface RoomZone {
@@ -172,6 +188,240 @@ function menuItemCls(variant: MenuAction['variant'], disabled?: boolean): string
 function clamp(v: number, lo: number, hi: number) { return Math.max(lo, Math.min(hi, v)); }
 
 const NON_TERMINAL = new Set(['issued', 'heard', 'acknowledged', 'in_progress']);
+
+/* ── Zone furniture SVG ───────────────────────────────────────────── */
+
+interface FurnitureProps { zone: RoomZone }
+
+function PatientBedFurniture({ zone, cprActive }: FurnitureProps & { cprActive: boolean }) {
+  const { cx, cy } = zone;
+  // Mattress surface (inset)
+  const mattW = 195, mattH = 96;
+  // Head-board: thin box at top of diamond (toward upper iso point)
+  const headCy = cy - zone.h / 2 + 14; // near top diamond point
+  const headW = 145, headH = 16, headFh = 11;
+  // Foot-board: thinner box near bottom diamond point
+  const footCy = cy + zone.h / 2 - 12;
+  const footW = 120, footH = 13, footFh = 8;
+  // Pillow: tiny diamond just south of head board
+  const pillowCy = headCy + 22;
+
+  const mattFill   = cprActive ? '#1a3a6a' : '#1a3560';
+  const railFill   = '#0e2040';
+  const railTop    = '#2563eb';
+  const railStroke = '#3b82f680';
+
+  return (
+    <g opacity="0.92">
+      {/* Mattress */}
+      <polygon points={isoSlab(cx, cy, mattW, mattH)}
+        fill={mattFill} stroke="#3b82f650" strokeWidth="1" />
+
+      {/* Head board */}
+      <polygon points={isoLeftFace(cx, headCy, headW, headH, headFh)}
+        fill={railFill} stroke={railStroke} strokeWidth="0.5" />
+      <polygon points={isoRightFace(cx, headCy, headW, headH, headFh)}
+        fill="#0a1830" stroke={railStroke} strokeWidth="0.5" />
+      <polygon points={isoSlab(cx, headCy, headW, headH)}
+        fill={railTop} stroke="#60a5fa" strokeWidth="1" />
+
+      {/* Pillow */}
+      <polygon points={isoSlab(cx, pillowCy, 55, 26)}
+        fill="#e2e8f0" stroke="#94a3b8" strokeWidth="0.8" opacity="0.55" />
+
+      {/* Left bed rail (line along left edge of mattress) */}
+      <line
+        x1={cx - mattW / 2} y1={cy}
+        x2={cx}              y2={cy - mattH / 2}
+        stroke="#1d4ed8" strokeWidth="1.2" opacity="0.6" />
+      {/* Right bed rail */}
+      <line
+        x1={cx + mattW / 2} y1={cy}
+        x2={cx}              y2={cy - mattH / 2}
+        stroke="#1d4ed8" strokeWidth="1.2" opacity="0.6" />
+
+      {/* Foot board */}
+      <polygon points={isoLeftFace(cx, footCy, footW, footH, footFh)}
+        fill={railFill} stroke={railStroke} strokeWidth="0.5" />
+      <polygon points={isoRightFace(cx, footCy, footW, footH, footFh)}
+        fill="#0a1830" stroke={railStroke} strokeWidth="0.5" />
+      <polygon points={isoSlab(cx, footCy, footW, footH)}
+        fill={railTop} stroke="#60a5fa" strokeWidth="1" />
+    </g>
+  );
+}
+
+function DefibFurniture({ zone, charged }: FurnitureProps & { charged: boolean }) {
+  const { cx, cy } = zone;
+  // Main defibrillator cart body — sits right-of-centre on the tile
+  const boxCx = cx + 18, boxCy = cy - 8;
+  const bW = 70, bH = 36, bFh = 30;
+  const screenColor = charged ? '#fbbf24' : '#22d3ee';
+
+  // Screen rectangle within the right face of the monitor
+  // Right face corners: (cx+w/2,cy), (cx,cy+h/2), (cx,cy+h/2+fh), (cx+w/2,cy+fh)
+  const rfTL = { x: boxCx + bW / 2,           y: boxCy };
+  const rfBL = { x: boxCx,                     y: boxCy + bH / 2 };
+  const rfBR = { x: boxCx,                     y: boxCy + bH / 2 + bFh };
+  const rfTR = { x: boxCx + bW / 2,            y: boxCy + bFh };
+  // Screen inset (70% of face)
+  const sw = 0.65, sh = 0.6, ox = 0.15, oy = 0.2;
+  function lerp2(a: {x:number,y:number}, b: {x:number,y:number}, t: number) {
+    return { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t };
+  }
+  const scrTL = lerp2(lerp2(rfTL, rfBL, oy),         lerp2(rfTR, rfBR, oy),         ox);
+  const scrTR = lerp2(lerp2(rfTL, rfBL, oy),         lerp2(rfTR, rfBR, oy),         ox + sw);
+  const scrBL = lerp2(lerp2(rfTL, rfBL, oy + sh),    lerp2(rfTR, rfBR, oy + sh),    ox);
+  const scrBR = lerp2(lerp2(rfTL, rfBL, oy + sh),    lerp2(rfTR, rfBR, oy + sh),    ox + sw);
+
+  return (
+    <g opacity="0.93">
+      <polygon points={isoLeftFace(boxCx, boxCy, bW, bH, bFh)}
+        fill="#1a0808" stroke="#ef444440" strokeWidth="0.5" />
+      <polygon points={isoRightFace(boxCx, boxCy, bW, bH, bFh)}
+        fill="#250d0d" stroke="#ef444440" strokeWidth="0.5" />
+      <polygon points={isoSlab(boxCx, boxCy, bW, bH)}
+        fill="#3b1212" stroke="#ef4444" strokeWidth="1" />
+      {/* Monitor screen */}
+      <polygon
+        points={`${scrTL.x},${scrTL.y} ${scrTR.x},${scrTR.y} ${scrBR.x},${scrBR.y} ${scrBL.x},${scrBL.y}`}
+        fill={charged ? '#78350f' : '#0c2a2e'}
+        stroke={screenColor}
+        strokeWidth="1"
+        opacity="0.9"
+      />
+      {/* Screen glow line (EKG trace) */}
+      <line
+        x1={(scrTL.x + scrBL.x) / 2} y1={(scrTL.y + scrBL.y) / 2}
+        x2={(scrTR.x + scrBR.x) / 2} y2={(scrTR.y + scrBR.y) / 2}
+        stroke={screenColor} strokeWidth="1" opacity="0.7"
+      />
+      {/* Paddles on top */}
+      <line x1={boxCx - 4} y1={boxCy - bH / 2 + 2} x2={boxCx - 18} y2={boxCy - bH / 2 - 5}
+        stroke="#9ca3af" strokeWidth="1.5" />
+      <line x1={boxCx + 10} y1={boxCy - bH / 2 + 4} x2={boxCx + 22} y2={boxCy - bH / 2 - 4}
+        stroke="#9ca3af" strokeWidth="1.5" />
+    </g>
+  );
+}
+
+function MedCartFurniture({ zone }: FurnitureProps) {
+  const { cx, cy } = zone;
+  const boxCx = cx - 8, boxCy = cy - 6;
+  const bW = 65, bH = 35, bFh = 26;
+
+  return (
+    <g opacity="0.9">
+      <polygon points={isoLeftFace(boxCx, boxCy, bW, bH, bFh)}
+        fill="#0a180a" stroke="#22c55e40" strokeWidth="0.5" />
+      <polygon points={isoRightFace(boxCx, boxCy, bW, bH, bFh)}
+        fill="#0e1e0e" stroke="#22c55e40" strokeWidth="0.5" />
+      <polygon points={isoSlab(boxCx, boxCy, bW, bH)}
+        fill="#1a3a1a" stroke="#22c55e" strokeWidth="1" />
+      {/* Drawer divider lines on left face */}
+      {[0.35, 0.65].map((t, i) => {
+        const lf = isoLeftFace(boxCx, boxCy, bW, bH, bFh).split(' ').map(p => ({ x: +p.split(',')[0], y: +p.split(',')[1] }));
+        const y1 = lf[0].y + (lf[1].y - lf[0].y) * t + (lf[3].y - lf[0].y) * 0;
+        const x1 = lf[0].x + (lf[1].x - lf[0].x) * t;
+        const y2 = lf[3].y + (lf[2].y - lf[3].y) * t;
+        const x2 = lf[3].x + (lf[2].x - lf[3].x) * t;
+        return <line key={i} x1={x1} y1={y1} x2={x2} y2={y2} stroke="#22c55e50" strokeWidth="0.8" />;
+      })}
+      {/* IV bag/bottle silhouette on top */}
+      <ellipse cx={boxCx + 5} cy={boxCy - bH / 2 - 2} rx={7} ry={4}
+        fill="#052e16" stroke="#4ade80" strokeWidth="0.8" opacity="0.85" />
+      {/* Drip line */}
+      <line x1={boxCx + 5} y1={boxCy - bH / 2 + 2} x2={boxCx + 5} y2={boxCy - bH / 2 + 10}
+        stroke="#4ade80" strokeWidth="0.6" opacity="0.6" />
+    </g>
+  );
+}
+
+function AirwayCartFurniture({ zone, hasAdvanced }: FurnitureProps & { hasAdvanced: boolean }) {
+  const { cx, cy } = zone;
+  const boxCx = cx + 5, boxCy = cy - 4;
+  const bW = 72, bH = 40, bFh = 22;
+  // IV / airway pole — sits to the right of the cart
+  const poleCx = cx + 55, poleCy = cy;
+
+  return (
+    <g opacity="0.93">
+      {/* Cart body */}
+      <polygon points={isoLeftFace(boxCx, boxCy, bW, bH, bFh)}
+        fill="#1a1404" stroke="#f59e0b40" strokeWidth="0.5" />
+      <polygon points={isoRightFace(boxCx, boxCy, bW, bH, bFh)}
+        fill="#211a05" stroke="#f59e0b40" strokeWidth="0.5" />
+      <polygon points={isoSlab(boxCx, boxCy, bW, bH)}
+        fill="#2d2206" stroke="#f59e0b" strokeWidth="1" />
+      {/* Drawer dividers on right face */}
+      {[0.4, 0.72].map((t, i) => {
+        const lf = isoRightFace(boxCx, boxCy, bW, bH, bFh).split(' ').map(p => ({ x: +p.split(',')[0], y: +p.split(',')[1] }));
+        const x1 = lf[0].x + (lf[1].x - lf[0].x) * t;
+        const y1 = lf[0].y + (lf[1].y - lf[0].y) * t;
+        const x2 = lf[3].x + (lf[2].x - lf[3].x) * t;
+        const y2 = lf[3].y + (lf[2].y - lf[3].y) * t;
+        return <line key={i} x1={x1} y1={y1} x2={x2} y2={y2} stroke="#f59e0b50" strokeWidth="0.8" />;
+      })}
+      {/* Tubes / BVM bag on top */}
+      <ellipse cx={boxCx - 6} cy={boxCy - bH / 2 - 3} rx={10} ry={5}
+        fill="#1c1003" stroke="#fcd34d" strokeWidth="0.9" opacity="0.9" />
+      <line x1={boxCx - 6} y1={boxCy - bH / 2 + 2} x2={boxCx + 10} y2={boxCy - bH / 2 + 8}
+        stroke="#fcd34d" strokeWidth="0.7" opacity="0.55" />
+
+      {/* Airway pole (IV stand) */}
+      <line x1={poleCx} y1={poleCy - bH / 2 - 2} x2={poleCx} y2={poleCy - bH / 2 - 28}
+        stroke={hasAdvanced ? '#4ade80' : '#6b7280'} strokeWidth="1.5" />
+      {/* Hook / cross-bar at top */}
+      <line x1={poleCx - 7} y1={poleCy - bH / 2 - 26} x2={poleCx + 7} y2={poleCy - bH / 2 - 26}
+        stroke={hasAdvanced ? '#4ade80' : '#6b7280'} strokeWidth="1.5" />
+      {/* IV bag on pole */}
+      <ellipse cx={poleCx} cy={poleCy - bH / 2 - 28} rx={5} ry={3}
+        fill={hasAdvanced ? '#052e16' : '#111827'}
+        stroke={hasAdvanced ? '#4ade80' : '#374151'} strokeWidth="0.8" opacity="0.9" />
+    </g>
+  );
+}
+
+function DoorFurniture({ zone }: FurnitureProps) {
+  const { cx, cy, w, h } = zone;
+  // The door tile diamond: top=(cx,cy-h/2), right=(cx+w/2,cy), bottom=(cx,cy+h/2), left=(cx-w/2,cy)
+  // Draw a door arch rising from the tile's top face
+  const topY = cy - h / 2; // top diamond point y
+  const archH = 32;        // how high the arch rises above the tile
+
+  // Left pillar of door frame (left side of top diamond point)
+  const lx1 = cx - 18, lx2 = cx - 18;
+  const rx1 = cx + 18, rx2 = cx + 18;
+  const baseY = topY + 4;
+  const archTopY = topY - archH;
+
+  return (
+    <g opacity="0.85">
+      {/* Left door pillar */}
+      <line x1={lx1} y1={baseY} x2={lx2} y2={archTopY + 8}
+        stroke="#6b7280" strokeWidth="2.5" />
+      {/* Right door pillar */}
+      <line x1={rx1} y1={baseY} x2={rx2} y2={archTopY + 8}
+        stroke="#6b7280" strokeWidth="2.5" />
+      {/* Arch (semicircle) */}
+      <path
+        d={`M ${lx1} ${archTopY + 8} Q ${cx} ${archTopY - 6} ${rx1} ${archTopY + 8}`}
+        fill="none" stroke="#6b7280" strokeWidth="2.5"
+      />
+      {/* Door panel fill */}
+      <path
+        d={`M ${lx1 + 2} ${baseY} L ${lx1 + 2} ${archTopY + 9} Q ${cx} ${archTopY - 4} ${rx1 - 2} ${archTopY + 9} L ${rx1 - 2} ${baseY} Z`}
+        fill="#111827" stroke="none" opacity="0.7"
+      />
+      {/* Door handle dot */}
+      <circle cx={cx + 10} cy={(baseY + archTopY) / 2 + 4} r={2.5}
+        fill="#9ca3af" opacity="0.85" />
+      {/* Lintel (top bar) */}
+      <line x1={lx1 - 3} y1={archTopY + 8} x2={rx1 + 3} y2={archTopY + 8}
+        stroke="#4b5563" strokeWidth="1" />
+    </g>
+  );
+}
 
 /* ── Main component ───────────────────────────────────────────────── */
 
@@ -378,6 +628,23 @@ export default function IsometricRoom({ ui, actions }: IsometricRoomProps) {
                 strokeWidth={strokeW}
                 filter={isCharged ? 'url(#iso-glow-amber)' : isCprBed ? 'url(#iso-glow-blue)' : undefined}
               />
+              {/* Zone furniture */}
+              {z.id === 'patient_bed' && (
+                <PatientBedFurniture zone={z} cprActive={ui.cprActive} />
+              )}
+              {z.id === 'defib_station' && (
+                <DefibFurniture zone={z} charged={ui.defibCharged} />
+              )}
+              {z.id === 'medication_station' && (
+                <MedCartFurniture zone={z} />
+              )}
+              {z.id === 'airway_station' && (
+                <AirwayCartFurniture zone={z} hasAdvanced={ui.hasAdvancedAirway} />
+              )}
+              {z.id === 'door' && (
+                <DoorFurniture zone={z} />
+              )}
+
               {/* Zone label */}
               <text
                 x={z.cx}
