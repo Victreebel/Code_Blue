@@ -118,11 +118,45 @@ export function setSpeech(team: TeamState, memberId: string, text: string, until
   };
 }
 
+function speechDuration(text: string): number {
+  return text.length > 40 ? 6 : 5;
+}
+
+export interface AckSpeechInput {
+  team: TeamState;
+  rng: RngState;
+  memberId: string;
+  clock: number;
+}
+
+export interface AckSpeechOutput {
+  team: TeamState;
+  rng: RngState;
+}
+
+export function applyOrderAcknowledgment(input: AckSpeechInput): AckSpeechOutput {
+  const { memberId, clock } = input;
+  let { team, rng } = input;
+  const m = findMember(team, memberId);
+  if (!m || m.speech) return { team, rng };
+  const arche = STAFF_ARCHETYPES[m.archetypeId];
+  const phrases = arche.acknowledgmentPhrases.length > 0
+    ? arche.acknowledgmentPhrases
+    : ['Got it.'];
+  const [phrase, r1] = drawChoice(rng, phrases);
+  rng = r1;
+  const dur = speechDuration(phrase);
+  team = setSpeech(team, memberId, phrase, clock + dur);
+  return { team, rng };
+}
+
 export interface TeamTickOutput {
   team: TeamState;
   replay: ReplayState;
   rng: RngState;
 }
+
+const SPONTANEOUS_RATE_BASE = 0.006;
 
 export function stepTeam(
   team: TeamState,
@@ -148,28 +182,27 @@ export function stepTeam(
     nextTeam = applyFatigue(nextTeam, currentCompressorId, 0.1);
   }
 
-  if (clock > 0 && Math.floor(clock) % 30 === 0 && Math.abs(clock - Math.floor(clock)) < 0.05) {
-    const idle = nextTeam.members.filter(
-      m => !m.isLeader && !m.speech && m.busyUntil <= clock && m.assignedRole !== 'none',
-    );
-    if (idle.length > 0) {
-      const [picked, r1] = drawChoice(nextRng, idle);
-      nextRng = r1;
-      const arche = STAFF_ARCHETYPES[picked.archetypeId];
-      if (arche.spontaneousActions.length > 0) {
-        const [chance, r2] = draw(nextRng);
-        nextRng = r2;
-        if (chance < picked.behavior.initiative * 0.3) {
-          const [phrase, r3] = drawChoice(nextRng, arche.spontaneousActions);
-          nextRng = r3;
-          nextTeam = setSpeech(nextTeam, picked.id, phrase, clock + 4);
-          nextReplay = append(nextReplay, clock, 'team', 'team.spontaneous_speech', {
-            memberId: picked.id,
-            memberName: picked.name,
-            text: phrase,
-          });
-        }
-      }
+  const spkCandidates = nextTeam.members.filter(
+    m => !m.isLeader && !m.speech && m.busyUntil <= clock &&
+      STAFF_ARCHETYPES[m.archetypeId].spontaneousActions.length > 0,
+  );
+
+  for (const m of spkCandidates) {
+    const [chance, r1] = draw(nextRng);
+    nextRng = r1;
+    const rate = m.behavior.initiative * SPONTANEOUS_RATE_BASE;
+    if (chance < rate) {
+      const arche = STAFF_ARCHETYPES[m.archetypeId];
+      const [phrase, r2] = drawChoice(nextRng, arche.spontaneousActions);
+      nextRng = r2;
+      const dur = speechDuration(phrase);
+      nextTeam = setSpeech(nextTeam, m.id, phrase, clock + dur);
+      nextReplay = append(nextReplay, clock, 'team', 'team.spontaneous_speech', {
+        memberId: m.id,
+        memberName: m.name,
+        text: phrase,
+      });
+      break;
     }
   }
 

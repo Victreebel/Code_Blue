@@ -10,6 +10,7 @@ export interface StaffArchetype {
   behavior: BehaviorProfile;
   preferredRoles: TeamRole[];
   spontaneousActions: string[];
+  acknowledgmentPhrases: string[];
   clarificationPhrases: string[];
   delayPhrases: string[];
   wrongTaskPhrases: string[];
@@ -29,6 +30,14 @@ export const STAFF_ARCHETYPES: Record<StaffArchetypeId, StaffArchetype> = {
       'Drawing up epi now.',
       "I'm getting a second line in the other arm.",
       'Let me suction before you try again.',
+      "Pads are on, ready to analyze when you are.",
+    ],
+    acknowledgmentPhrases: [
+      'On it.',
+      'Got it.',
+      'Copy that.',
+      'Right away.',
+      'Done.',
     ],
     clarificationPhrases: ['Did you want epi or amio?', 'One or two amps of bicarb?'],
     delayPhrases: [],
@@ -42,7 +51,20 @@ export const STAFF_ARCHETYPES: Record<StaffArchetypeId, StaffArchetype> = {
     compliance: 'cooperative',
     behavior: { initiative: 0.15, distractibility: 0.4, clarificationTendency: 0.7, executionSpeed: 0.4, assertiveness: 0.1 },
     preferredRoles: ['recorder', 'timekeeper'],
-    spontaneousActions: [],
+    spontaneousActions: [
+      'Um — what do you need me to do?',
+      "I'm here, just tell me where to go.",
+      'Should I be recording? I can record.',
+      "I don't know where they keep the amiodarone here...",
+      "Sorry — I'm still getting oriented.",
+    ],
+    acknowledgmentPhrases: [
+      'Okay... okay, I think I can do that.',
+      'Got it, I — I think.',
+      "I'll try.",
+      'Okay, working on it.',
+      'Um, yes — on it.',
+    ],
     clarificationPhrases: [
       'Sorry, which med did you say?',
       'Did you say IV or IO?',
@@ -68,6 +90,14 @@ export const STAFF_ARCHETYPES: Record<StaffArchetypeId, StaffArchetype> = {
       'I have the airway, bagging with good chest rise.',
       "EtCO2 is connected. I'll call out changes.",
       "Sats are dropping, I'm going to suction.",
+      "Airway's secure, ventilating at 10 per minute.",
+    ],
+    acknowledgmentPhrases: [
+      'Got it.',
+      'On it.',
+      'Copy.',
+      'Understood.',
+      'Airway secured.',
     ],
     clarificationPhrases: ['Do you want me to intubate or keep bagging?'],
     delayPhrases: [],
@@ -81,7 +111,20 @@ export const STAFF_ARCHETYPES: Record<StaffArchetypeId, StaffArchetype> = {
     compliance: 'cooperative',
     behavior: { initiative: 0.2, distractibility: 0.5, clarificationTendency: 0.3, executionSpeed: 0.35, assertiveness: 0.2 },
     preferredRoles: ['airway'],
-    spontaneousActions: [],
+    spontaneousActions: [
+      "I'm still getting my equipment ready...",
+      "Sorry, I was on a different floor — what do you need?",
+      "Is someone bagging? I can take over when I'm set up.",
+      "Just got here, give me a second to get my bearings.",
+      "My bag-valve's in the hall, one moment.",
+    ],
+    acknowledgmentPhrases: [
+      "I'll get to it.",
+      'Working on it.',
+      "Okay, I'm on it.",
+      'Give me a moment.',
+      'Got it... just a second.',
+    ],
     clarificationPhrases: ['Which size tube did you want?'],
     delayPhrases: [
       'I need to get my equipment from the other room...',
@@ -101,6 +144,15 @@ export const STAFF_ARCHETYPES: Record<StaffArchetypeId, StaffArchetype> = {
       "I'll do compressions!",
       'Should I push the epi? I can do it.',
       "I'll intubate!",
+      "Want me on the monitor? I'll watch the rhythm.",
+      "I can get the IV — I'm fast with those.",
+    ],
+    acknowledgmentPhrases: [
+      'On it!',
+      'Got it, doing it now!',
+      "I'm on it.",
+      'Yes! On it.',
+      'Done — already on it.',
     ],
     clarificationPhrases: [],
     delayPhrases: [],
@@ -117,7 +169,20 @@ export const STAFF_ARCHETYPES: Record<StaffArchetypeId, StaffArchetype> = {
     compliance: 'cooperative',
     behavior: { initiative: 0.3, distractibility: 0.8, clarificationTendency: 0.4, executionSpeed: 0.3, assertiveness: 0.2 },
     preferredRoles: ['recorder', 'timekeeper'],
-    spontaneousActions: [],
+    spontaneousActions: [
+      "Sorry — what's happening? What do you need?",
+      "Is someone on compressions already?",
+      "I got paged but I'm here — where should I be?",
+      "What role am I doing?",
+      "Should I be charting this?",
+    ],
+    acknowledgmentPhrases: [
+      'Oh — yeah, on it.',
+      'Got it, sorry.',
+      "Okay, I'm doing it.",
+      'Right, right. On it.',
+      "Got it. Give me a sec.",
+    ],
     clarificationPhrases: [
       'Sorry, who are you talking to?',
       'Wait, what did you need me to do?',
@@ -141,6 +206,14 @@ export const STAFF_ARCHETYPES: Record<StaffArchetypeId, StaffArchetype> = {
       'Next epi is drawn up and ready.',
       'Amiodarone 300mg is mixed, ready to go.',
       "I'll keep track of med timing.",
+      "Epi's due in about 2 minutes if you want it.",
+    ],
+    acknowledgmentPhrases: [
+      'Drawing it up now.',
+      'On it.',
+      'Got it.',
+      'Mixing it now.',
+      'Ready in 30 seconds.',
     ],
     clarificationPhrases: [
       'Just to confirm — amiodarone 300 IV push?',
@@ -162,6 +235,13 @@ export const STAFF_ARCHETYPES: Record<StaffArchetypeId, StaffArchetype> = {
       "Why hasn't epi been given yet?",
       'Have you considered hyperkalemia? Give calcium.',
       "Compression rate is too fast, slow it down.",
+      "Is this team even certified? Someone call a real code.",
+    ],
+    acknowledgmentPhrases: [
+      "I already handled it.",
+      "Obviously.",
+      "Done — I did it myself.",
+      'Already on it.',
     ],
     clarificationPhrases: [],
     delayPhrases: [],

@@ -15,6 +15,7 @@ import {
   confirmRole,
   applyFatigue,
   clearFatigue,
+  applyOrderAcknowledgment,
 } from './team/teamEngine';
 import { initOrdersState, issueOrder, stepOrders } from './orders/pendingOrdersEngine';
 import { computeSchemeE } from './scoring/schemeE';
@@ -504,6 +505,20 @@ export function tickOnce(state: SimulationState): SimulationState {
   s = { ...s, orders: ordersStep.orders, replay: ordersStep.replay };
   if (ordersStep.finalized.length > 0) {
     s = applyOrderEffects(s, ordersStep.finalized);
+  }
+
+  // Apply acknowledgment speech for orders that just became heard
+  if (ordersStep.newlyHeard.length > 0) {
+    for (const o of ordersStep.newlyHeard) {
+      if (!o.targetMemberId) continue;
+      const ack = applyOrderAcknowledgment({
+        team: s.team,
+        rng: s.rng,
+        memberId: o.targetMemberId,
+        clock: s.clock,
+      });
+      s = { ...s, team: ack.team, rng: ack.rng };
+    }
   }
 
   // Step rhythm

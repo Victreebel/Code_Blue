@@ -236,6 +236,7 @@ export interface PromoteResult {
   orders: OrdersState;
   replay: ReplayState;
   finalized: PendingOrder[];
+  newlyHeard: PendingOrder[];
 }
 
 function plannedExtras(o: PendingOrder): PlannedOrderExtra {
@@ -253,6 +254,7 @@ export function stepOrders(
 ): PromoteResult {
   let nextReplay = replay;
   const finalized: PendingOrder[] = [];
+  const newlyHeard: PendingOrder[] = [];
 
   const updates = orders.orders.map(o => {
     if (isTerminal(o.status)) return o;
@@ -262,6 +264,7 @@ export function stepOrders(
     if (next.status === 'issued' && next.schedule.heardAt !== null && clock >= next.schedule.heardAt) {
       next = { ...next, status: 'heard' };
       nextReplay = append(nextReplay, clock, 'pendingOrder', 'pendingOrder.heard', { orderId: o.id });
+      newlyHeard.push(next);
     }
     if (
       next.status === 'heard' &&
@@ -308,7 +311,7 @@ export function stepOrders(
     return next;
   });
 
-  return { orders: { ...orders, orders: updates }, replay: nextReplay, finalized };
+  return { orders: { ...orders, orders: updates }, replay: nextReplay, finalized, newlyHeard };
 }
 
 export function isTerminal(status: PendingOrder['status']): boolean {
