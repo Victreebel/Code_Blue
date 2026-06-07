@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { UIState } from '../../engine/ui/uiStateEngine';
 import type { EngineActions } from '../../engine/useGameEngine';
@@ -661,9 +661,53 @@ interface IsometricRoomProps {
   actions: EngineActions;
 }
 
+/* ── Callout tag full names ───────────────────────────────────────── */
+
+const ZONE_CALLOUT: Record<ZoneId, string> = {
+  patient_bed:        'Patient Bed',
+  defib_station:      'Defib / Monitor',
+  medication_station: 'Medication Cart',
+  airway_station:     'Airway Equipment',
+  door:               'Team Actions',
+};
+
+const ZONE_TAG_COLOR: Record<ZoneId, string> = {
+  airway_station:     '#f59e0b',
+  medication_station: '#22c55e',
+  defib_station:      '#ef4444',
+  patient_bed:        '#3b82f6',
+  door:               '#6b7280',
+};
+
 export default function IsometricRoom({ ui, actions }: IsometricRoomProps) {
   const [menu, setMenu] = useState<ActiveMenu | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+
+  /* Callout tag visibility — visible for first 8 s, then fade out */
+  const [showInitialTags, setShowInitialTags] = useState(true);
+  /* Per-zone flash: set of zone ids briefly re-shown after a click */
+  const [flashedZones, setFlashedZones] = useState<Set<ZoneId>>(new Set());
+  const flashTimers = useRef<Map<ZoneId, ReturnType<typeof setTimeout>>>(new Map());
+
+  useEffect(() => {
+    const t = setTimeout(() => setShowInitialTags(false), 8000);
+    return () => clearTimeout(t);
+  }, []);
+
+  function flashZoneTag(id: ZoneId) {
+    setFlashedZones(prev => new Set(prev).add(id));
+    const existing = flashTimers.current.get(id);
+    if (existing) clearTimeout(existing);
+    const t = setTimeout(() => {
+      setFlashedZones(prev => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
+      flashTimers.current.delete(id);
+    }, 2500);
+    flashTimers.current.set(id, t);
+  }
 
   const isShockable = ui.rhythm === 'vfib' || ui.rhythm === 'vtach';
   const isArrest = isShockable || ui.rhythm === 'pea' || ui.rhythm === 'asystole';
@@ -942,9 +986,89 @@ export default function IsometricRoom({ ui, actions }: IsometricRoomProps) {
               height: `${(z.h / VIEW_H) * 100 * 1.2}%`,
               zIndex: 5,
             }}
-            onClick={e => { e.stopPropagation(); openZoneMenu(z.id, { x: pct.x - 2, y: pct.y - 10 }); }}
+            onClick={e => {
+              e.stopPropagation();
+              flashZoneTag(z.id);
+              openZoneMenu(z.id, { x: pct.x - 2, y: pct.y - 10 });
+            }}
             title={`Click: ${z.label}`}
           />
+        );
+      })}
+
+      {/* ── Callout tags — pill labels floating above each zone ── */}
+      {ZONES.map(z => {
+        const pct = zoneToPct(z.cx, z.cy);
+        const tagVisible = showInitialTags || flashedZones.has(z.id);
+        const color = ZONE_TAG_COLOR[z.id];
+        return (
+          <AnimatePresence key={`tag-${z.id}`}>
+            {tagVisible && (
+              <motion.div
+                initial={{ opacity: 0, y: -4, scale: 0.92 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: -4, scale: 0.92 }}
+                transition={{ duration: 0.35 }}
+                style={{
+                  position: 'absolute',
+                  left: `${pct.x}%`,
+                  top: `${pct.y - 12}%`,
+                  transform: 'translate(-50%, -100%)',
+                  zIndex: 10,
+                  pointerEvents: 'none',
+                }}
+              >
+                {/* Tail connector line */}
+                <div
+                  style={{
+                    position: 'absolute',
+                    bottom: '-8px',
+                    left: '50%',
+                    transform: 'translateX(-50%)',
+                    width: '1px',
+                    height: '8px',
+                    background: color,
+                    opacity: 0.6,
+                  }}
+                />
+                {/* Pill tag */}
+                <div
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '5px',
+                    padding: '3px 9px',
+                    borderRadius: '999px',
+                    border: `1.5px solid ${color}`,
+                    background: `${color}18`,
+                    backdropFilter: 'blur(4px)',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  <div
+                    style={{
+                      width: '6px',
+                      height: '6px',
+                      borderRadius: '50%',
+                      background: color,
+                      flexShrink: 0,
+                    }}
+                  />
+                  <span
+                    style={{
+                      fontFamily: 'monospace',
+                      fontSize: '11px',
+                      fontWeight: 700,
+                      color,
+                      letterSpacing: '0.04em',
+                    }}
+                  >
+                    {ZONE_CALLOUT[z.id]}
+                  </span>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         );
       })}
 
