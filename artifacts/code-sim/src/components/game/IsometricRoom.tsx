@@ -115,6 +115,24 @@ const ROLE_SHORT: Record<TeamRole, string> = {
   recorder: 'Rec', timekeeper: 'Time', none: '—',
 };
 
+const ROLE_BADGE_CLS: Record<TeamRole, string> = {
+  leader:        'bg-amber-800/80 border-amber-400 text-amber-100',
+  compressor:    'bg-red-800/80 border-red-400 text-red-100',
+  airway:        'bg-amber-900/80 border-amber-500 text-amber-200',
+  iv_access:     'bg-blue-900/80 border-blue-400 text-blue-200',
+  medication:    'bg-green-900/80 border-green-500 text-green-200',
+  monitor_defib: 'bg-violet-900/80 border-violet-500 text-violet-200',
+  recorder:      'bg-gray-800/80 border-gray-500 text-gray-300',
+  timekeeper:    'bg-gray-800/80 border-gray-500 text-gray-300',
+  none:          'bg-gray-900/60 border-gray-700 text-gray-600',
+};
+
+function fatigueHaloColor(fatigue: number): string {
+  if (fatigue < 0.35) return '#22c55e';
+  if (fatigue < 0.65) return '#f59e0b';
+  return '#ef4444';
+}
+
 const ROLE_FULL: Record<TeamRole, string> = {
   leader: 'Code Leader', compressor: 'Compressor', airway: 'Airway Mgmt',
   iv_access: 'IV Access', medication: 'Medications', monitor_defib: 'Defib Op.',
@@ -446,6 +464,20 @@ export default function IsometricRoom({ ui, actions }: IsometricRoomProps) {
               )}
             </AnimatePresence>
 
+            {/* Fatigue halo — compressor only */}
+            {m.assignedRole === 'compressor' && (
+              <motion.div
+                className="absolute inset-0 rounded-full pointer-events-none"
+                style={{
+                  width: '2.25rem',
+                  height: '2.25rem',
+                  boxShadow: `0 0 0 3px ${fatigueHaloColor(m.fatigueLevel)}, 0 0 10px 3px ${fatigueHaloColor(m.fatigueLevel)}88`,
+                }}
+                animate={{ opacity: [0.7, 1, 0.7] }}
+                transition={{ duration: 1.2, repeat: Infinity, ease: 'easeInOut' }}
+              />
+            )}
+
             {/* Avatar circle */}
             <motion.button
               onClick={e => {
@@ -484,12 +516,17 @@ export default function IsometricRoom({ ui, actions }: IsometricRoomProps) {
               {m.name.split(' ')[0].slice(0, 3)}
             </motion.button>
 
-            {/* Role label */}
-            <div className="text-center mt-0.5 pointer-events-none">
-              <div className="text-[8px] text-gray-400 leading-none">
-                {ROLE_SHORT[m.assignedRole]}{isFatigued ? ' ⚠' : ''}
+            {/* Role badge — always visible */}
+            {m.assignedRole !== 'none' && (
+              <div className="text-center mt-0.5 pointer-events-none">
+                <span className={`inline-flex items-center gap-0.5 px-1 py-px rounded border text-[7px] font-bold leading-none ${ROLE_BADGE_CLS[m.assignedRole]}`}>
+                  {m.confirmedRole && (
+                    <span className="text-[7px] leading-none">✓</span>
+                  )}
+                  {ROLE_SHORT[m.assignedRole]}
+                </span>
               </div>
-            </div>
+            )}
           </div>
         );
       })}
