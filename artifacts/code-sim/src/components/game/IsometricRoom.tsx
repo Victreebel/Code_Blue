@@ -8,6 +8,8 @@ import { AMIODARONE_FIRST_DOSE_MG, AMIODARONE_SUBSEQUENT_DOSE_MG } from '../../e
 
 const ROOM_W = 1000;
 const ROOM_H = 580;
+const VIEW_MIN_Y = 60;
+const VIEW_H = 430;
 
 /* ── Isometric geometry helpers ───────────────────────────────────── */
 
@@ -114,15 +116,15 @@ const ZONES: RoomZone[] = [
 /* ── Avatar positions (percentage of container) ───────────────────── */
 
 const ROLE_POSITIONS: Record<TeamRole, { x: number; y: number }> = {
-  airway:        { x: 50, y: 14 },
-  monitor_defib: { x: 79, y: 31 },
-  medication:    { x: 22, y: 30 },
-  iv_access:     { x: 30, y: 43 },
-  compressor:    { x: 50, y: 46 },
-  leader:        { x: 64, y: 55 },
-  recorder:      { x: 16, y: 18 },
-  timekeeper:    { x: 18, y: 65 },
-  none:          { x: 88, y: 72 },
+  airway:        { x: 50, y:  5 },
+  monitor_defib: { x: 79, y: 28 },
+  medication:    { x: 22, y: 27 },
+  iv_access:     { x: 30, y: 44 },
+  compressor:    { x: 50, y: 48 },
+  leader:        { x: 64, y: 60 },
+  recorder:      { x: 16, y: 10 },
+  timekeeper:    { x: 18, y: 74 },
+  none:          { x: 88, y: 83 },
 };
 
 const ROLE_SHORT: Record<TeamRole, string> = {
@@ -559,15 +561,31 @@ export default function IsometricRoom({ ui, actions }: IsometricRoomProps) {
 
   return (
     <div
-      ref={containerRef}
       className="relative w-full h-full bg-gray-950 overflow-hidden select-none"
       onClick={() => setMenu(null)}
     >
+      {/*
+        Inner scene div — constrained to viewBox aspect ratio so that
+        preserveAspectRatio="none" on the SVG causes no distortion,
+        and all overlay % positions are correctly aligned with SVG content.
+      */}
+      <div
+        ref={containerRef}
+        style={{
+          position: 'absolute',
+          top: '50%',
+          left: '50%',
+          transform: 'translate(-50%, -50%)',
+          width: '100%',
+          aspectRatio: `${ROOM_W} / ${VIEW_H}`,
+          maxHeight: '100%',
+        }}
+      >
       {/* ── Isometric room SVG ── */}
       <svg
-        viewBox={`0 0 ${ROOM_W} ${ROOM_H}`}
+        viewBox={`0 ${VIEW_MIN_Y} ${ROOM_W} ${VIEW_H}`}
         className="absolute inset-0 w-full h-full"
-        preserveAspectRatio="xMidYMid meet"
+        preserveAspectRatio="none"
         style={{ pointerEvents: 'none' }}
       >
         <defs>
@@ -681,7 +699,7 @@ export default function IsometricRoom({ ui, actions }: IsometricRoomProps) {
         )}
       </svg>
 
-      {/* ── Clickable zone overlays (invisible hit targets) ── */}
+      {/* ── Clickable zone overlays (invisible hit targets) — inside scene div ── */}
       {ZONES.map(z => {
         const pct = zoneToPct(z.cx, z.cy);
         return (
@@ -692,7 +710,7 @@ export default function IsometricRoom({ ui, actions }: IsometricRoomProps) {
               left: `${pct.x - 8}%`,
               top: `${pct.y - 6}%`,
               width: `${(z.w / ROOM_W) * 100 * 1.1}%`,
-              height: `${(z.h / ROOM_H) * 100 * 1.2}%`,
+              height: `${(z.h / VIEW_H) * 100 * 1.2}%`,
               zIndex: 5,
             }}
             onClick={e => { e.stopPropagation(); openZoneMenu(z.id, { x: pct.x - 2, y: pct.y - 10 }); }}
@@ -834,6 +852,7 @@ export default function IsometricRoom({ ui, actions }: IsometricRoomProps) {
           </>
         )}
       </AnimatePresence>
+      </div>{/* ── end inner scene div ── */}
 
       {/* ── Chaos meter bar ── */}
       <div className="absolute bottom-2 left-1/2 -translate-x-1/2 z-10 flex flex-col items-center gap-0.5" style={{ width: 200 }}>
@@ -866,6 +885,6 @@ export default function IsometricRoom({ ui, actions }: IsometricRoomProps) {
 function zoneToPct(cx: number, cy: number): { x: number; y: number } {
   return {
     x: (cx / ROOM_W) * 100,
-    y: (cy / ROOM_H) * 100,
+    y: ((cy - VIEW_MIN_Y) / VIEW_H) * 100,
   };
 }
