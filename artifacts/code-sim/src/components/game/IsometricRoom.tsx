@@ -681,11 +681,20 @@ const MINIMAP_ZONE_LABELS: Record<ZoneId, string> = {
   patient_bed: 'BED', door: 'DR',
 };
 
+const MINIMAP_ZONE_FULL_LABEL: Record<ZoneId, string> = {
+  airway_station:     'Airway Equipment',
+  medication_station: 'Medication Cart',
+  defib_station:      'Monitor / Defib',
+  patient_bed:        'Patient Bed',
+  door:               'Team Actions',
+};
+
 interface MinimapProps {
   activeZone: ZoneId | null;
+  onZoneClick: (id: ZoneId) => void;
 }
 
-function FloorPlanMinimap({ activeZone }: MinimapProps) {
+function FloorPlanMinimap({ activeZone, onZoneClick }: MinimapProps) {
   return (
     <svg
       width={MAP_W}
@@ -704,7 +713,12 @@ function FloorPlanMinimap({ activeZone }: MinimapProps) {
         const rx = mx - mw / 2, ry = my - mh / 2;
 
         return (
-          <g key={z.id}>
+          <g
+            key={z.id}
+            style={{ cursor: 'pointer' }}
+            onClick={e => { e.stopPropagation(); onZoneClick(z.id); }}
+          >
+            <title>{MINIMAP_ZONE_FULL_LABEL[z.id]}</title>
             <rect
               x={rx} y={ry} width={mw} height={mh}
               fill={col.fill}
@@ -732,6 +746,7 @@ function FloorPlanMinimap({ activeZone }: MinimapProps) {
               fill={col.stroke}
               fontFamily="monospace"
               opacity={0.9}
+              style={{ pointerEvents: 'none' }}
             >
               {MINIMAP_ZONE_LABELS[z.id]}
             </text>
@@ -1340,7 +1355,13 @@ export default function IsometricRoom({ ui, actions }: IsometricRoomProps) {
               className="rounded border border-gray-700/70 overflow-hidden shadow-xl"
               style={{ background: 'rgba(6,10,20,0.82)', backdropFilter: 'blur(4px)' }}
             >
-              <FloorPlanMinimap activeZone={hoveredZone} />
+              <FloorPlanMinimap
+                activeZone={hoveredZone}
+                onZoneClick={id => {
+                  const z = ZONES.find(z => z.id === id);
+                  if (z) openZoneMenu(id, zoneToPct(z.cx, z.cy));
+                }}
+              />
             </motion.div>
           )}
         </AnimatePresence>
