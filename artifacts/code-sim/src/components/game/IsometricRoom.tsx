@@ -145,6 +145,17 @@ const ROLE_BADGE_CLS: Record<TeamRole, string> = {
   none:          'bg-gray-900/60 border-gray-700 text-gray-600',
 };
 
+const ROLE_DOT_COLOR: Record<string, string> = {
+  leader:        '#fbbf24',
+  compressor:    '#f87171',
+  airway:        '#f59e0b',
+  iv_access:     '#60a5fa',
+  medication:    '#22c55e',
+  monitor_defib: '#a78bfa',
+  recorder:      '#9ca3af',
+  timekeeper:    '#9ca3af',
+};
+
 function fatigueHaloColor(fatigue: number): string {
   if (fatigue < 0.35) return '#22c55e';
   if (fatigue < 0.65) return '#f59e0b';
@@ -692,9 +703,11 @@ const MINIMAP_ZONE_FULL_LABEL: Record<ZoneId, string> = {
 interface MinimapProps {
   activeZone: ZoneId | null;
   onZoneClick: (id: ZoneId) => void;
+  members: TeamMemberRuntime[];
 }
 
-function FloorPlanMinimap({ activeZone, onZoneClick }: MinimapProps) {
+function FloorPlanMinimap({ activeZone, onZoneClick, members }: MinimapProps) {
+  const assignedMembers = members.filter(m => m.assignedRole !== 'none' && m.inRoom);
   return (
     <svg
       width={MAP_W}
@@ -750,6 +763,20 @@ function FloorPlanMinimap({ activeZone, onZoneClick }: MinimapProps) {
             >
               {MINIMAP_ZONE_LABELS[z.id]}
             </text>
+          </g>
+        );
+      })}
+
+      {/* Team member dots */}
+      {assignedMembers.map(m => {
+        const pos = ROLE_POSITIONS[m.assignedRole] ?? ROLE_POSITIONS.none;
+        const dx = (pos.x / 100) * MAP_W;
+        const dy = (pos.y / 100) * MAP_H;
+        const color = ROLE_DOT_COLOR[m.assignedRole] ?? '#9ca3af';
+        return (
+          <g key={m.id}>
+            <circle cx={dx} cy={dy} r={3.5} fill={color} opacity={0.9} />
+            <circle cx={dx} cy={dy} r={3.5} fill="none" stroke="#000" strokeWidth={0.8} opacity={0.5} />
           </g>
         );
       })}
@@ -1364,6 +1391,7 @@ export default function IsometricRoom({ ui, actions }: IsometricRoomProps) {
                   const z = ZONES.find(z => z.id === id);
                   if (z) openZoneMenu(id, zoneToPct(z.cx, z.cy));
                 }}
+                members={ui.team}
               />
             </motion.div>
           )}
