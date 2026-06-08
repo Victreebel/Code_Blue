@@ -778,7 +778,10 @@ const ZONE_TAG_COLOR: Record<ZoneId, string> = {
 
 export default function IsometricRoom({ ui, actions }: IsometricRoomProps) {
   const [menu, setMenu] = useState<ActiveMenu | null>(null);
-  const [minimapVisible, setMinimapVisible] = useState(true);
+  const [minimapVisible, setMinimapVisible] = useState<boolean>(() => {
+    const stored = localStorage.getItem('acls-minimap-visible');
+    return stored === null ? true : stored === 'true';
+  });
   const [hoveredZone, setHoveredZone] = useState<ZoneId | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -1316,7 +1319,11 @@ export default function IsometricRoom({ ui, actions }: IsometricRoomProps) {
       >
         {/* Toggle button */}
         <button
-          onClick={() => setMinimapVisible(v => !v)}
+          onClick={() => setMinimapVisible(v => {
+            const next = !v;
+            localStorage.setItem('acls-minimap-visible', String(next));
+            return next;
+          })}
           className="block ml-auto mb-0.5 px-1.5 py-px rounded text-[8px] font-bold tracking-widest border border-gray-700 bg-gray-900/80 text-gray-500 hover:text-gray-300 hover:border-gray-500 transition-colors leading-none"
           title={minimapVisible ? 'Hide floor plan' : 'Show floor plan'}
         >
