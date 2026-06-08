@@ -1199,10 +1199,13 @@ export default function IsometricRoom({ ui, actions }: IsometricRoomProps) {
         const hasSpeech = !!m.speech && ui.clock < m.speech.until;
 
         return (
-          <div
+          <motion.div
             key={m.id}
             className="absolute"
-            style={{ left: `${pos.x}%`, top: `${pos.y}%`, transform: 'translate(-50%,-50%)', zIndex: 20 }}
+            initial={{ left: `${pos.x}%`, top: `${pos.y}%` }}
+            animate={{ left: `${pos.x}%`, top: `${pos.y}%` }}
+            transition={{ duration: 1.4, ease: [0.4, 0, 0.2, 1] }}
+            style={{ transform: 'translate(-50%,-50%)', zIndex: 20 }}
           >
             {/* Speech bubble */}
             <AnimatePresence>
@@ -1284,7 +1287,7 @@ export default function IsometricRoom({ ui, actions }: IsometricRoomProps) {
                 </span>
               </div>
             )}
-          </div>
+          </motion.div>
         );
       })}
 
