@@ -19,8 +19,17 @@ export const HealthCheckResponse = zod.object({
  * Returns stored UI preferences for a given user. Returns defaults when the user has no saved preferences.
  * @summary Get user preferences
  */
+export const getUserPreferencesPathUserIdMax = 128;
+
+export const getUserPreferencesPathUserIdRegExp = new RegExp(
+  "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}|[a-zA-Z0-9]+)$",
+);
+
 export const GetUserPreferencesParams = zod.object({
-  userId: zod.coerce.string(),
+  userId: zod.coerce
+    .string()
+    .max(getUserPreferencesPathUserIdMax)
+    .regex(getUserPreferencesPathUserIdRegExp),
 });
 
 export const GetUserPreferencesResponse = zod.object({
@@ -32,8 +41,17 @@ export const GetUserPreferencesResponse = zod.object({
  * Upserts UI preferences for a given user.
  * @summary Save user preferences
  */
+export const setUserPreferencesPathUserIdMax = 128;
+
+export const setUserPreferencesPathUserIdRegExp = new RegExp(
+  "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}|[a-zA-Z0-9]+)$",
+);
+
 export const SetUserPreferencesParams = zod.object({
-  userId: zod.coerce.string(),
+  userId: zod.coerce
+    .string()
+    .max(setUserPreferencesPathUserIdMax)
+    .regex(setUserPreferencesPathUserIdRegExp),
 });
 
 export const SetUserPreferencesBody = zod.object({

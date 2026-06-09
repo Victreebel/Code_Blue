@@ -38,6 +38,8 @@ paths:
           required: true
           schema:
             type: string
+            maxLength: 128
+            pattern: "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}|[a-zA-Z0-9]+)$"
       responses:
         "200":
           description: User preferences
@@ -56,6 +58,8 @@ paths:
           required: true
           schema:
             type: string
+            maxLength: 128
+            pattern: "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}|[a-zA-Z0-9]+)$"
       requestBody:
         required: true
         content:
