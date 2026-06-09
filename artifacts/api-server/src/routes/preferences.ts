@@ -65,7 +65,21 @@ router.put("/preferences/:userId", validateUserIdForPut, requireAuth, async (req
 
   const body = SetUserPreferencesBody.safeParse(req.body);
   if (!body.success) {
-    res.status(400).json({ error: "Invalid preferences payload", details: body.error.flatten() });
+    const unknownFields = (
+      body.error.issues as Array<{ code: string; keys?: string[] }>
+    )
+      .filter((i) => i.code === "unrecognized_keys")
+      .flatMap((i) => i.keys ?? []);
+
+    const message =
+      unknownFields.length > 0
+        ? `Unrecognised fields: [${unknownFields.join(", ")}]`
+        : "Invalid preferences payload";
+
+    res.status(400).json({
+      message,
+      validation: body.error.flatten(),
+    });
     return;
   }
 
