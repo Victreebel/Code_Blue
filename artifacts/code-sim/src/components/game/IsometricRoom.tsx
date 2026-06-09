@@ -1503,6 +1503,9 @@ export default function IsometricRoom({ ui, actions }: IsometricRoomProps) {
                 className="px-1 py-px rounded text-[8px] font-bold border border-gray-700 bg-gray-900/80 text-gray-500 hover:text-gray-300 hover:border-gray-500 disabled:opacity-30 disabled:cursor-not-allowed transition-colors leading-none"
                 title="Zoom out minimap"
               >−</button>
+              <span className="px-1 text-[8px] font-mono text-gray-500 leading-none tabular-nums select-none">
+                {mapZoom % 1 === 0 ? `${mapZoom}×` : `${mapZoom.toFixed(1)}×`}
+              </span>
               <button
                 onClick={() => setMapZoom(z => {
                   const next = Math.min(MINIMAP_ZOOM_MAX, parseFloat((z + MINIMAP_ZOOM_STEP).toFixed(2)));
