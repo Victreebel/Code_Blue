@@ -15,7 +15,7 @@ import VitalsMonitor from './VitalsMonitor';
 import StopwatchWidget from './StopwatchWidget';
 import PendingOrdersPanel from './PendingOrdersPanel';
 import EventLog from './EventLog';
-import IsometricRoom from './IsometricRoom';
+import FirstPersonRoom from './FirstPersonRoom';
 
 interface GameScreenProps {
   ui: UIState;
@@ -316,7 +316,7 @@ export default function GameScreen({ ui, scenarioInput, actions }: GameScreenPro
 
         {/* Full-screen isometric room */}
         <div className="absolute inset-0">
-          <IsometricRoom ui={ui} actions={actions} />
+          <FirstPersonRoom ui={ui} actions={actions} />
         </div>
 
         {/* ── Left overlay column ── */}
