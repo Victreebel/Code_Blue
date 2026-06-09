@@ -1,15 +1,48 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
+import { useUser, useClerk, Show } from '@clerk/react';
+import { useLocation } from 'wouter';
 
 interface StartScreenProps {
   onStart: (seed?: string) => void;
+}
+
+const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");
+
+function AccountBar() {
+  const { user } = useUser();
+  const { signOut } = useClerk();
+  const [, setLocation] = useLocation();
+
+  return (
+    <div className="absolute top-4 right-4 z-10 flex items-center gap-2">
+      <Show when="signed-in">
+        <span className="text-[11px] text-gray-500 font-mono">{user?.primaryEmailAddress?.emailAddress}</span>
+        <button
+          onClick={() => signOut({ redirectUrl: basePath || "/" })}
+          className="text-[11px] font-mono text-gray-600 hover:text-gray-400 border border-gray-800 px-2 py-1 rounded transition-colors"
+        >
+          Sign out
+        </button>
+      </Show>
+      <Show when="signed-out">
+        <button
+          onClick={() => setLocation("/sign-in")}
+          className="text-[11px] font-mono text-gray-600 hover:text-gray-400 border border-gray-800 px-2 py-1 rounded transition-colors"
+        >
+          Sign in
+        </button>
+      </Show>
+    </div>
+  );
 }
 
 export default function StartScreen({ onStart }: StartScreenProps) {
   const [seed, setSeed] = useState('');
 
   return (
-    <div className="min-h-screen bg-gray-950 flex items-center justify-center p-6">
+    <div className="relative min-h-screen bg-gray-950 flex items-center justify-center p-6">
+      <AccountBar />
       <motion.div
         initial={{ opacity: 0, y: 30 }}
         animate={{ opacity: 1, y: 0 }}

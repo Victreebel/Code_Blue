@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { useUser } from "@clerk/react";
 import { getUserPreferences, setUserPreferences } from "@workspace/api-client-react";
 
-const LS_USER_ID = "acls-user-id";
 const LS_MINIMAP = "acls-minimap-visible";
 const LS_TAGS = "acls-tags-visible";
 
@@ -22,24 +22,28 @@ function writeLocalPrefs(prefs: UserPreferences) {
   localStorage.setItem(LS_TAGS, String(prefs.tagsVisible));
 }
 
-function getOrCreateUserId(): string {
-  let id = localStorage.getItem(LS_USER_ID);
-  if (!id) {
-    id = crypto.randomUUID();
-    localStorage.setItem(LS_USER_ID, id);
-  }
-  return id;
-}
-
 export function useUserPreferences() {
+  const { user, isLoaded } = useUser();
   const [prefs, setPrefsState] = useState<UserPreferences>(readLocalPrefs);
   const [synced, setSynced] = useState(false);
+  const [syncError, setSyncError] = useState<string | null>(null);
   const userIdRef = useRef<string | null>(null);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    const userId = getOrCreateUserId();
+    if (!isLoaded) return;
+
+    if (!user) {
+      userIdRef.current = null;
+      setSynced(true);
+      setSyncError(null);
+      return;
+    }
+
+    const userId = user.id;
     userIdRef.current = userId;
+    setSynced(false);
+    setSyncError(null);
 
     getUserPreferences(userId)
       .then((serverPrefs) => {
@@ -47,10 +51,12 @@ export function useUserPreferences() {
         writeLocalPrefs(serverPrefs);
         setSynced(true);
       })
-      .catch(() => {
+      .catch((err: unknown) => {
+        const message = err instanceof Error ? err.message : "Failed to sync preferences";
+        setSyncError(message);
         setSynced(true);
       });
-  }, []);
+  }, [isLoaded, user]);
 
   const saveToServer = useCallback((next: UserPreferences) => {
     const userId = userIdRef.current;
@@ -73,5 +79,5 @@ export function useUserPreferences() {
     [saveToServer],
   );
 
-  return { prefs, setPrefs, synced };
+  return { prefs, setPrefs, synced, syncError };
 }

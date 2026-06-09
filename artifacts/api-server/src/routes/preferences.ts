@@ -1,14 +1,13 @@
 import { Router, type IRouter } from "express";
 import {
-  GetUserPreferencesParams,
   GetUserPreferencesResponse,
   SetUserPreferencesBody,
-  SetUserPreferencesParams,
   SetUserPreferencesResponse,
 } from "@workspace/api-zod";
 import { db, userPreferencesTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import type { UserPrefsPayload } from "@workspace/db";
+import { requireAuth } from "../middlewares/requireAuth";
 
 const router: IRouter = Router();
 
@@ -17,14 +16,13 @@ const DEFAULT_PREFS: UserPrefsPayload = {
   tagsVisible: true,
 };
 
-router.get("/preferences/:userId", async (req, res) => {
-  const params = GetUserPreferencesParams.safeParse(req.params);
-  if (!params.success) {
-    res.status(400).json({ error: "Invalid userId" });
+router.get("/preferences/:userId", requireAuth, async (req, res) => {
+  const userId = req.userId!;
+
+  if (req.params.userId !== userId) {
+    res.status(403).json({ error: "Forbidden" });
     return;
   }
-
-  const { userId } = params.data;
 
   const rows = await db
     .select()
@@ -37,10 +35,11 @@ router.get("/preferences/:userId", async (req, res) => {
   res.json(result);
 });
 
-router.put("/preferences/:userId", async (req, res) => {
-  const params = SetUserPreferencesParams.safeParse(req.params);
-  if (!params.success) {
-    res.status(400).json({ error: "Invalid userId" });
+router.put("/preferences/:userId", requireAuth, async (req, res) => {
+  const userId = req.userId!;
+
+  if (req.params.userId !== userId) {
+    res.status(403).json({ error: "Forbidden" });
     return;
   }
 
@@ -50,7 +49,6 @@ router.put("/preferences/:userId", async (req, res) => {
     return;
   }
 
-  const { userId } = params.data;
   const preferences: UserPrefsPayload = body.data;
 
   await db
