@@ -941,6 +941,17 @@ export default function IsometricRoom({ ui, actions }: IsometricRoomProps) {
     if (isNaN(parsed)) return MINIMAP_ZOOM_DEFAULT;
     return Math.max(MINIMAP_ZOOM_MIN, Math.min(MINIMAP_ZOOM_MAX, parsed));
   });
+  const [mapZoomResetting, setMapZoomResetting] = useState(false);
+  const mapZoomResetTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  function resetMapZoom() {
+    setMapZoom(MINIMAP_ZOOM_DEFAULT);
+    localStorage.setItem(MINIMAP_ZOOM_KEY, String(MINIMAP_ZOOM_DEFAULT));
+    if (mapZoomResetTimer.current) clearTimeout(mapZoomResetTimer.current);
+    setMapZoomResetting(true);
+    mapZoomResetTimer.current = setTimeout(() => setMapZoomResetting(false), 400);
+  }
+
   const [hoveredZone, setHoveredZone] = useState<ZoneId | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -1551,8 +1562,20 @@ export default function IsometricRoom({ ui, actions }: IsometricRoomProps) {
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.85, y: 4 }}
               transition={{ duration: 0.15 }}
-              className="rounded border border-gray-700/70 overflow-hidden shadow-xl"
-              style={{ background: 'rgba(6,10,20,0.82)', backdropFilter: 'blur(4px)' }}
+              className="rounded overflow-hidden shadow-xl"
+              style={{
+                background: 'rgba(6,10,20,0.82)',
+                backdropFilter: 'blur(4px)',
+                border: mapZoomResetting
+                  ? '1px solid rgba(250,204,21,0.85)'
+                  : '1px solid rgba(55,65,81,0.7)',
+                boxShadow: mapZoomResetting
+                  ? '0 0 8px 2px rgba(250,204,21,0.4)'
+                  : undefined,
+                transition: 'border-color 0.15s, box-shadow 0.15s',
+              }}
+              onDoubleClick={e => { e.stopPropagation(); resetMapZoom(); }}
+              title="Double-click to reset zoom"
             >
               <FloorPlanMinimap
                 activeZone={hoveredZone}
