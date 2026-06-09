@@ -718,12 +718,14 @@ interface MinimapProps {
 
 function FloorPlanMinimap({ activeZone, menuZone, zoom, onZoneClick, members, flashedZones }: MinimapProps) {
   const assignedMembers = members.filter(m => m.assignedRole !== 'none' && m.inRoom);
+  const [hoveredId, setHoveredId] = useState<string | null>(null);
+  const hoveredMember = hoveredId ? assignedMembers.find(m => m.id === hoveredId) ?? null : null;
   return (
     <svg
       width={MAP_W * zoom}
       height={MAP_H * zoom}
       viewBox={`0 0 ${MAP_W} ${MAP_H}`}
-      style={{ display: 'block' }}
+      style={{ display: 'block', overflow: 'visible' }}
     >
       {/* Room floor */}
       <rect x={0} y={0} width={MAP_W} height={MAP_H} fill="#060a14" rx={2} />
@@ -824,13 +826,55 @@ function FloorPlanMinimap({ activeZone, menuZone, zoom, onZoneClick, members, fl
         const dx = (pos.x / 100) * MAP_W;
         const dy = (pos.y / 100) * MAP_H;
         const color = ROLE_DOT_COLOR[m.assignedRole] ?? '#9ca3af';
+        const isHovered = hoveredId === m.id;
         return (
-          <g key={m.id}>
-            <circle cx={dx} cy={dy} r={3.5} fill={color} opacity={0.9} />
-            <circle cx={dx} cy={dy} r={3.5} fill="none" stroke="#000" strokeWidth={0.8} opacity={0.5} />
+          <g
+            key={m.id}
+            style={{ cursor: 'default' }}
+            onMouseEnter={() => setHoveredId(m.id)}
+            onMouseLeave={() => setHoveredId(null)}
+          >
+            <circle cx={dx} cy={dy} r={isHovered ? 4.5 : 3.5} fill={color} opacity={0.9} />
+            <circle cx={dx} cy={dy} r={isHovered ? 4.5 : 3.5} fill="none" stroke="#000" strokeWidth={0.8} opacity={0.5} />
           </g>
         );
       })}
+
+      {/* Tooltip for hovered dot */}
+      {hoveredMember && (() => {
+        const pos = ROLE_POSITIONS[hoveredMember.assignedRole] ?? ROLE_POSITIONS.none;
+        const dx = (pos.x / 100) * MAP_W;
+        const dy = (pos.y / 100) * MAP_H;
+        const color = ROLE_DOT_COLOR[hoveredMember.assignedRole] ?? '#9ca3af';
+        const label = `${hoveredMember.name} — ${ROLE_FULL[hoveredMember.assignedRole]}`;
+        const tipW = Math.min(label.length * 2.85 + 4, 68);
+        const tipH = 10;
+        const tipX = Math.max(1, Math.min(dx - tipW / 2, MAP_W - tipW - 1));
+        const tipY = dy - tipH - 6 < 1 ? dy + 6 : dy - tipH - 6;
+        return (
+          <g style={{ pointerEvents: 'none' }}>
+            <rect
+              x={tipX} y={tipY} width={tipW} height={tipH}
+              rx={2} ry={2}
+              fill="#0f172a"
+              stroke={color}
+              strokeWidth={0.8}
+              opacity={0.97}
+            />
+            <text
+              x={tipX + tipW / 2}
+              y={tipY + tipH / 2 + 2}
+              textAnchor="middle"
+              fontSize={3.8}
+              fill="#e2e8f0"
+              fontFamily="monospace"
+              style={{ pointerEvents: 'none' }}
+            >
+              {label}
+            </text>
+          </g>
+        );
+      })()}
 
       {/* North label */}
       <text x={MAP_W / 2} y={5} textAnchor="middle" fontSize={3.5} fill="#374151" fontFamily="monospace">
