@@ -84,6 +84,7 @@ components:
         - status
     UserPreferences:
       type: object
+      additionalProperties: false
       properties:
         minimapVisible:
           type: boolean

@@ -54,10 +54,12 @@ export const SetUserPreferencesParams = zod.object({
     .regex(setUserPreferencesPathUserIdRegExp),
 });
 
-export const SetUserPreferencesBody = zod.object({
-  minimapVisible: zod.boolean(),
-  tagsVisible: zod.boolean(),
-});
+export const SetUserPreferencesBody = zod
+  .object({
+    minimapVisible: zod.boolean(),
+    tagsVisible: zod.boolean(),
+  })
+  .strict();
 
 export const SetUserPreferencesResponse = zod.object({
   minimapVisible: zod.boolean(),
