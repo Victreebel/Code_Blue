@@ -79,7 +79,7 @@ function clamp(v: number, lo: number, hi: number) { return Math.max(lo, Math.min
 
 const NON_TERMINAL = new Set(['issued', 'heard', 'acknowledged', 'in_progress']);
 
-/* ── Menu types (identical interface to IsometricRoom) ─────────────── */
+/* ── Menu types ─────────────────────────────────────────────────────── */
 interface MenuAction {
   label: string;
   sublabel?: string;
@@ -128,7 +128,6 @@ export default function FirstPersonRoom({ ui, actions }: FirstPersonRoomProps) {
   function close() { setMenu(null); }
   function act(fn: () => void) { fn(); close(); }
 
-  /* Compute menu anchor from a click event relative to the container */
   function anchor(e: React.MouseEvent): { x: number; y: number } {
     const r = containerRef.current?.getBoundingClientRect();
     if (!r) return { x: 30, y: 30 };
@@ -137,67 +136,66 @@ export default function FirstPersonRoom({ ui, actions }: FirstPersonRoomProps) {
     return { x: clamp(x, 5, 72), y: clamp(y, 5, 65) };
   }
 
-  /* ── Zone menus ── */
-  function patientMenu(): MenuAction[] {
-    return [
-      { label: ui.cprActive ? 'CPR Running…' : 'Start CPR', variant: 'red',
-        disabled: ui.cprActive, onSelect: () => act(actions.startCpr) },
-      { label: 'Rotate Compressor', variant: 'gray', onSelect: () => act(actions.switchCompressor) },
-      { label: 'Rhythm Check', variant: 'blue', onSelect: () => act(actions.rhythmCheck) },
-      { label: 'Pulse Check',  variant: 'blue', onSelect: () => act(actions.pulseCheck) },
-      ...(openOrder ? [{
-        label: `CLC: "${openOrder.label.slice(0, 22)}${openOrder.label.length > 22 ? '…' : ''}"`,
-        variant: 'amber' as const,
-        onSelect: () => act(() => actions.requestClosedLoop(openOrder.id)),
-      }] : []),
-    ];
-  }
-
-  function defibMenu(): MenuAction[] {
-    return [
-      { label: ui.defibCharged ? 'CHARGED 200J' : 'Charge Defib 200J',
-        variant: ui.defibCharged ? 'amberFilled' : 'amber',
-        disabled: !isShockable || ui.defibCharged,
-        onSelect: () => act(actions.chargeDefib) },
-      { label: `SHOCK (${ui.shockCount})`, variant: 'red',
-        disabled: !ui.defibCharged,
-        sublabel: ui.defibCharged ? 'Stand clear!' : undefined,
-        onSelect: () => act(actions.shock) },
-    ];
+  /* ── Action menus (identical to IsometricRoom) ─────────────────── */
+  function airwayMenu(): MenuAction[] {
+    const items: MenuAction[] = [];
+    if (!ui.hasAdvancedAirway) {
+      items.push({ label: 'BVM Ventilate', variant: 'gray', onSelect: () => act(actions.airwayBvm) });
+      items.push({ label: 'Advanced Airway (ETT/LMA)', variant: 'amber', onSelect: () => act(actions.airwayAdvanced) });
+    } else {
+      items.push({ label: '✓ Advanced Airway Secured', variant: 'amberFilled', onSelect: () => {} });
+    }
+    return items;
   }
 
   function medicationMenu(): MenuAction[] {
-    return [
-      { label: 'Epinephrine 1mg',
-        sublabel: hasAccess ? 'IV/IO' : 'No IV/IO',
-        variant: hasAccess ? 'blue' : 'amber',
-        onSelect: () => act(() => actions.medication('epinephrine', 1)) },
-      { label: `Amiodarone ${amioDose}mg`,
-        sublabel: hasAccess ? 'IV/IO' : 'No IV/IO',
-        variant: hasAccess ? 'blue' : 'amber',
-        onSelect: () => act(() => actions.medication('amiodarone', amioDose)) },
-      { label: 'Sodium Bicarb 1mEq/kg', variant: 'gray',
-        onSelect: () => act(() => actions.medication('bicarb', 1)) },
-    ];
-  }
-
-  function airwayMenu(): MenuAction[] {
-    return [
-      { label: ui.hasAdvancedAirway ? 'Advanced Airway ✓' : 'Intubate / Supraglottic',
-        variant: 'gray', disabled: ui.hasAdvancedAirway,
-        onSelect: () => act(actions.airwayAdvanced) },
-      { label: 'BVM Ventilation', variant: 'gray', onSelect: () => act(actions.airwayBvm) },
-    ];
+    const items: MenuAction[] = [];
+    items.push({ label: `Epinephrine 1mg IV/IO`, variant: 'red',
+      onSelect: () => act(() => actions.medication('epinephrine', 1)) });
+    items.push({ label: `Amiodarone ${amioDose}mg`,  variant: 'amber',
+      sublabel: `Given: ${ui.amiodaroneDoses}×`,
+      disabled: !isShockable,
+      onSelect: () => act(() => actions.medication('amiodarone', amioDose)) });
+    items.push({ label: 'Sodium Bicarb 1 mEq/kg', variant: 'blue',
+      onSelect: () => act(() => actions.medication('bicarb', 50)) });
+    return items;
   }
 
   function ivMenu(): MenuAction[] {
+    const items: MenuAction[] = [];
+    if (!ui.hasIVAccess)
+      items.push({ label: 'Establish IV Access', variant: 'blue', onSelect: () => act(actions.ivAccess) });
+    else
+      items.push({ label: '✓ IV Line Established', variant: 'amberFilled', onSelect: () => {} });
+    if (!ui.hasIOAccess)
+      items.push({ label: 'Establish IO Access', variant: 'blue', onSelect: () => act(actions.ioAccess) });
+    else
+      items.push({ label: '✓ IO Access Established', variant: 'amberFilled', onSelect: () => {} });
+    return items;
+  }
+
+  function defibMenu(): MenuAction[] {
+    const items: MenuAction[] = [];
+    if (!ui.defibCharged) {
+      items.push({ label: 'Charge Defib (200J)', variant: 'amber',
+        disabled: !isShockable,
+        onSelect: () => act(actions.chargeDefib) });
+    } else {
+      items.push({ label: '⚡ DELIVER SHOCK (200J)', variant: 'red',
+        onSelect: () => act(actions.shock) });
+    }
+    items.push({ label: 'Analyse Rhythm', variant: 'gray', onSelect: () => act(actions.rhythmCheck) });
+    items.push({ label: ui.cprActive ? 'Pause CPR' : 'Start CPR', variant: ui.cprActive ? 'amber' : 'green',
+      onSelect: () => act(ui.cprActive ? actions.pauseCpr : actions.startCpr) });
+    return items;
+  }
+
+  function patientMenu(): MenuAction[] {
     return [
-      { label: ui.hasIVAccess ? 'IV Access ✓' : 'Establish IV Access',
-        variant: 'blue', disabled: ui.hasIVAccess,
-        onSelect: () => act(actions.ivAccess) },
-      { label: ui.hasIOAccess ? 'IO Access ✓' : 'Establish IO Access',
-        variant: 'blue', disabled: ui.hasIOAccess,
-        onSelect: () => act(actions.ioAccess) },
+      { label: ui.cprActive ? 'Pause CPR' : 'Start CPR', variant: ui.cprActive ? 'amber' : 'green',
+        onSelect: () => act(ui.cprActive ? actions.pauseCpr : actions.startCpr) },
+      { label: 'Check Pulse', variant: 'gray', onSelect: () => act(actions.pulseCheck) },
+      { label: 'Check Rhythm', variant: 'gray', onSelect: () => act(actions.rhythmCheck) },
     ];
   }
 
@@ -238,6 +236,35 @@ export default function FirstPersonRoom({ ui, actions }: FirstPersonRoomProps) {
     return 'M0,20 L18,20 L22,10 L26,30 L30,10 L33,20 L60,20 L64,10 L68,30 L72,10 L75,20 L110,20 L114,10 L118,30 L122,10 L125,20 L160,20';
   }
 
+  /* ── Furniture geometry constants ──────────────────────────────── */
+
+  /* Patient bed */
+  const BED_CX = 450;
+  const BED_W  = 148;   // left-right width
+  const BED_FH = 56;    // frame height (floor to mattress surface)
+  const BED_L  = 268;   // length front-to-back in z
+  const BED_RH = 22;    // side-rail height above mattress
+  const BED_FZ = -140;  // z of footboard face
+
+  /* Crash cart (left wall, x = 0..CC_DEPTH, z = CC_Z..CC_Z-CC_ZW) */
+  const CC_DEPTH = 58;   // protrusion into room (x)
+  const CC_ZW    = 70;   // width along wall (z extent)
+  const CC_H     = 132;  // height
+  const CC_Z     = -278; // z of near face (toward viewer)
+
+  /* Defib unit (right wall, x = SW-DF_DEPTH..SW, z = DF_Z..DF_Z-DF_ZW) */
+  const DF_DEPTH = 58;
+  const DF_ZW    = 70;
+  const DF_H     = 172;  // taller than crash cart (stand + monitor)
+  const DF_Z     = -278;
+
+  /* Airway cabinet (back wall centre, protrudes toward viewer) */
+  const AW_CX  = SW / 2;
+  const AW_W   = 216;   // left-right width
+  const AW_H   = 170;   // height
+  const AW_D   = 42;    // protrusion toward viewer
+  const AW_L   = SW / 2 - AW_W / 2;   // left edge x = 342
+
   /* ── Render ─────────────────────────────────────────────────────── */
   return (
     <div
@@ -249,9 +276,9 @@ export default function FirstPersonRoom({ ui, actions }: FirstPersonRoomProps) {
 
       {/* ══════════════════════════════════════════════════════════════
           CSS 3D PERSPECTIVE ROOM
-          The perspective is on this wrapper; the scene div inside is
-          the 3D context (preserve-3d).  All room geometry lives here.
-          Team members are rendered separately as a 2D projected overlay.
+          All 3D geometry lives here — walls (background), then each
+          piece of furniture as a standalone box.  Team members are
+          a 2D projected overlay rendered separately.
       ═══════════════════════════════════════════════════════════════ */}
       <div
         style={{
@@ -316,7 +343,7 @@ export default function FirstPersonRoom({ ui, actions }: FirstPersonRoomProps) {
             ))}
           </div>
 
-          {/* ── BACK WALL — Airway Station ── */}
+          {/* ── BACK WALL background ── */}
           <div
             style={{
               position: 'absolute',
@@ -325,73 +352,25 @@ export default function FirstPersonRoom({ ui, actions }: FirstPersonRoomProps) {
               transform: `translateZ(-${SD}px)`,
               background: 'linear-gradient(180deg, #06091a 0%, #080d1f 100%)',
               borderBottom: '2px solid #1e293b',
-              pointerEvents: 'auto',
-              cursor: 'pointer',
-            }}
-            onClick={e => {
-              e.stopPropagation();
-              setMenu({ targetId: 'airway_station', title: 'Airway Equipment', items: airwayMenu(), anchor: anchor(e) });
+              pointerEvents: 'none',
             }}
           >
-            {/* Airway equipment console */}
-            <div style={{
-              position: 'absolute',
-              top: '12%', left: '50%',
-              transform: 'translateX(-50%)',
-              width: 280, height: 200,
-              background: '#0b1020',
-              border: `2px solid ${ui.hasAdvancedAirway ? '#22c55e' : '#f59e0b'}`,
-              borderRadius: 6,
-              display: 'flex', flexDirection: 'column',
-              alignItems: 'center', justifyContent: 'center', gap: 10,
-              boxShadow: `0 0 28px ${ui.hasAdvancedAirway ? '#22c55e38' : '#f59e0b28'}`,
-            }}>
-              {/* Vent waveform strip */}
-              <div style={{
-                width: '80%', height: 44,
-                background: '#050a12',
-                border: '1px solid #1f2937',
-                borderRadius: 3, overflow: 'hidden',
-                padding: '4px 8px',
-              }}>
-                <svg viewBox="0 0 200 30" style={{ width: '100%', height: '100%' }}>
-                  <path
-                    d="M0,15 L20,15 L24,3 L28,27 L32,3 L36,15 L70,15 L74,3 L78,27 L82,3 L86,15 L130,15 L134,3 L138,27 L142,3 L146,15 L200,15"
-                    stroke={ui.hasAdvancedAirway ? '#22c55e' : '#f59e0b'}
-                    strokeWidth="1.5" fill="none"
-                  />
-                </svg>
-              </div>
-              <div style={{ fontSize: 32 }}>🫁</div>
-              <div style={{
-                color: ui.hasAdvancedAirway ? '#86efac' : '#fcd34d',
-                fontSize: 14, fontWeight: 'bold', fontFamily: 'monospace', letterSpacing: '0.1em',
-              }}>
-                AIRWAY {ui.hasAdvancedAirway ? '✓ SECURED' : '— CLICK TO MANAGE'}
-              </div>
-            </div>
-
             {/* Wall-mounted clock (decorative) */}
             <div style={{
-              position: 'absolute', top: 10, right: 20,
-              width: 48, height: 48, borderRadius: '50%',
-              border: '2px solid #1e293b', background: '#060a14',
+              position: 'absolute', top: 12, right: 24,
+              width: 44, height: 44, borderRadius: '50%',
+              border: '2px solid #1a2236', background: '#060a14',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: 9, color: '#374151', fontFamily: 'monospace',
-            }}>
-              🕐
-            </div>
-
-            {/* "HEAD OF BED" indicator */}
+              fontSize: 18, color: '#1a2236',
+            }}>🕐</div>
+            {/* HEAD OF BED label */}
             <div style={{
               position: 'absolute', bottom: 8, left: '50%', transform: 'translateX(-50%)',
               color: '#1e3a5f', fontSize: 8, fontFamily: 'monospace', letterSpacing: '0.15em',
-            }}>
-              ▲ HEAD OF BED
-            </div>
+            }}>▲ HEAD OF BED</div>
           </div>
 
-          {/* ── LEFT WALL — Medications ── */}
+          {/* ── LEFT WALL background ── */}
           <div
             style={{
               position: 'absolute',
@@ -400,64 +379,11 @@ export default function FirstPersonRoom({ ui, actions }: FirstPersonRoomProps) {
               transformOrigin: '0% 50%',
               transform: 'rotateY(90deg)',
               background: 'linear-gradient(180deg, #06091a 0%, #07080d 100%)',
-              pointerEvents: 'auto',
+              pointerEvents: 'none',
             }}
-          >
-            {/* Medication cart */}
-            <div
-              style={{
-                position: 'absolute', top: '14%', left: '28%',
-                width: 200, height: 210,
-                background: '#080f0a',
-                border: '2px solid #16a34a',
-                borderRadius: 5,
-                display: 'flex', flexDirection: 'column',
-                alignItems: 'center', justifyContent: 'center', gap: 8,
-                boxShadow: '0 0 24px #16a34a28',
-                cursor: 'pointer',
-              }}
-              onClick={e => {
-                e.stopPropagation();
-                setMenu({ targetId: 'medication_station', title: 'Medication Cart', items: medicationMenu(), anchor: anchor(e) });
-              }}
-            >
-              <div style={{ fontSize: 30 }}>💊</div>
-              <div style={{ color: '#86efac', fontSize: 13, fontWeight: 'bold', fontFamily: 'monospace', letterSpacing: '0.09em' }}>
-                MEDICATIONS
-              </div>
-              <div style={{ color: '#4b5563', fontSize: 9, fontFamily: 'monospace', textAlign: 'center', padding: '0 10px' }}>
-                Epi · Amio · Bicarb
-              </div>
-            </div>
+          />
 
-            {/* IV / IO access panel */}
-            <div
-              style={{
-                position: 'absolute', bottom: '14%', left: '24%',
-                width: 165, height: 100,
-                background: '#060b14',
-                border: `1.5px solid ${hasAccess ? '#3b82f6' : '#1e293b'}`,
-                borderRadius: 4,
-                display: 'flex', flexDirection: 'column',
-                alignItems: 'center', justifyContent: 'center', gap: 5,
-                boxShadow: hasAccess ? '0 0 14px #3b82f628' : 'none',
-                cursor: 'pointer',
-              }}
-              onClick={e => {
-                e.stopPropagation();
-                setMenu({ targetId: 'iv_station', title: 'Vascular Access', items: ivMenu(), anchor: anchor(e) });
-              }}
-            >
-              <div style={{ color: hasAccess ? '#93c5fd' : '#374151', fontSize: 11, fontWeight: 'bold', fontFamily: 'monospace' }}>
-                IV / IO ACCESS {hasAccess ? '✓' : '—'}
-              </div>
-              {ui.hasIVAccess && <div style={{ color: '#60a5fa', fontSize: 8, fontFamily: 'monospace' }}>IV line established</div>}
-              {ui.hasIOAccess && <div style={{ color: '#60a5fa', fontSize: 8, fontFamily: 'monospace' }}>IO access established</div>}
-              {!hasAccess      && <div style={{ color: '#374151', fontSize: 8, fontFamily: 'monospace' }}>Click to establish</div>}
-            </div>
-          </div>
-
-          {/* ── RIGHT WALL — Defib / Monitor ── */}
+          {/* ── RIGHT WALL background ── */}
           <div
             style={{
               position: 'absolute',
@@ -466,62 +392,613 @@ export default function FirstPersonRoom({ ui, actions }: FirstPersonRoomProps) {
               transformOrigin: '100% 50%',
               transform: 'rotateY(-90deg)',
               background: 'linear-gradient(180deg, #07050e 0%, #060408 100%)',
+              pointerEvents: 'none',
+            }}
+          />
+
+          {/* ══════════════════════════════════════════════════════════
+              3-D FURNITURE — each piece is built from CSS-3d faces
+              positioned directly in the scene's preserve-3d context.
+
+              Coordinate system:
+                x: 0 (left wall) → 900 (right wall)
+                y: 0 (ceiling) → 480 (floor, SH)
+                z: 0 (door/viewer) → -540 (back wall, -SD)
+
+              Transforms applied left-to-right (translateZ first,
+              then rotateX/Y).  TransformOrigin is the rotation
+              pivot within the element's pre-rotated 2-D position.
+          ════════════════════════════════════════════════════════════ */}
+
+          {/* ╔══════════════════════════════════════════════════════╗
+              ║  AIRWAY CABINET  (back wall, centre, z ≈ -498..−540) ║
+              ╚══════════════════════════════════════════════════════╝ */}
+
+          {/* Front face — faces viewer, clickable */}
+          <div
+            style={{
+              position: 'absolute',
+              left: AW_L, top: SH - AW_H,
+              width: AW_W, height: AW_H,
+              transform: `translateZ(${-SD + AW_D}px)`,
+              background: 'linear-gradient(180deg, #0b1525 0%, #0d1c30 100%)',
+              border: `2px solid ${ui.hasAdvancedAirway ? '#22c55e' : '#d97706'}`,
+              borderRadius: 3,
+              boxShadow: `0 0 22px ${ui.hasAdvancedAirway ? '#22c55e28' : '#d9770628'}`,
+              cursor: 'pointer',
               pointerEvents: 'auto',
+              overflow: 'hidden',
+            }}
+            onClick={e => {
+              e.stopPropagation();
+              setMenu({ targetId: 'airway_station', title: 'Airway Equipment', items: airwayMenu(), anchor: anchor(e) });
             }}
           >
-            {/* Defib monitor unit */}
-            <div
-              style={{
-                position: 'absolute', top: '8%', right: '22%',
-                width: 215, height: 240,
-                background: '#0d0508',
-                border: `2px solid ${ui.defibCharged ? '#fbbf24' : isShockable ? '#ef4444' : '#4a1728'}`,
-                borderRadius: 5,
-                display: 'flex', flexDirection: 'column',
-                alignItems: 'center', justifyContent: 'center', gap: 10,
-                boxShadow: ui.defibCharged ? '0 0 40px #fbbf2450' : isShockable ? '0 0 24px #ef444430' : 'none',
-                cursor: 'pointer',
-              }}
-              onClick={e => {
-                e.stopPropagation();
-                setMenu({ targetId: 'defib_station', title: 'Monitor / Defib', items: defibMenu(), anchor: anchor(e) });
-              }}
-            >
-              {/* ECG screen */}
-              <div style={{
-                width: '82%', height: 58,
-                background: '#04060e',
-                border: '1px solid #1f2937',
-                borderRadius: 3, overflow: 'hidden', padding: '4px 6px',
+            {/* Header stripe */}
+            <div style={{
+              background: ui.hasAdvancedAirway ? '#14532d' : '#78350f',
+              borderBottom: `1px solid ${ui.hasAdvancedAirway ? '#22c55e' : '#d97706'}`,
+              padding: '4px 10px',
+              display: 'flex', alignItems: 'center', gap: 6,
+            }}>
+              <span style={{ color: ui.hasAdvancedAirway ? '#86efac' : '#fcd34d', fontSize: 9, fontFamily: 'monospace', fontWeight: 'bold', letterSpacing: '0.12em' }}>
+                AIRWAY MGT
+              </span>
+              <span style={{ marginLeft: 'auto', color: ui.hasAdvancedAirway ? '#4ade80' : '#fbbf24', fontSize: 9 }}>
+                {ui.hasAdvancedAirway ? '✓ SECURED' : 'UNSECURED'}
+              </span>
+            </div>
+
+            {/* Ventilator waveform display */}
+            <div style={{
+              margin: '8px 10px 4px',
+              height: 40,
+              background: '#040a12',
+              border: '1px solid #1e293b',
+              borderRadius: 2, overflow: 'hidden', padding: '4px 6px',
+            }}>
+              <svg viewBox="0 0 200 30" style={{ width: '100%', height: '100%' }}>
+                <path
+                  d="M0,15 L20,15 L24,3 L28,27 L32,3 L36,15 L70,15 L74,3 L78,27 L82,3 L86,15 L130,15 L134,3 L138,27 L142,3 L146,15 L200,15"
+                  stroke={ui.hasAdvancedAirway ? '#22c55e' : '#d97706'}
+                  strokeWidth="1.5" fill="none"
+                />
+              </svg>
+            </div>
+
+            {/* Equipment shelves */}
+            {[
+              ['BVM', '#2563eb'],
+              ['LARYNGOSCOPE', '#6b7280'],
+              ['ET TUBES', '#4b5563'],
+              ['SUCTION', '#374151'],
+            ].map(([label, col], i) => (
+              <div key={i} style={{
+                margin: '3px 10px',
+                padding: '3px 8px',
+                background: '#060f1a',
+                border: '1px solid #1e293b',
+                borderRadius: 2,
+                display: 'flex', alignItems: 'center', gap: 6,
               }}>
-                <svg viewBox="0 0 160 40" style={{ width: '100%', height: '100%' }}>
-                  <path
-                    d={ecgPath()}
-                    stroke={isShockable ? '#ef4444' : ui.rhythm === 'asystole' ? '#374151' : '#22c55e'}
-                    strokeWidth="1.5" fill="none"
-                  />
-                </svg>
+                <div style={{ width: 8, height: 8, borderRadius: '50%', background: col, flexShrink: 0 }} />
+                <span style={{ color: '#374151', fontSize: 8, fontFamily: 'monospace' }}>{label}</span>
               </div>
+            ))}
 
-              {/* Rate readout */}
-              <div style={{ color: '#94a3b8', fontSize: 10, fontFamily: 'monospace' }}>
-                {isShockable ? 'SHOCKABLE' : ui.rhythm === 'pea' ? 'PEA' : ui.rhythm === 'asystole' ? 'ASYSTOLE' : 'RHYTHM OK'}
-              </div>
-
-              <div style={{ fontSize: 28 }}>⚡</div>
-
-              <div style={{
-                color: ui.defibCharged ? '#fbbf24' : isShockable ? '#fca5a5' : '#4b5563',
-                fontSize: 13, fontWeight: 'bold', fontFamily: 'monospace', letterSpacing: '0.09em',
-              }}>
-                {ui.defibCharged ? '⚡ 200 J READY' : 'DEFIB'}
-              </div>
-
-              <div style={{ color: '#374151', fontSize: 9, fontFamily: 'monospace' }}>
-                Shocks delivered: {ui.shockCount}
-              </div>
+            {/* Click hint */}
+            <div style={{ position: 'absolute', bottom: 5, right: 8, color: '#1e3a5f', fontSize: 7, fontFamily: 'monospace' }}>
+              click to manage
             </div>
           </div>
+
+          {/* Airway cabinet — top face (horizontal, connects wall to front face) */}
+          <div style={{
+            position: 'absolute',
+            left: AW_L, top: SH - AW_H,
+            width: AW_W, height: AW_D,
+            transformOrigin: 'center top',
+            transform: `translateZ(-${SD}px) rotateX(90deg)`,
+            background: 'linear-gradient(to bottom, #0a1828 0%, #0d1c30 100%)',
+            borderLeft: '1px solid #1e293b',
+            borderRight: '1px solid #1e293b',
+            pointerEvents: 'none',
+          }} />
+
+          {/* Airway cabinet — left face */}
+          <div style={{
+            position: 'absolute',
+            left: AW_L - AW_D, top: SH - AW_H,
+            width: AW_D, height: AW_H,
+            transformOrigin: 'right center',
+            transform: `translateZ(-${SD}px) rotateY(90deg)`,
+            background: '#080e1c',
+            pointerEvents: 'none',
+          }} />
+
+          {/* Airway cabinet — right face */}
+          <div style={{
+            position: 'absolute',
+            left: AW_L + AW_W, top: SH - AW_H,
+            width: AW_D, height: AW_H,
+            transformOrigin: 'left center',
+            transform: `translateZ(-${SD}px) rotateY(-90deg)`,
+            background: '#080e1c',
+            pointerEvents: 'none',
+          }} />
+
+          {/* ╔══════════════════════════════════════════════════════╗
+              ║  CRASH CART  (left wall, red, x=0..58, z≈-278..-348) ║
+              ╚══════════════════════════════════════════════════════╝ */}
+
+          {/* Crash cart — near-side face (at z=CC_Z, facing viewer) */}
+          <div style={{
+            position: 'absolute',
+            left: 0, top: SH - CC_H,
+            width: CC_DEPTH, height: CC_H,
+            transform: `translateZ(${CC_Z}px)`,
+            background: 'linear-gradient(180deg, #7f1d1d 0%, #991b1b 100%)',
+            borderTop: '2px solid #dc2626',
+            borderRight: '2px solid #b91c1c',
+            pointerEvents: 'none',
+          }} />
+
+          {/* Crash cart — drawer face (at x=CC_DEPTH, facing room centre) */}
+          {/* Pivot at right edge so the face sits at x=CC_DEPTH after rotateY(-90°) */}
+          <div
+            style={{
+              position: 'absolute',
+              left: CC_DEPTH - CC_ZW,   // right edge aligns to x=CC_DEPTH
+              top: SH - CC_H,
+              width: CC_ZW,
+              height: CC_H,
+              transformOrigin: 'right center',
+              transform: `translateZ(${CC_Z}px) rotateY(-90deg)`,
+              background: 'linear-gradient(180deg, #991b1b 0%, #7f1d1d 100%)',
+              cursor: 'pointer',
+              pointerEvents: 'auto',
+              overflow: 'hidden',
+            }}
+            onClick={e => {
+              e.stopPropagation();
+              setMenu({ targetId: 'medication_station', title: 'Medication Cart', items: medicationMenu(), anchor: anchor(e) });
+            }}
+          >
+            {/* Cart header stripe */}
+            <div style={{
+              background: '#7f1d1d',
+              borderBottom: '1px solid #dc2626',
+              padding: '3px 6px',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              <span style={{ color: '#fca5a5', fontSize: 7, fontFamily: 'monospace', fontWeight: 'bold', letterSpacing: '0.1em' }}>
+                MED CART
+              </span>
+            </div>
+
+            {/* 4 drawers */}
+            {[0, 1, 2, 3].map(i => (
+              <div key={i} style={{
+                position: 'absolute',
+                top: 22 + i * 26, left: 5, right: 5, height: 22,
+                background: i === 0 ? '#4c0519' : '#6b1212',
+                border: '1px solid #991b1b',
+                borderRadius: 2,
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4,
+              }}>
+                {/* Drawer handle bar */}
+                <div style={{
+                  width: 20, height: 4,
+                  background: '#f87171',
+                  borderRadius: 1,
+                  opacity: 0.7,
+                  boxShadow: '0 1px 2px rgba(0,0,0,0.5)',
+                }} />
+              </div>
+            ))}
+
+            {/* Epi label on top drawer */}
+            <div style={{
+              position: 'absolute', top: 22, left: 5, right: 5,
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              padding: '0 3px',
+              pointerEvents: 'none',
+            }}>
+              <span style={{ color: '#fca5a5', fontSize: 6, fontFamily: 'monospace', opacity: 0.6 }}>
+                EPI·AMIO
+              </span>
+            </div>
+
+            {/* Wheel indicators */}
+            <div style={{
+              position: 'absolute', bottom: 2,
+              left: 4, right: 4,
+              display: 'flex', justifyContent: 'space-between',
+            }}>
+              {[0, 1].map(i => (
+                <div key={i} style={{
+                  width: 8, height: 8, borderRadius: '50%',
+                  background: '#4b5563', border: '1px solid #374151',
+                }} />
+              ))}
+            </div>
+          </div>
+
+          {/* Crash cart — top surface (horizontal) */}
+          <div style={{
+            position: 'absolute',
+            left: 0, top: SH - CC_H,
+            width: CC_DEPTH, height: CC_ZW,
+            transformOrigin: 'center top',
+            transform: `translateZ(${CC_Z}px) rotateX(-90deg)`,
+            background: 'linear-gradient(to bottom, #b91c1c 0%, #991b1b 100%)',
+            borderLeft: '1px solid #dc2626',
+            borderRight: '1px solid #7f1d1d',
+            pointerEvents: 'none',
+          }} />
+
+          {/* IV access bag — on pole near head of bed, left side */}
+          {/* Pole shaft */}
+          <div style={{
+            position: 'absolute',
+            left: 80, top: SH - 190, width: 5, height: 190,
+            transform: 'translateZ(-162px)',
+            background: 'linear-gradient(90deg, #374151 0%, #4b5563 100%)',
+            pointerEvents: 'none',
+          }} />
+          {/* IV bag */}
+          <div
+            style={{
+              position: 'absolute',
+              left: 58, top: SH - 212, width: 48, height: 30,
+              transform: 'translateZ(-162px)',
+              background: hasAccess ? '#1e3a5f' : '#0f172a',
+              border: `1.5px solid ${hasAccess ? '#3b82f6' : '#1e293b'}`,
+              borderRadius: 4,
+              boxShadow: hasAccess ? '0 0 10px #3b82f630' : 'none',
+              cursor: 'pointer',
+              pointerEvents: 'auto',
+              display: 'flex', flexDirection: 'column',
+              alignItems: 'center', justifyContent: 'center', gap: 2,
+            }}
+            onClick={e => {
+              e.stopPropagation();
+              setMenu({ targetId: 'iv_station', title: 'Vascular Access', items: ivMenu(), anchor: anchor(e) });
+            }}
+          >
+            <span style={{ color: hasAccess ? '#60a5fa' : '#374151', fontSize: 7, fontFamily: 'monospace', fontWeight: 'bold' }}>
+              IV/IO
+            </span>
+            <span style={{ color: hasAccess ? '#93c5fd' : '#1e293b', fontSize: 6, fontFamily: 'monospace' }}>
+              {hasAccess ? '✓ ON' : 'CLICK'}
+            </span>
+          </div>
+          {/* IV tubing line */}
+          <div style={{
+            position: 'absolute',
+            left: 82, top: SH - 183, width: 2, height: 180,
+            transform: 'translateZ(-162px)',
+            background: 'linear-gradient(180deg, #1e40af88 0%, transparent 100%)',
+            pointerEvents: 'none',
+          }} />
+
+          {/* ╔══════════════════════════════════════════════════════╗
+              ║  DEFIB MONITOR  (right wall, x=842..900, z≈-278..-348) ║
+              ╚══════════════════════════════════════════════════════╝ */}
+
+          {/* Defib stand body (near face at z=DF_Z, facing viewer) */}
+          <div style={{
+            position: 'absolute',
+            left: SW - DF_DEPTH, top: SH - DF_H,
+            width: DF_DEPTH, height: DF_H,
+            transform: `translateZ(${DF_Z}px)`,
+            background: 'linear-gradient(180deg, #111827 0%, #1f2937 100%)',
+            borderTop: '2px solid #4b5563',
+            borderLeft: '2px solid #374151',
+            pointerEvents: 'none',
+          }}>
+            {/* Stand column indicator (decorative) */}
+            <div style={{
+              position: 'absolute',
+              left: '45%', bottom: 0, width: 8,
+              height: '45%',
+              background: '#374151',
+              borderRadius: 2,
+            }} />
+            {/* Pad hook (decorative) */}
+            <div style={{
+              position: 'absolute', top: '12%', left: '20%',
+              width: '60%', height: 6,
+              background: '#374151',
+              borderRadius: 2,
+            }} />
+          </div>
+
+          {/* Defib — monitor face (at x=SW-DF_DEPTH, facing room) */}
+          {/* Pivot at left edge so face sits at x=SW-DF_DEPTH after rotateY(90°) */}
+          <div
+            style={{
+              position: 'absolute',
+              left: SW - DF_DEPTH, top: SH - DF_H,
+              width: DF_ZW,
+              height: DF_H,
+              transformOrigin: 'left center',
+              transform: `translateZ(${DF_Z}px) rotateY(90deg)`,
+              background: `linear-gradient(180deg, #0d1117 0%, #111827 100%)`,
+              border: `2px solid ${ui.defibCharged ? '#d97706' : isShockable ? '#dc2626' : '#374151'}`,
+              borderRadius: 3,
+              boxShadow: ui.defibCharged
+                ? '0 0 30px #d9770650, inset 0 0 20px #d9770618'
+                : isShockable
+                  ? '0 0 18px #dc262630'
+                  : 'none',
+              cursor: 'pointer',
+              pointerEvents: 'auto',
+              overflow: 'hidden',
+            }}
+            onClick={e => {
+              e.stopPropagation();
+              setMenu({ targetId: 'defib_station', title: 'Monitor / Defib', items: defibMenu(), anchor: anchor(e) });
+            }}
+          >
+            {/* Header bar */}
+            <div style={{
+              background: ui.defibCharged ? '#78350f' : '#0f172a',
+              borderBottom: `1px solid ${ui.defibCharged ? '#d97706' : '#1f2937'}`,
+              padding: '3px 6px',
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            }}>
+              <span style={{ color: '#6b7280', fontSize: 7, fontFamily: 'monospace', letterSpacing: '0.1em' }}>
+                MONITOR
+              </span>
+              <span style={{
+                color: ui.defibCharged ? '#fbbf24' : isShockable ? '#f87171' : '#374151',
+                fontSize: 7, fontFamily: 'monospace', fontWeight: 'bold',
+              }}>
+                {ui.defibCharged ? '⚡200J' : isShockable ? 'VF/VT' : 'NSR'}
+              </span>
+            </div>
+
+            {/* ECG screen */}
+            <div style={{
+              margin: '6px 8px 4px',
+              height: 40,
+              background: '#04060e',
+              border: '1px solid #1e293b',
+              borderRadius: 2, overflow: 'hidden', padding: '4px 5px',
+            }}>
+              <svg viewBox="0 0 160 40" style={{ width: '100%', height: '100%' }}>
+                <path
+                  d={ecgPath()}
+                  stroke={isShockable ? '#ef4444' : ui.rhythm === 'asystole' ? '#374151' : '#22c55e'}
+                  strokeWidth="1.5" fill="none"
+                />
+              </svg>
+            </div>
+
+            {/* Vital readouts */}
+            <div style={{ display: 'flex', gap: 4, margin: '0 8px 4px' }}>
+              {[
+                { label: 'HR', value: isArrest ? '---' : '72', color: '#22c55e' },
+                { label: 'SpO2', value: isArrest ? '---' : '98', color: '#3b82f6' },
+              ].map(({ label, value, color }) => (
+                <div key={label} style={{
+                  flex: 1, background: '#060c16',
+                  border: '1px solid #1e293b', borderRadius: 2, padding: '2px 4px',
+                  display: 'flex', flexDirection: 'column', alignItems: 'center',
+                }}>
+                  <span style={{ color: '#4b5563', fontSize: 6, fontFamily: 'monospace' }}>{label}</span>
+                  <span style={{ color, fontSize: 10, fontFamily: 'monospace', fontWeight: 'bold' }}>{value}</span>
+                </div>
+              ))}
+            </div>
+
+            {/* Rhythm label */}
+            <div style={{ margin: '0 8px 4px', textAlign: 'center' }}>
+              <span style={{
+                color: isShockable ? '#f87171' : '#4b5563',
+                fontSize: 8, fontFamily: 'monospace', letterSpacing: '0.08em',
+              }}>
+                {isShockable ? '■ SHOCKABLE' : ui.rhythm === 'asystole' ? '— ASYSTOLE' : ui.rhythm === 'pea' ? '~ PEA' : 'ROSC'}
+              </span>
+            </div>
+
+            {/* Shock count + button area */}
+            <div style={{
+              margin: '0 8px',
+              padding: '4px 6px',
+              background: ui.defibCharged ? '#7c2d12' : '#060c18',
+              border: `1px solid ${ui.defibCharged ? '#d97706' : '#1e293b'}`,
+              borderRadius: 2,
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            }}>
+              <span style={{ color: '#374151', fontSize: 7, fontFamily: 'monospace' }}>
+                Shocks: {ui.shockCount}
+              </span>
+              <span style={{
+                color: ui.defibCharged ? '#fcd34d' : '#374151',
+                fontSize: 7, fontFamily: 'monospace', fontWeight: 'bold',
+              }}>
+                {ui.defibCharged ? 'CHARGED' : 'STANDBY'}
+              </span>
+            </div>
+
+            {/* Paddle connector ports */}
+            <div style={{
+              position: 'absolute', bottom: 6, left: 8, right: 8,
+              display: 'flex', justifyContent: 'space-between',
+            }}>
+              {[0, 1].map(i => (
+                <div key={i} style={{
+                  width: 12, height: 12, borderRadius: '50%',
+                  background: '#1f2937',
+                  border: `2px solid ${ui.defibCharged ? '#d97706' : '#374151'}`,
+                }} />
+              ))}
+            </div>
+          </div>
+
+          {/* Defib — top surface (horizontal) */}
+          <div style={{
+            position: 'absolute',
+            left: SW - DF_DEPTH, top: SH - DF_H,
+            width: DF_DEPTH, height: DF_ZW,
+            transformOrigin: 'center top',
+            transform: `translateZ(${DF_Z}px) rotateX(-90deg)`,
+            background: 'linear-gradient(to bottom, #1f2937 0%, #111827 100%)',
+            borderLeft: '1px solid #374151',
+            borderRight: '1px solid #374151',
+            pointerEvents: 'none',
+          }} />
+
+          {/* ╔═══════════════════════════════════════════════════════╗
+              ║  PATIENT BED  (floor centre, z = BED_FZ .. BED_FZ-BED_L) ║
+              ╚═══════════════════════════════════════════════════════╝ */}
+
+          {/* Left side rail — top surface (thin horizontal strip along left side) */}
+          <div style={{
+            position: 'absolute',
+            left: BED_CX - BED_W / 2,
+            top: SH - BED_FH - BED_RH,
+            width: 10,
+            height: BED_L,
+            transformOrigin: 'center top',
+            transform: `translateZ(${BED_FZ}px) rotateX(-90deg)`,
+            background: 'linear-gradient(90deg, #6b7280 0%, #9ca3af 50%, #6b7280 100%)',
+            borderRadius: 2,
+            pointerEvents: 'none',
+          }} />
+
+          {/* Right side rail — top surface */}
+          <div style={{
+            position: 'absolute',
+            left: BED_CX + BED_W / 2 - 10,
+            top: SH - BED_FH - BED_RH,
+            width: 10,
+            height: BED_L,
+            transformOrigin: 'center top',
+            transform: `translateZ(${BED_FZ}px) rotateX(-90deg)`,
+            background: 'linear-gradient(90deg, #6b7280 0%, #9ca3af 50%, #6b7280 100%)',
+            borderRadius: 2,
+            pointerEvents: 'none',
+          }} />
+
+          {/* Mattress — main horizontal surface */}
+          <div style={{
+            position: 'absolute',
+            left: BED_CX - BED_W / 2 + 10,
+            top: SH - BED_FH,
+            width: BED_W - 20,
+            height: BED_L,
+            transformOrigin: 'center top',
+            transform: `translateZ(${BED_FZ}px) rotateX(-90deg)`,
+            background: ui.cprActive
+              ? 'linear-gradient(to bottom, #1e3a6e 0%, #1a2f58 50%, #1e3a6e 100%)'
+              : 'linear-gradient(to bottom, #d1d9e6 0%, #bcc8d8 50%, #c8d4e4 100%)',
+            borderLeft: '1px solid #94a3b8',
+            borderRight: '1px solid #94a3b8',
+            pointerEvents: 'none',
+          }}>
+            {/* Pillow at head of bed (appears at FAR end = large y-offset in div) */}
+            <div style={{
+              position: 'absolute',
+              bottom: 8, left: '20%', width: '60%', height: 32,
+              background: '#f1f5f9',
+              borderRadius: 6,
+              border: '1px solid #e2e8f0',
+              opacity: 0.85,
+            }} />
+            {/* Sheet crease lines */}
+            {[0.25, 0.5, 0.75].map(t => (
+              <div key={t} style={{
+                position: 'absolute',
+                top: `${t * 100}%`,
+                left: '10%', right: '10%',
+                height: 1,
+                background: 'rgba(148,163,184,0.3)',
+              }} />
+            ))}
+          </div>
+
+          {/* Footboard — vertical face, near viewer, CLICKABLE */}
+          <div
+            style={{
+              position: 'absolute',
+              left: BED_CX - BED_W / 2,
+              top: SH - BED_FH,
+              width: BED_W, height: BED_FH,
+              transform: `translateZ(${BED_FZ}px)`,
+              background: ui.cprActive
+                ? 'linear-gradient(180deg, #2d3748 0%, #1f2937 100%)'
+                : 'linear-gradient(180deg, #374151 0%, #1f2937 100%)',
+              border: `2px solid ${ui.cprActive ? '#ef4444' : '#4b5563'}`,
+              borderBottom: '3px solid #111827',
+              borderRadius: '2px 2px 0 0',
+              boxShadow: ui.cprActive
+                ? 'inset 0 0 28px rgba(239,68,68,0.25), 0 4px 20px rgba(239,68,68,0.2)'
+                : '0 4px 12px rgba(0,0,0,0.5)',
+              cursor: 'pointer',
+              pointerEvents: 'auto',
+              display: 'flex', flexDirection: 'column',
+              alignItems: 'center', justifyContent: 'center', gap: 3,
+            }}
+            onClick={e => {
+              e.stopPropagation();
+              setMenu({ targetId: 'patient_bed', title: 'Patient Bed', items: patientMenu(), anchor: anchor(e) });
+            }}
+          >
+            {/* Metal crossbar (decorative) */}
+            <div style={{
+              width: '85%', height: 3,
+              background: 'linear-gradient(90deg, #4b5563, #9ca3af, #4b5563)',
+              borderRadius: 2, marginBottom: 2,
+            }} />
+            <motion.div
+              animate={ui.cprActive ? { opacity: [1, 0.5, 1] } : {}}
+              transition={{ duration: 0.5, repeat: Infinity }}
+              style={{
+                color: ui.cprActive ? '#fca5a5' : !isArrest ? '#86efac' : '#93c5fd',
+                fontSize: 10, fontWeight: 'bold', fontFamily: 'monospace',
+                letterSpacing: '0.08em',
+              }}
+            >
+              {ui.cprActive ? '❤ CPR ACTIVE' : !isArrest ? '✓ ROSC' : 'PATIENT BED'}
+            </motion.div>
+            <div style={{ color: '#374151', fontSize: 7, fontFamily: 'monospace' }}>
+              click to manage
+            </div>
+          </div>
+
+          {/* Headboard — small vertical face at far end of bed */}
+          <div style={{
+            position: 'absolute',
+            left: BED_CX - BED_W / 2,
+            top: SH - BED_FH,
+            width: BED_W, height: BED_FH,
+            transform: `translateZ(${BED_FZ - BED_L}px)`,
+            background: 'linear-gradient(180deg, #374151 0%, #1f2937 100%)',
+            border: '1px solid #374151',
+            borderRadius: '2px 2px 0 0',
+            pointerEvents: 'none',
+          }} />
+
+          {/* CPR pulse ring (3D, at foot of bed mattress) */}
+          {ui.cprActive && (
+            <motion.div
+              style={{
+                position: 'absolute',
+                left: BED_CX - 32,
+                top: SH - BED_FH - 32,
+                width: 64, height: 64,
+                border: '2px solid #ef4444',
+                borderRadius: '50%',
+                transform: `translateZ(${BED_FZ - 30}px)`,
+                pointerEvents: 'none',
+              }}
+              animate={{ scale: [1, 1.7, 1], opacity: [0.7, 0, 0.7] }}
+              transition={{ duration: 0.55, repeat: Infinity }}
+            />
+          )}
 
         </div>{/* end scene wrapper */}
       </div>{/* end perspective viewport */}
@@ -529,8 +1006,8 @@ export default function FirstPersonRoom({ ui, actions }: FirstPersonRoomProps) {
 
       {/* ══════════════════════════════════════════════════════════════
           2D PROJECTED OVERLAYS
-          Team members, patient bed label, and HUD — all rendered flat
-          so Framer Motion can animate them without fighting preserve-3d.
+          Team members rendered flat so Framer Motion can animate
+          them without fighting preserve-3d.
       ═══════════════════════════════════════════════════════════════ */}
 
       {/* ── Coordinate overlay (same centred box as 3D scene) ── */}
@@ -544,71 +1021,6 @@ export default function FirstPersonRoom({ ui, actions }: FirstPersonRoomProps) {
           pointerEvents: 'none',
         }}
       >
-
-        {/* ── Patient bed (projected floor element) ── */}
-        {(() => {
-          const bedZ = -240;
-          const bedX = SW / 2;
-          const proj = project(bedX, bedZ);
-          const bedW = 190 * proj.s;
-          const bedH =  60 * proj.s;
-          return (
-            <div
-              style={{
-                position: 'absolute',
-                left: proj.x - bedW / 2,
-                top:  proj.y - bedH / 2 + 14 * proj.s,
-                width: bedW, height: bedH,
-                border: `${Math.max(1, 2 * proj.s)}px solid ${ui.cprActive ? '#ef4444' : '#3b82f6'}`,
-                borderRadius: 4 * proj.s,
-                background: ui.cprActive ? 'rgba(127,29,29,0.5)' : 'rgba(14,30,48,0.5)',
-                backdropFilter: 'blur(2px)',
-                boxShadow: ui.cprActive ? `0 0 ${20 * proj.s}px #ef444440` : `0 0 ${14 * proj.s}px #3b82f630`,
-                pointerEvents: 'auto',
-                cursor: 'pointer',
-                display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column',
-                gap: 2,
-                zIndex: 8,
-              }}
-              onClick={e => {
-                e.stopPropagation();
-                setMenu({ targetId: 'patient_bed', title: 'Patient Bed', items: patientMenu(), anchor: anchor(e) });
-              }}
-            >
-              <motion.div
-                animate={ui.cprActive ? { opacity: [1, 0.6, 1] } : {}}
-                transition={{ duration: 0.55, repeat: Infinity }}
-                style={{
-                  color: ui.cprActive ? '#fca5a5' : !isArrest ? '#86efac' : '#93c5fd',
-                  fontSize: Math.max(8, 13 * proj.s), fontWeight: 'bold', fontFamily: 'monospace',
-                  letterSpacing: '0.06em',
-                }}
-              >
-                {ui.cprActive ? '❤ CPR IN PROGRESS' : !isArrest ? '✓ ROSC' : 'PATIENT BED'}
-              </motion.div>
-            </div>
-          );
-        })()}
-
-        {/* CPR pulse ring */}
-        {ui.cprActive && (() => {
-          const proj = project(SW / 2, -240);
-          return (
-            <motion.div
-              style={{
-                position: 'absolute',
-                left: proj.x - 40, top: proj.y - 20,
-                width: 80, height: 40,
-                border: '2px solid #ef4444',
-                borderRadius: '50%',
-                pointerEvents: 'none', zIndex: 7,
-              }}
-              animate={{ scale: [1, 1.6, 1], opacity: [0.6, 0, 0.6] }}
-              transition={{ duration: 0.6, repeat: Infinity }}
-            />
-          );
-        })()}
-
         {/* ── Team members (sorted far→near for painter's algorithm) ── */}
         {[...ui.team]
           .sort((a, b) => (ROLE_3D[a.assignedRole]?.z ?? 0) - (ROLE_3D[b.assignedRole]?.z ?? 0))
@@ -799,7 +1211,7 @@ export default function FirstPersonRoom({ ui, actions }: FirstPersonRoomProps) {
       {/* Hint text */}
       <div className="absolute z-10 pointer-events-none" style={{ bottom: '5.2rem', left: '50%', transform: 'translateX(-50%)' }}>
         <span className="text-[8px] text-gray-700 tracking-wide">
-          Click patient bed · defib wall · meds wall · airway wall · person · door
+          Click footboard · defib wall · crash cart · IV bag · airway cabinet · person · door
         </span>
       </div>
 
