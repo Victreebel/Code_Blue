@@ -1022,7 +1022,9 @@ export default function FirstPersonRoom({ ui, actions }: FirstPersonRoomProps) {
         }}
       >
         {/* ── Team members (sorted far→near for painter's algorithm) ── */}
+        {/* Leader is excluded — in first-person YOU are the leader */}
         {[...ui.team]
+          .filter(m => !m.isLeader)
           .sort((a, b) => (ROLE_3D[a.assignedRole]?.z ?? 0) - (ROLE_3D[b.assignedRole]?.z ?? 0))
           .map(m => {
             const pos3d   = ROLE_3D[m.assignedRole] ?? ROLE_3D.none;
