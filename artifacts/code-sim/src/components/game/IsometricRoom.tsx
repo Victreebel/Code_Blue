@@ -703,12 +703,13 @@ const MINIMAP_ZONE_FULL_LABEL: Record<ZoneId, string> = {
 
 interface MinimapProps {
   activeZone: ZoneId | null;
+  menuZone: ZoneId | null;
   onZoneClick: (id: ZoneId) => void;
   members: TeamMemberRuntime[];
   flashedZones: Set<ZoneId>;
 }
 
-function FloorPlanMinimap({ activeZone, onZoneClick, members, flashedZones }: MinimapProps) {
+function FloorPlanMinimap({ activeZone, menuZone, onZoneClick, members, flashedZones }: MinimapProps) {
   const assignedMembers = members.filter(m => m.assignedRole !== 'none' && m.inRoom);
   return (
     <svg
@@ -726,6 +727,7 @@ function FloorPlanMinimap({ activeZone, onZoneClick, members, flashedZones }: Mi
         const col = MINIMAP_ZONE_COLOR[z.id];
         const isActive = activeZone === z.id;
         const isFlashing = flashedZones.has(z.id);
+        const isMenuOpen = menuZone === z.id;
         const rx = mx - mw / 2, ry = my - mh / 2;
 
         return (
@@ -735,15 +737,37 @@ function FloorPlanMinimap({ activeZone, onZoneClick, members, flashedZones }: Mi
             onClick={e => { e.stopPropagation(); onZoneClick(z.id); }}
           >
             <title>{MINIMAP_ZONE_FULL_LABEL[z.id]}</title>
+            {/* Menu-open glow: wide soft halo behind the zone rect */}
+            {isMenuOpen && (
+              <rect
+                x={rx - 4} y={ry - 4} width={mw + 8} height={mh + 8}
+                fill={col.stroke}
+                opacity={0.18}
+                rx={4}
+                style={{ pointerEvents: 'none' }}
+              />
+            )}
             <rect
               x={rx} y={ry} width={mw} height={mh}
-              fill={col.fill}
+              fill={isMenuOpen ? col.stroke : col.fill}
               stroke={col.stroke}
-              strokeWidth={isActive ? 2 : 0.8}
-              opacity={isActive ? 1 : 0.75}
+              strokeWidth={isMenuOpen ? 2.5 : isActive ? 2 : 0.8}
+              opacity={isMenuOpen ? 0.35 : isActive ? 1 : 0.75}
               rx={1}
             />
-            {isActive && (
+            {/* Menu-open bright border ring */}
+            {isMenuOpen && (
+              <rect
+                x={rx - 1.5} y={ry - 1.5} width={mw + 3} height={mh + 3}
+                fill="none"
+                stroke={col.stroke}
+                strokeWidth={2}
+                opacity={0.9}
+                rx={2.5}
+                style={{ pointerEvents: 'none' }}
+              />
+            )}
+            {isActive && !isMenuOpen && (
               <rect
                 x={rx - 1} y={ry - 1} width={mw + 2} height={mh + 2}
                 fill="none"
@@ -1429,6 +1453,7 @@ export default function IsometricRoom({ ui, actions }: IsometricRoomProps) {
               <FloorPlanMinimap
                 activeZone={hoveredZone}
                 flashedZones={flashedMinimapZones}
+                menuZone={(menu?.targetId as ZoneId) ?? null}
                 onZoneClick={id => {
                   const z = ZONES.find(z => z.id === id);
                   if (z) openZoneMenu(id, zoneToPct(z.cx, z.cy));
