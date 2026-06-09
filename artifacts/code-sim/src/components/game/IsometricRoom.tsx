@@ -701,20 +701,27 @@ const MINIMAP_ZONE_FULL_LABEL: Record<ZoneId, string> = {
   door:               'Team Actions',
 };
 
+const MINIMAP_ZOOM_MIN = 0.75;
+const MINIMAP_ZOOM_MAX = 2.0;
+const MINIMAP_ZOOM_STEP = 0.25;
+const MINIMAP_ZOOM_DEFAULT = 1;
+const MINIMAP_ZOOM_KEY = 'acls-minimap-zoom';
+
 interface MinimapProps {
   activeZone: ZoneId | null;
   menuZone: ZoneId | null;
+  zoom: number;
   onZoneClick: (id: ZoneId) => void;
   members: TeamMemberRuntime[];
   flashedZones: Set<ZoneId>;
 }
 
-function FloorPlanMinimap({ activeZone, menuZone, onZoneClick, members, flashedZones }: MinimapProps) {
+function FloorPlanMinimap({ activeZone, menuZone, zoom, onZoneClick, members, flashedZones }: MinimapProps) {
   const assignedMembers = members.filter(m => m.assignedRole !== 'none' && m.inRoom);
   return (
     <svg
-      width={MAP_W}
-      height={MAP_H}
+      width={MAP_W * zoom}
+      height={MAP_H * zoom}
       viewBox={`0 0 ${MAP_W} ${MAP_H}`}
       style={{ display: 'block' }}
     >
@@ -866,6 +873,13 @@ export default function IsometricRoom({ ui, actions }: IsometricRoomProps) {
   const [menu, setMenu] = useState<ActiveMenu | null>(null);
   const { prefs, setPrefs, synced } = useUserPreferences();
   const minimapVisible = prefs.minimapVisible;
+  const [mapZoom, setMapZoom] = useState<number>(() => {
+    const stored = localStorage.getItem(MINIMAP_ZOOM_KEY);
+    if (stored === null) return MINIMAP_ZOOM_DEFAULT;
+    const parsed = parseFloat(stored);
+    if (isNaN(parsed)) return MINIMAP_ZOOM_DEFAULT;
+    return Math.max(MINIMAP_ZOOM_MIN, Math.min(MINIMAP_ZOOM_MAX, parsed));
+  });
   const [hoveredZone, setHoveredZone] = useState<ZoneId | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -1431,14 +1445,40 @@ export default function IsometricRoom({ ui, actions }: IsometricRoomProps) {
         style={{ bottom: '2.5rem', right: '0.75rem' }}
         onClick={e => e.stopPropagation()}
       >
-        {/* Toggle button */}
-        <button
-          onClick={() => setPrefs(p => ({ ...p, minimapVisible: !p.minimapVisible }))}
-          className="block ml-auto mb-0.5 px-1.5 py-px rounded text-[8px] font-bold tracking-widest border border-gray-700 bg-gray-900/80 text-gray-500 hover:text-gray-300 hover:border-gray-500 transition-colors leading-none"
-          title={minimapVisible ? 'Hide floor plan' : 'Show floor plan'}
-        >
-          {minimapVisible ? 'MAP ▾' : 'MAP ▸'}
-        </button>
+        {/* Toggle + zoom controls */}
+        <div className="flex items-center justify-end gap-0.5 mb-0.5">
+          {minimapVisible && (
+            <>
+              <button
+                onClick={() => setMapZoom(z => {
+                  const next = Math.max(MINIMAP_ZOOM_MIN, parseFloat((z - MINIMAP_ZOOM_STEP).toFixed(2)));
+                  localStorage.setItem(MINIMAP_ZOOM_KEY, String(next));
+                  return next;
+                })}
+                disabled={mapZoom <= MINIMAP_ZOOM_MIN}
+                className="px-1 py-px rounded text-[8px] font-bold border border-gray-700 bg-gray-900/80 text-gray-500 hover:text-gray-300 hover:border-gray-500 disabled:opacity-30 disabled:cursor-not-allowed transition-colors leading-none"
+                title="Zoom out minimap"
+              >−</button>
+              <button
+                onClick={() => setMapZoom(z => {
+                  const next = Math.min(MINIMAP_ZOOM_MAX, parseFloat((z + MINIMAP_ZOOM_STEP).toFixed(2)));
+                  localStorage.setItem(MINIMAP_ZOOM_KEY, String(next));
+                  return next;
+                })}
+                disabled={mapZoom >= MINIMAP_ZOOM_MAX}
+                className="px-1 py-px rounded text-[8px] font-bold border border-gray-700 bg-gray-900/80 text-gray-500 hover:text-gray-300 hover:border-gray-500 disabled:opacity-30 disabled:cursor-not-allowed transition-colors leading-none"
+                title="Zoom in minimap"
+              >+</button>
+            </>
+          )}
+          <button
+            onClick={() => setPrefs(p => ({ ...p, minimapVisible: !p.minimapVisible }))}
+            className="px-1.5 py-px rounded text-[8px] font-bold tracking-widest border border-gray-700 bg-gray-900/80 text-gray-500 hover:text-gray-300 hover:border-gray-500 transition-colors leading-none"
+            title={minimapVisible ? 'Hide floor plan' : 'Show floor plan'}
+          >
+            {minimapVisible ? 'MAP ▾' : 'MAP ▸'}
+          </button>
+        </div>
 
         <AnimatePresence>
           {minimapVisible && (
@@ -1452,6 +1492,7 @@ export default function IsometricRoom({ ui, actions }: IsometricRoomProps) {
             >
               <FloorPlanMinimap
                 activeZone={hoveredZone}
+                zoom={mapZoom}
                 flashedZones={flashedMinimapZones}
                 menuZone={(menu?.targetId as ZoneId) ?? null}
                 onZoneClick={id => {
