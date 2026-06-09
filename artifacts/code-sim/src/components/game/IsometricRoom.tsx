@@ -704,9 +704,10 @@ interface MinimapProps {
   activeZone: ZoneId | null;
   onZoneClick: (id: ZoneId) => void;
   members: TeamMemberRuntime[];
+  flashedZones: Set<ZoneId>;
 }
 
-function FloorPlanMinimap({ activeZone, onZoneClick, members }: MinimapProps) {
+function FloorPlanMinimap({ activeZone, onZoneClick, members, flashedZones }: MinimapProps) {
   const assignedMembers = members.filter(m => m.assignedRole !== 'none' && m.inRoom);
   return (
     <svg
@@ -723,6 +724,7 @@ function FloorPlanMinimap({ activeZone, onZoneClick, members }: MinimapProps) {
         const { mx, my, mw, mh } = zoneToMap(z.cx, z.cy, z.w, z.h);
         const col = MINIMAP_ZONE_COLOR[z.id];
         const isActive = activeZone === z.id;
+        const isFlashing = flashedZones.has(z.id);
         const rx = mx - mw / 2, ry = my - mh / 2;
 
         return (
@@ -749,6 +751,23 @@ function FloorPlanMinimap({ activeZone, onZoneClick, members }: MinimapProps) {
                 opacity={0.5}
                 rx={2}
               />
+            )}
+            {isFlashing && (
+              <rect
+                x={rx - 1} y={ry - 1} width={mw + 2} height={mh + 2}
+                fill={col.stroke}
+                rx={2}
+                opacity={0}
+              >
+                <animate
+                  attributeName="opacity"
+                  values="0;0.72;0"
+                  keyTimes="0;0.12;1"
+                  dur="0.42s"
+                  begin="0s"
+                  fill="freeze"
+                />
+              </rect>
             )}
             <text
               x={rx + mw / 2}
@@ -832,6 +851,9 @@ export default function IsometricRoom({ ui, actions }: IsometricRoomProps) {
   /* Per-zone flash: set of zone ids briefly re-shown after a click */
   const [flashedZones, setFlashedZones] = useState<Set<ZoneId>>(new Set());
   const flashTimers = useRef<Map<ZoneId, ReturnType<typeof setTimeout>>>(new Map());
+  /* Minimap zone flash: brief brightness pulse after a successful action */
+  const [flashedMinimapZones, setFlashedMinimapZones] = useState<Set<ZoneId>>(new Set());
+  const minimapFlashTimers = useRef<Map<ZoneId, ReturnType<typeof setTimeout>>>(new Map());
 
   useEffect(() => {
     const t = setTimeout(() => setShowInitialTags(false), 8000);
@@ -853,6 +875,21 @@ export default function IsometricRoom({ ui, actions }: IsometricRoomProps) {
     flashTimers.current.set(id, t);
   }
 
+  function flashMinimapZone(id: ZoneId) {
+    setFlashedMinimapZones(prev => new Set(prev).add(id));
+    const existing = minimapFlashTimers.current.get(id);
+    if (existing) clearTimeout(existing);
+    const t = setTimeout(() => {
+      setFlashedMinimapZones(prev => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
+      minimapFlashTimers.current.delete(id);
+    }, 500);
+    minimapFlashTimers.current.set(id, t);
+  }
+
   const isShockable = ui.rhythm === 'vfib' || ui.rhythm === 'vtach';
   const isArrest = isShockable || ui.rhythm === 'pea' || ui.rhythm === 'asystole';
   const hasAccess = ui.hasIVAccess || ui.hasIOAccess;
@@ -862,7 +899,11 @@ export default function IsometricRoom({ ui, actions }: IsometricRoomProps) {
   const chaosRatio = Math.min(1, ui.chaosFiredCount / 8);
 
   function close() { setMenu(null); }
-  function act(fn: () => void) { fn(); close(); }
+  function act(fn: () => void) {
+    if (menu) flashMinimapZone(menu.targetId as ZoneId);
+    fn();
+    close();
+  }
 
   function anchorStyle(pct: { x: number; y: number }): React.CSSProperties {
     const x = clamp(pct.x, 5, 78);
@@ -1387,6 +1428,7 @@ export default function IsometricRoom({ ui, actions }: IsometricRoomProps) {
             >
               <FloorPlanMinimap
                 activeZone={hoveredZone}
+                flashedZones={flashedMinimapZones}
                 onZoneClick={id => {
                   const z = ZONES.find(z => z.id === id);
                   if (z) openZoneMenu(id, zoneToPct(z.cx, z.cy));
