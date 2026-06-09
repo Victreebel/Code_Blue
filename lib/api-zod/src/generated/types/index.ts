@@ -7,4 +7,8 @@
  */
 
 export * from "./healthStatus";
+export * from "./scoreBucketSummary";
+export * from "./simulationRunPayload";
+export * from "./simulationRunSummary";
+export * from "./simulationScoreData";
 export * from "./userPreferences";

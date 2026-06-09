@@ -16,7 +16,12 @@ import type {
   UseQueryResult,
 } from "@tanstack/react-query";
 
-import type { HealthStatus, UserPreferences } from "./api.schemas";
+import type {
+  HealthStatus,
+  SimulationRunPayload,
+  SimulationRunSummary,
+  UserPreferences,
+} from "./api.schemas";
 
 import { customFetch } from "../custom-fetch";
 import type { ErrorType, BodyType } from "../custom-fetch";
@@ -278,4 +283,167 @@ export const useSetUserPreferences = <
   TContext
 > => {
   return useMutation(getSetUserPreferencesMutationOptions(options));
+};
+
+/**
+ * Returns the authenticated user's past simulation runs, newest first.
+ * @summary Get simulation run history
+ */
+export const getGetSimulationHistoryUrl = () => {
+  return `/api/history`;
+};
+
+export const getSimulationHistory = async (
+  options?: RequestInit,
+): Promise<SimulationRunSummary[]> => {
+  return customFetch<SimulationRunSummary[]>(getGetSimulationHistoryUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetSimulationHistoryQueryKey = () => {
+  return [`/api/history`] as const;
+};
+
+export const getGetSimulationHistoryQueryOptions = <
+  TData = Awaited<ReturnType<typeof getSimulationHistory>>,
+  TError = ErrorType<void>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getSimulationHistory>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetSimulationHistoryQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getSimulationHistory>>
+  > = ({ signal }) => getSimulationHistory({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getSimulationHistory>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetSimulationHistoryQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getSimulationHistory>>
+>;
+export type GetSimulationHistoryQueryError = ErrorType<void>;
+
+/**
+ * @summary Get simulation run history
+ */
+
+export function useGetSimulationHistory<
+  TData = Awaited<ReturnType<typeof getSimulationHistory>>,
+  TError = ErrorType<void>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getSimulationHistory>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetSimulationHistoryQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * Persists a completed simulation run for the authenticated user.
+ * @summary Save a simulation run
+ */
+export const getSaveSimulationRunUrl = () => {
+  return `/api/history`;
+};
+
+export const saveSimulationRun = async (
+  simulationRunPayload: SimulationRunPayload,
+  options?: RequestInit,
+): Promise<SimulationRunSummary> => {
+  return customFetch<SimulationRunSummary>(getSaveSimulationRunUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(simulationRunPayload),
+  });
+};
+
+export const getSaveSimulationRunMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof saveSimulationRun>>,
+    TError,
+    { data: BodyType<SimulationRunPayload> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof saveSimulationRun>>,
+  TError,
+  { data: BodyType<SimulationRunPayload> },
+  TContext
+> => {
+  const mutationKey = ["saveSimulationRun"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof saveSimulationRun>>,
+    { data: BodyType<SimulationRunPayload> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return saveSimulationRun(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type SaveSimulationRunMutationResult = NonNullable<
+  Awaited<ReturnType<typeof saveSimulationRun>>
+>;
+export type SaveSimulationRunMutationBody = BodyType<SimulationRunPayload>;
+export type SaveSimulationRunMutationError = ErrorType<void>;
+
+/**
+ * @summary Save a simulation run
+ */
+export const useSaveSimulationRun = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof saveSimulationRun>>,
+    TError,
+    { data: BodyType<SimulationRunPayload> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof saveSimulationRun>>,
+  TError,
+  { data: BodyType<SimulationRunPayload> },
+  TContext
+> => {
+  return useMutation(getSaveSimulationRunMutationOptions(options));
 };

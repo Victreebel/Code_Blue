@@ -12,6 +12,8 @@ tags:
     description: Health operations
   - name: preferences
     description: User UI preferences
+  - name: history
+    description: Simulation run history
 paths:
   /healthz:
     get:
@@ -73,6 +75,43 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/UserPreferences"
+  /history:
+    get:
+      operationId: getSimulationHistory
+      tags: [history]
+      summary: Get simulation run history
+      description: Returns the authenticated user's past simulation runs, newest first.
+      responses:
+        "200":
+          description: List of simulation runs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SimulationRunSummary"
+        "401":
+          description: Unauthorized
+    post:
+      operationId: saveSimulationRun
+      tags: [history]
+      summary: Save a simulation run
+      description: Persists a completed simulation run for the authenticated user.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SimulationRunPayload"
+      responses:
+        "201":
+          description: Run saved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SimulationRunSummary"
+        "401":
+          description: Unauthorized
 components:
   schemas:
     HealthStatus:
@@ -93,3 +132,111 @@ components:
       required:
         - minimapVisible
         - tagsVisible
+    ScoreBucketSummary:
+      type: object
+      properties:
+        id:
+          type: string
+        label:
+          type: string
+        max:
+          type: integer
+        awarded:
+          type: integer
+        arithmetic:
+          type: string
+        reasons:
+          type: array
+          items:
+            type: string
+      required:
+        - id
+        - label
+        - max
+        - awarded
+        - arithmetic
+        - reasons
+    SimulationScoreData:
+      type: object
+      properties:
+        total:
+          type: integer
+        buckets:
+          type: array
+          items:
+            $ref: "#/components/schemas/ScoreBucketSummary"
+        strengths:
+          type: array
+          items:
+            type: string
+        misses:
+          type: array
+          items:
+            type: string
+        teachingPoints:
+          type: array
+          items:
+            type: string
+      required:
+        - total
+        - buckets
+        - strengths
+        - misses
+        - teachingPoints
+    SimulationRunPayload:
+      type: object
+      properties:
+        scenario:
+          type: string
+          maxLength: 256
+        seed:
+          type: string
+          maxLength: 128
+          nullable: true
+        outcome:
+          type: string
+          maxLength: 64
+          nullable: true
+        score:
+          type: integer
+          minimum: 0
+          maximum: 100
+          nullable: true
+        durationSeconds:
+          type: integer
+          minimum: 0
+          nullable: true
+        scoreData:
+          $ref: "#/components/schemas/SimulationScoreData"
+          nullable: true
+      required:
+        - scenario
+    SimulationRunSummary:
+      type: object
+      properties:
+        id:
+          type: string
+        scenario:
+          type: string
+        seed:
+          type: string
+          nullable: true
+        outcome:
+          type: string
+          nullable: true
+        score:
+          type: integer
+          nullable: true
+        durationSeconds:
+          type: integer
+          nullable: true
+        scoreData:
+          $ref: "#/components/schemas/SimulationScoreData"
+          nullable: true
+        runAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - scenario
+        - runAt

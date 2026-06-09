@@ -1,13 +1,113 @@
 import { useState } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useUser, useClerk, Show } from '@clerk/react';
 import { useLocation } from 'wouter';
+import { useGetSimulationHistory } from '@workspace/api-client-react';
+import type { SimulationRunSummary } from '@workspace/api-client-react';
 
 interface StartScreenProps {
   onStart: (seed?: string) => void;
 }
 
 const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");
+
+function formatRunDate(dateStr: string | Date): string {
+  const d = new Date(dateStr);
+  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+function formatDuration(seconds: number | null | undefined): string {
+  if (seconds == null) return '—';
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return `${m}:${String(s).padStart(2, '0')}`;
+}
+
+function outcomeLabel(outcome: string | null | undefined): string {
+  if (!outcome) return '—';
+  if (outcome === 'rosc') return 'ROSC';
+  if (outcome === 'time_of_death') return 'TOD';
+  return outcome;
+}
+
+function outcomeColor(outcome: string | null | undefined): string {
+  if (outcome === 'rosc') return 'text-green-400';
+  if (outcome === 'time_of_death') return 'text-red-400';
+  return 'text-gray-400';
+}
+
+function HistoryPanel() {
+  const { data: runs, isLoading, isError } = useGetSimulationHistory();
+  const [expanded, setExpanded] = useState(false);
+
+  const displayRuns = runs ?? [];
+  const visibleRuns = expanded ? displayRuns : displayRuns.slice(0, 5);
+
+  return (
+    <div className="bg-gray-900/60 rounded-lg border border-gray-800 p-4 mt-4">
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="text-xs font-bold text-gray-400 tracking-wider">MY HISTORY</h3>
+        {displayRuns.length > 0 && (
+          <span className="text-[10px] font-mono text-gray-600">{displayRuns.length} run{displayRuns.length !== 1 ? 's' : ''}</span>
+        )}
+      </div>
+
+      {isLoading && (
+        <div className="text-[11px] text-gray-600 font-mono py-2">Loading history…</div>
+      )}
+
+      {isError && (
+        <div className="text-[11px] text-red-500/70 font-mono py-2">Could not load history</div>
+      )}
+
+      {!isLoading && !isError && displayRuns.length === 0 && (
+        <div className="text-[11px] text-gray-600 py-2">No runs yet. Complete a simulation to record it here.</div>
+      )}
+
+      {!isLoading && !isError && displayRuns.length > 0 && (
+        <>
+          <div className="space-y-1.5">
+            <AnimatePresence initial={false}>
+              {visibleRuns.map((run: SimulationRunSummary) => (
+                <motion.div
+                  key={run.id}
+                  initial={{ opacity: 0, y: -4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -4 }}
+                  className="flex items-center justify-between bg-black/20 rounded px-2 py-1.5 border border-gray-800/50"
+                >
+                  <div className="min-w-0 flex-1 mr-3">
+                    <div className="text-[11px] text-gray-400 font-mono truncate">{run.scenario}</div>
+                    <div className="text-[10px] text-gray-600 mt-0.5">{formatRunDate(run.runAt)}{run.seed ? ` · seed: ${run.seed}` : ''}</div>
+                  </div>
+                  <div className="flex items-center gap-3 shrink-0">
+                    <span className={`text-[11px] font-mono font-bold ${outcomeColor(run.outcome)}`}>
+                      {outcomeLabel(run.outcome)}
+                    </span>
+                    <span className="text-[11px] font-mono text-amber-300">
+                      {run.score != null ? `${run.score}/100` : '—'}
+                    </span>
+                    <span className="text-[10px] font-mono text-gray-600">
+                      {formatDuration(run.durationSeconds)}
+                    </span>
+                  </div>
+                </motion.div>
+              ))}
+            </AnimatePresence>
+          </div>
+          {displayRuns.length > 5 && (
+            <button
+              onClick={() => setExpanded(!expanded)}
+              className="mt-2 text-[10px] font-mono text-gray-600 hover:text-gray-400 transition-colors"
+            >
+              {expanded ? 'Show less' : `Show ${displayRuns.length - 5} more`}
+            </button>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
 
 function AccountBar() {
   const { user } = useUser();
@@ -39,6 +139,7 @@ function AccountBar() {
 
 export default function StartScreen({ onStart }: StartScreenProps) {
   const [seed, setSeed] = useState('');
+  const { isSignedIn } = useUser();
 
   return (
     <div className="relative min-h-screen bg-gray-950 flex items-center justify-center p-6">
@@ -114,7 +215,17 @@ export default function StartScreen({ onStart }: StartScreenProps) {
           RUN CODE
         </motion.button>
 
-        <div className="mt-8 bg-gray-900/60 rounded-lg border border-gray-800 p-4">
+        {isSignedIn ? (
+          <HistoryPanel />
+        ) : (
+          <div className="bg-gray-900/40 rounded-lg border border-gray-800/50 p-4 mt-4 text-center">
+            <p className="text-[11px] text-gray-600">
+              Sign in to save your simulation history and track improvement over time.
+            </p>
+          </div>
+        )}
+
+        <div className="mt-4 bg-gray-900/60 rounded-lg border border-gray-800 p-4">
           <h3 className="text-xs font-bold text-gray-400 mb-2">HOW TO PLAY</h3>
           <ul className="space-y-1.5 text-[11px] text-gray-500">
             <li>You are the <span className="text-gray-300">code team leader</span> — give orders, don't perform tasks yourself</li>

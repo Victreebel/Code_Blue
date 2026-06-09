@@ -13,3 +13,48 @@ export interface UserPreferences {
   minimapVisible: boolean;
   tagsVisible: boolean;
 }
+
+export interface ScoreBucketSummary {
+  id: string;
+  label: string;
+  max: number;
+  awarded: number;
+  arithmetic: string;
+  reasons: string[];
+}
+
+export interface SimulationScoreData {
+  total: number;
+  buckets: ScoreBucketSummary[];
+  strengths: string[];
+  misses: string[];
+  teachingPoints: string[];
+}
+
+export interface SimulationRunPayload {
+  /** @maxLength 256 */
+  scenario: string;
+  /** @maxLength 128 */
+  seed?: string | null;
+  /** @maxLength 64 */
+  outcome?: string | null;
+  /**
+   * @minimum 0
+   * @maximum 100
+   */
+  score?: number | null;
+  /** @minimum 0 */
+  durationSeconds?: number | null;
+  scoreData?: SimulationScoreData | null;
+}
+
+export interface SimulationRunSummary {
+  id: string;
+  scenario: string;
+  seed?: string | null;
+  outcome?: string | null;
+  score?: number | null;
+  durationSeconds?: number | null;
+  scoreData?: SimulationScoreData | null;
+  runAt: string;
+}

@@ -65,3 +65,86 @@ export const SetUserPreferencesResponse = zod.object({
   minimapVisible: zod.boolean(),
   tagsVisible: zod.boolean(),
 });
+
+/**
+ * Returns the authenticated user's past simulation runs, newest first.
+ * @summary Get simulation run history
+ */
+export const GetSimulationHistoryResponseItem = zod.object({
+  id: zod.string(),
+  scenario: zod.string(),
+  seed: zod.string().nullish(),
+  outcome: zod.string().nullish(),
+  score: zod.number().nullish(),
+  durationSeconds: zod.number().nullish(),
+  scoreData: zod
+    .object({
+      total: zod.number(),
+      buckets: zod.array(
+        zod.object({
+          id: zod.string(),
+          label: zod.string(),
+          max: zod.number(),
+          awarded: zod.number(),
+          arithmetic: zod.string(),
+          reasons: zod.array(zod.string()),
+        }),
+      ),
+      strengths: zod.array(zod.string()),
+      misses: zod.array(zod.string()),
+      teachingPoints: zod.array(zod.string()),
+    })
+    .nullish(),
+  runAt: zod.date(),
+});
+export const GetSimulationHistoryResponse = zod.array(
+  GetSimulationHistoryResponseItem,
+);
+
+/**
+ * Persists a completed simulation run for the authenticated user.
+ * @summary Save a simulation run
+ */
+export const saveSimulationRunBodyScenarioMax = 256;
+
+export const saveSimulationRunBodySeedMax = 128;
+
+export const saveSimulationRunBodyOutcomeMax = 64;
+
+export const saveSimulationRunBodyScoreMin = 0;
+export const saveSimulationRunBodyScoreMax = 100;
+
+export const saveSimulationRunBodyDurationSecondsMin = 0;
+
+export const SaveSimulationRunBody = zod.object({
+  scenario: zod.string().max(saveSimulationRunBodyScenarioMax),
+  seed: zod.string().max(saveSimulationRunBodySeedMax).nullish(),
+  outcome: zod.string().max(saveSimulationRunBodyOutcomeMax).nullish(),
+  score: zod
+    .number()
+    .min(saveSimulationRunBodyScoreMin)
+    .max(saveSimulationRunBodyScoreMax)
+    .nullish(),
+  durationSeconds: zod
+    .number()
+    .min(saveSimulationRunBodyDurationSecondsMin)
+    .nullish(),
+  scoreData: zod
+    .object({
+      total: zod.number(),
+      buckets: zod.array(
+        zod.object({
+          id: zod.string(),
+          label: zod.string(),
+          max: zod.number(),
+          awarded: zod.number(),
+          arithmetic: zod.string(),
+          reasons: zod.array(zod.string()),
+        }),
+      ),
+      strengths: zod.array(zod.string()),
+      misses: zod.array(zod.string()),
+      teachingPoints: zod.array(zod.string()),
+    })
+    .nullish(),
+});

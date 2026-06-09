@@ -1,8 +1,11 @@
+import { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
+import { useAuth } from '@clerk/react';
 import type { UIState } from '../../engine/ui/uiStateEngine';
 import type { ScenarioInput } from '../../engine/types/scenario';
 import { formatTime } from '../../engine/types/core';
 import ReplayTimeline from './ReplayTimeline';
+import { saveSimulationRun } from '@workspace/api-client-react';
 
 interface DebriefScreenProps {
   ui: UIState;
@@ -12,6 +15,48 @@ interface DebriefScreenProps {
 
 export default function DebriefScreen({ ui, scenarioInput, onNewGame }: DebriefScreenProps) {
   const score = ui.scoreReport;
+  const { isSignedIn } = useAuth();
+  const savedRef = useRef(false);
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+
+  useEffect(() => {
+    if (!isSignedIn || savedRef.current) return;
+    savedRef.current = true;
+
+    setSaveStatus('saving');
+
+    const scenarioLabel = `${scenarioInput.patientName} — ${scenarioInput.chiefComplaint}`;
+    const durationSeconds = Math.round(ui.clock / 10);
+
+    const scoreData = score
+      ? {
+          total: score.total,
+          buckets: score.buckets.map((b) => ({
+            id: b.id,
+            label: b.label,
+            max: b.max,
+            awarded: b.awarded,
+            arithmetic: b.arithmetic,
+            reasons: b.reasons,
+          })),
+          strengths: score.strengths,
+          misses: score.misses,
+          teachingPoints: score.teachingPoints,
+        }
+      : undefined;
+
+    saveSimulationRun({
+      scenario: scenarioLabel,
+      seed: scenarioInput.seed ?? null,
+      outcome: ui.outcome ?? null,
+      score: score?.total ?? null,
+      durationSeconds,
+      scoreData: scoreData ?? null,
+    })
+      .then(() => setSaveStatus('saved'))
+      .catch(() => setSaveStatus('error'));
+  }, [isSignedIn, score, scenarioInput, ui.clock, ui.outcome]);
+
   return (
     <div className="min-h-screen bg-gray-950 p-6">
       <div className="max-w-4xl mx-auto">
@@ -23,6 +68,18 @@ export default function DebriefScreen({ ui, scenarioInput, onNewGame }: DebriefS
           <div className="text-xs text-gray-500 mt-1">
             Outcome: <span className="text-amber-300">{ui.outcome ?? 'incomplete'}</span> • Code time: {formatTime(ui.clock)} • Seed: {scenarioInput.seed}
           </div>
+          {isSignedIn && (
+            <div className="mt-2 text-[10px] font-mono">
+              {saveStatus === 'saving' && <span className="text-gray-500">Saving run to history…</span>}
+              {saveStatus === 'saved' && <span className="text-green-500">✓ Run saved to history</span>}
+              {saveStatus === 'error' && <span className="text-red-500">Could not save to history</span>}
+            </div>
+          )}
+          {!isSignedIn && (
+            <div className="mt-2 text-[10px] font-mono text-gray-600">
+              Sign in to save this run to your history
+            </div>
+          )}
         </div>
 
         {score && (
