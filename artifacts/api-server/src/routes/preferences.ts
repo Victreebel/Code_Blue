@@ -1,7 +1,9 @@
-import { Router, type IRouter } from "express";
+import { Router, type IRouter, type Request, type Response, type NextFunction } from "express";
 import {
+  GetUserPreferencesParams,
   GetUserPreferencesResponse,
   SetUserPreferencesBody,
+  SetUserPreferencesParams,
   SetUserPreferencesResponse,
 } from "@workspace/api-zod";
 import { db, userPreferencesTable } from "@workspace/db";
@@ -16,7 +18,25 @@ const DEFAULT_PREFS: UserPrefsPayload = {
   tagsVisible: true,
 };
 
-router.get("/preferences/:userId", requireAuth, async (req, res) => {
+function validateUserId(req: Request, res: Response, next: NextFunction): void {
+  const params = GetUserPreferencesParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: "Invalid userId" });
+    return;
+  }
+  next();
+}
+
+function validateUserIdForPut(req: Request, res: Response, next: NextFunction): void {
+  const params = SetUserPreferencesParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: "Invalid userId" });
+    return;
+  }
+  next();
+}
+
+router.get("/preferences/:userId", validateUserId, requireAuth, async (req, res) => {
   const userId = req.userId!;
 
   if (req.params.userId !== userId) {
@@ -35,7 +55,7 @@ router.get("/preferences/:userId", requireAuth, async (req, res) => {
   res.json(result);
 });
 
-router.put("/preferences/:userId", requireAuth, async (req, res) => {
+router.put("/preferences/:userId", validateUserIdForPut, requireAuth, async (req, res) => {
   const userId = req.userId!;
 
   if (req.params.userId !== userId) {

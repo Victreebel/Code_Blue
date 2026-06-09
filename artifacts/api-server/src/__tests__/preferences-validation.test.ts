@@ -1,0 +1,196 @@
+/**
+ * Integration tests for userId validation rules on the preferences endpoints.
+ *
+ * The validation middleware runs BEFORE requireAuth, so:
+ *   - Invalid userId (too long, bad chars) → 400 (no auth context needed)
+ *   - Valid userId → 401 (passes validation, blocked by auth because no Clerk token is present)
+ *
+ * This structure lets CI verify the guardrails without needing real Clerk credentials.
+ */
+
+import { createServer } from "node:http";
+import { strict as assert } from "node:assert";
+import app from "../app";
+
+interface TestResult {
+  name: string;
+  passed: boolean;
+  error?: string;
+}
+
+const results: TestResult[] = [];
+const pending: Promise<void>[] = [];
+
+function test(name: string, fn: () => void | Promise<void>) {
+  const r = fn();
+  if (r instanceof Promise) {
+    const tracked = r.then(
+      () => {
+        results.push({ name, passed: true });
+      },
+      (e) => {
+        results.push({ name, passed: false, error: String(e) });
+      },
+    );
+    pending.push(tracked);
+  } else {
+    results.push({ name, passed: true });
+  }
+}
+
+function startServer(): Promise<{ baseUrl: string; close: () => void }> {
+  return new Promise((resolve, reject) => {
+    const server = createServer(app);
+    server.listen(0, "127.0.0.1", () => {
+      const addr = server.address();
+      if (!addr || typeof addr === "string") {
+        reject(new Error("Unexpected server address"));
+        return;
+      }
+      resolve({
+        baseUrl: `http://127.0.0.1:${addr.port}/api`,
+        close: () => server.close(),
+      });
+    });
+    server.on("error", reject);
+  });
+}
+
+async function runTests() {
+  const { baseUrl, close } = await startServer();
+
+  try {
+    // --- Valid userId: must pass validation (reach auth wall → 401, not 400) ---
+
+    test("GET valid UUID userId passes validation (reaches auth check, returns 401)", async () => {
+      const res = await fetch(
+        `${baseUrl}/preferences/550e8400-e29b-41d4-a716-446655440000`,
+      );
+      assert.equal(
+        res.status,
+        401,
+        `Expected 401 (auth wall reached) for valid UUID userId, got ${res.status}`,
+      );
+    });
+
+    test("GET valid alphanumeric userId passes validation (reaches auth check, returns 401)", async () => {
+      const res = await fetch(`${baseUrl}/preferences/user123`);
+      assert.equal(
+        res.status,
+        401,
+        `Expected 401 (auth wall reached) for valid alphanumeric userId, got ${res.status}`,
+      );
+    });
+
+    test("PUT valid UUID userId passes validation (reaches auth check, returns 401)", async () => {
+      const res = await fetch(
+        `${baseUrl}/preferences/550e8400-e29b-41d4-a716-446655440001`,
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ minimapVisible: true, tagsVisible: false }),
+        },
+      );
+      assert.equal(
+        res.status,
+        401,
+        `Expected 401 (auth wall reached) for PUT with valid UUID userId, got ${res.status}`,
+      );
+    });
+
+    test("PUT valid alphanumeric userId passes validation (reaches auth check, returns 401)", async () => {
+      const res = await fetch(`${baseUrl}/preferences/testuser42`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ minimapVisible: false, tagsVisible: true }),
+      });
+      assert.equal(
+        res.status,
+        401,
+        `Expected 401 (auth wall reached) for PUT with valid alphanumeric userId, got ${res.status}`,
+      );
+    });
+
+    test("GET userId exactly 128 chars passes validation (boundary — returns 401)", async () => {
+      const boundaryId = "a".repeat(128);
+      const res = await fetch(`${baseUrl}/preferences/${boundaryId}`);
+      assert.equal(
+        res.status,
+        401,
+        `Expected 401 (auth wall reached) for userId of exactly 128 chars, got ${res.status}`,
+      );
+    });
+
+    // --- Invalid userId: must be rejected by validation (400), before auth ---
+
+    test("GET userId longer than 128 chars returns 400", async () => {
+      const longId = "a".repeat(129);
+      const res = await fetch(`${baseUrl}/preferences/${longId}`);
+      assert.equal(
+        res.status,
+        400,
+        `Expected 400 for userId > 128 chars, got ${res.status}`,
+      );
+    });
+
+    test("GET userId with special characters returns 400", async () => {
+      const res = await fetch(`${baseUrl}/preferences/user@domain.com`);
+      assert.equal(
+        res.status,
+        400,
+        `Expected 400 for userId with special chars (@, .), got ${res.status}`,
+      );
+    });
+
+    test("PUT userId longer than 128 chars returns 400", async () => {
+      const longId = "b".repeat(129);
+      const res = await fetch(`${baseUrl}/preferences/${longId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ minimapVisible: true, tagsVisible: true }),
+      });
+      assert.equal(
+        res.status,
+        400,
+        `Expected 400 for PUT userId > 128 chars, got ${res.status}`,
+      );
+    });
+
+    test("PUT userId with special characters returns 400", async () => {
+      const res = await fetch(`${baseUrl}/preferences/bad!user`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ minimapVisible: true, tagsVisible: true }),
+      });
+      assert.equal(
+        res.status,
+        400,
+        `Expected 400 for PUT userId with special chars (!), got ${res.status}`,
+      );
+    });
+
+    await Promise.all(pending);
+  } finally {
+    close();
+  }
+}
+
+runTests()
+  .then(() => {
+    const passed = results.filter((r) => r.passed).length;
+    const failed = results.filter((r) => !r.passed);
+    console.log(`\n${passed}/${results.length} tests passed`);
+    for (const r of results) {
+      if (r.passed) {
+        console.log(`  ✓ ${r.name}`);
+      } else {
+        console.log(`  ✗ ${r.name}`);
+        console.log(`    ${r.error}`);
+      }
+    }
+    if (failed.length > 0) process.exit(1);
+  })
+  .catch((err) => {
+    console.error("Test setup failed:", err);
+    process.exit(1);
+  });
