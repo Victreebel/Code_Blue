@@ -14,3 +14,34 @@ import * as zod from "zod";
 export const HealthCheckResponse = zod.object({
   status: zod.string(),
 });
+
+/**
+ * Returns stored UI preferences for a given user. Returns defaults when the user has no saved preferences.
+ * @summary Get user preferences
+ */
+export const GetUserPreferencesParams = zod.object({
+  userId: zod.coerce.string(),
+});
+
+export const GetUserPreferencesResponse = zod.object({
+  minimapVisible: zod.boolean(),
+  tagsVisible: zod.boolean(),
+});
+
+/**
+ * Upserts UI preferences for a given user.
+ * @summary Save user preferences
+ */
+export const SetUserPreferencesParams = zod.object({
+  userId: zod.coerce.string(),
+});
+
+export const SetUserPreferencesBody = zod.object({
+  minimapVisible: zod.boolean(),
+  tagsVisible: zod.boolean(),
+});
+
+export const SetUserPreferencesResponse = zod.object({
+  minimapVisible: zod.boolean(),
+  tagsVisible: zod.boolean(),
+});

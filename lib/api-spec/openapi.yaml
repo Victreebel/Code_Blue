@@ -10,6 +10,8 @@ servers:
 tags:
   - name: health
     description: Health operations
+  - name: preferences
+    description: User UI preferences
 paths:
   /healthz:
     get:
@@ -24,6 +26,49 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /preferences/{userId}:
+    get:
+      operationId: getUserPreferences
+      tags: [preferences]
+      summary: Get user preferences
+      description: Returns stored UI preferences for a given user. Returns defaults when the user has no saved preferences.
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: User preferences
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserPreferences"
+    put:
+      operationId: setUserPreferences
+      tags: [preferences]
+      summary: Save user preferences
+      description: Upserts UI preferences for a given user.
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserPreferences"
+      responses:
+        "200":
+          description: Updated preferences
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserPreferences"
 components:
   schemas:
     HealthStatus:
@@ -33,4 +78,13 @@ components:
           type: string
       required:
         - status
-
+    UserPreferences:
+      type: object
+      properties:
+        minimapVisible:
+          type: boolean
+        tagsVisible:
+          type: boolean
+      required:
+        - minimapVisible
+        - tagsVisible

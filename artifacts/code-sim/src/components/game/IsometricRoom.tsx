@@ -5,6 +5,7 @@ import type { EngineActions } from '../../engine/useGameEngine';
 import type { TeamMemberRuntime } from '../../engine/types/team';
 import type { TeamRole } from '../../engine/types/core';
 import { AMIODARONE_FIRST_DOSE_MG, AMIODARONE_SUBSEQUENT_DOSE_MG } from '../../engine/clinical/aclsConstants';
+import { useUserPreferences } from '../../hooks/useUserPreferences';
 
 const ROOM_W = 1000;
 const ROOM_H = 580;
@@ -839,15 +840,13 @@ const ZONE_TAG_COLOR: Record<ZoneId, string> = {
 
 export default function IsometricRoom({ ui, actions }: IsometricRoomProps) {
   const [menu, setMenu] = useState<ActiveMenu | null>(null);
-  const [minimapVisible, setMinimapVisible] = useState<boolean>(() => {
-    const stored = localStorage.getItem('acls-minimap-visible');
-    return stored === null ? true : stored === 'true';
-  });
+  const { prefs, setPrefs, synced } = useUserPreferences();
+  const minimapVisible = prefs.minimapVisible;
   const [hoveredZone, setHoveredZone] = useState<ZoneId | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  /* Callout tag visibility — visible for first 8 s, then fade out */
-  const [showInitialTags, setShowInitialTags] = useState(true);
+  /* Callout tag visibility — visible for first 8 s when preference allows, then fade out */
+  const [showInitialTags, setShowInitialTags] = useState(() => prefs.tagsVisible);
   /* Per-zone flash: set of zone ids briefly re-shown after a click */
   const [flashedZones, setFlashedZones] = useState<Set<ZoneId>>(new Set());
   const flashTimers = useRef<Map<ZoneId, ReturnType<typeof setTimeout>>>(new Map());
@@ -856,9 +855,14 @@ export default function IsometricRoom({ ui, actions }: IsometricRoomProps) {
   const minimapFlashTimers = useRef<Map<ZoneId, ReturnType<typeof setTimeout>>>(new Map());
 
   useEffect(() => {
+    if (!prefs.tagsVisible) {
+      setShowInitialTags(false);
+      return;
+    }
+    setShowInitialTags(true);
     const t = setTimeout(() => setShowInitialTags(false), 8000);
     return () => clearTimeout(t);
-  }, []);
+  }, [synced, prefs.tagsVisible]);
 
   function flashZoneTag(id: ZoneId) {
     setFlashedZones(prev => new Set(prev).add(id));
@@ -1405,11 +1409,7 @@ export default function IsometricRoom({ ui, actions }: IsometricRoomProps) {
       >
         {/* Toggle button */}
         <button
-          onClick={() => setMinimapVisible(v => {
-            const next = !v;
-            localStorage.setItem('acls-minimap-visible', String(next));
-            return next;
-          })}
+          onClick={() => setPrefs(p => ({ ...p, minimapVisible: !p.minimapVisible }))}
           className="block ml-auto mb-0.5 px-1.5 py-px rounded text-[8px] font-bold tracking-widest border border-gray-700 bg-gray-900/80 text-gray-500 hover:text-gray-300 hover:border-gray-500 transition-colors leading-none"
           title={minimapVisible ? 'Hide floor plan' : 'Show floor plan'}
         >

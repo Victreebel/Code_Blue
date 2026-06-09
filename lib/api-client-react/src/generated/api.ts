@@ -5,18 +5,21 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import type {
+  MutationFunction,
   QueryFunction,
   QueryKey,
+  UseMutationOptions,
+  UseMutationResult,
   UseQueryOptions,
   UseQueryResult,
 } from "@tanstack/react-query";
 
-import type { HealthStatus } from "./api.schemas";
+import type { HealthStatus, UserPreferences } from "./api.schemas";
 
 import { customFetch } from "../custom-fetch";
-import type { ErrorType } from "../custom-fetch";
+import type { ErrorType, BodyType } from "../custom-fetch";
 
 type AwaitedInput<T> = PromiseLike<T> | T;
 
@@ -99,3 +102,180 @@ export function useHealthCheck<
 
   return { ...query, queryKey: queryOptions.queryKey };
 }
+
+/**
+ * Returns stored UI preferences for a given user. Returns defaults when the user has no saved preferences.
+ * @summary Get user preferences
+ */
+export const getGetUserPreferencesUrl = (userId: string) => {
+  return `/api/preferences/${userId}`;
+};
+
+export const getUserPreferences = async (
+  userId: string,
+  options?: RequestInit,
+): Promise<UserPreferences> => {
+  return customFetch<UserPreferences>(getGetUserPreferencesUrl(userId), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetUserPreferencesQueryKey = (userId: string) => {
+  return [`/api/preferences/${userId}`] as const;
+};
+
+export const getGetUserPreferencesQueryOptions = <
+  TData = Awaited<ReturnType<typeof getUserPreferences>>,
+  TError = ErrorType<unknown>,
+>(
+  userId: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getUserPreferences>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetUserPreferencesQueryKey(userId);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getUserPreferences>>
+  > = ({ signal }) => getUserPreferences(userId, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!userId,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getUserPreferences>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetUserPreferencesQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getUserPreferences>>
+>;
+export type GetUserPreferencesQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get user preferences
+ */
+
+export function useGetUserPreferences<
+  TData = Awaited<ReturnType<typeof getUserPreferences>>,
+  TError = ErrorType<unknown>,
+>(
+  userId: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getUserPreferences>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetUserPreferencesQueryOptions(userId, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * Upserts UI preferences for a given user.
+ * @summary Save user preferences
+ */
+export const getSetUserPreferencesUrl = (userId: string) => {
+  return `/api/preferences/${userId}`;
+};
+
+export const setUserPreferences = async (
+  userId: string,
+  userPreferences: UserPreferences,
+  options?: RequestInit,
+): Promise<UserPreferences> => {
+  return customFetch<UserPreferences>(getSetUserPreferencesUrl(userId), {
+    ...options,
+    method: "PUT",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(userPreferences),
+  });
+};
+
+export const getSetUserPreferencesMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof setUserPreferences>>,
+    TError,
+    { userId: string; data: BodyType<UserPreferences> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof setUserPreferences>>,
+  TError,
+  { userId: string; data: BodyType<UserPreferences> },
+  TContext
+> => {
+  const mutationKey = ["setUserPreferences"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof setUserPreferences>>,
+    { userId: string; data: BodyType<UserPreferences> }
+  > = (props) => {
+    const { userId, data } = props ?? {};
+
+    return setUserPreferences(userId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type SetUserPreferencesMutationResult = NonNullable<
+  Awaited<ReturnType<typeof setUserPreferences>>
+>;
+export type SetUserPreferencesMutationBody = BodyType<UserPreferences>;
+export type SetUserPreferencesMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Save user preferences
+ */
+export const useSetUserPreferences = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof setUserPreferences>>,
+    TError,
+    { userId: string; data: BodyType<UserPreferences> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof setUserPreferences>>,
+  TError,
+  { userId: string; data: BodyType<UserPreferences> },
+  TContext
+> => {
+  return useMutation(getSetUserPreferencesMutationOptions(options));
+};
