@@ -714,9 +714,10 @@ interface MinimapProps {
   onZoneClick: (id: ZoneId) => void;
   members: TeamMemberRuntime[];
   flashedZones: Set<ZoneId>;
+  targetMemberId?: string | null;
 }
 
-function FloorPlanMinimap({ activeZone, menuZone, zoom, onZoneClick, members, flashedZones }: MinimapProps) {
+function FloorPlanMinimap({ activeZone, menuZone, zoom, onZoneClick, members, flashedZones, targetMemberId }: MinimapProps) {
   const assignedMembers = members.filter(m => m.assignedRole !== 'none' && m.inRoom);
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const hoveredMember = hoveredId ? assignedMembers.find(m => m.id === hoveredId) ?? null : null;
@@ -827,6 +828,8 @@ function FloorPlanMinimap({ activeZone, menuZone, zoom, onZoneClick, members, fl
         const dy = (pos.y / 100) * MAP_H;
         const color = ROLE_DOT_COLOR[m.assignedRole] ?? '#9ca3af';
         const isHovered = hoveredId === m.id;
+        const isTarget = targetMemberId === m.id;
+        const r = isHovered ? 4.5 : 3.5;
         return (
           <g
             key={m.id}
@@ -834,8 +837,22 @@ function FloorPlanMinimap({ activeZone, menuZone, zoom, onZoneClick, members, fl
             onMouseEnter={() => setHoveredId(m.id)}
             onMouseLeave={() => setHoveredId(null)}
           >
-            <circle cx={dx} cy={dy} r={isHovered ? 4.5 : 3.5} fill={color} opacity={0.9} />
-            <circle cx={dx} cy={dy} r={isHovered ? 4.5 : 3.5} fill="none" stroke="#000" strokeWidth={0.8} opacity={0.5} />
+            {isTarget && (
+              <motion.circle
+                cx={dx} cy={dy}
+                r={5}
+                fill="none"
+                stroke={color}
+                strokeWidth={1.5}
+                animate={{ r: [5, 8, 5], opacity: [0.9, 0.2, 0.9] }}
+                transition={{ duration: 1.1, repeat: Infinity, ease: 'easeInOut' }}
+              />
+            )}
+            <circle cx={dx} cy={dy} r={r} fill={color} opacity={isTarget ? 1 : 0.9} />
+            <circle cx={dx} cy={dy} r={r} fill="none" stroke="#000" strokeWidth={0.8} opacity={0.5} />
+            {isTarget && (
+              <circle cx={dx} cy={dy} r={r} fill="none" stroke={color} strokeWidth={1} opacity={0.8} />
+            )}
           </g>
         );
       })}
@@ -1547,6 +1564,7 @@ export default function IsometricRoom({ ui, actions }: IsometricRoomProps) {
                   if (z) openZoneMenu(id, zoneToPct(z.cx, z.cy));
                 }}
                 members={ui.team}
+                targetMemberId={menu?.targetId}
               />
             </motion.div>
           )}
