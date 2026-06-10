@@ -1372,9 +1372,15 @@ export default function IsometricRoom({ ui, actions }: IsometricRoomProps) {
             {tagVisible && (
               <motion.div
                 initial={{ opacity: 0, y: -4, scale: 0.92 }}
-                animate={{ opacity: 1, y: 0, scale: isMenuOpen ? 1.12 : 1 }}
+                animate={isMenuOpen
+                  ? { opacity: 1, y: 0, scale: [1.12, 1.08, 1.12] }
+                  : { opacity: 1, y: 0, scale: 1 }
+                }
                 exit={{ opacity: 0, y: -4, scale: 0.92 }}
-                transition={{ duration: 0.25 }}
+                transition={isMenuOpen
+                  ? { duration: 0.25, scale: { duration: 1.2, repeat: Infinity, ease: 'easeInOut' } }
+                  : { duration: 0.25 }
+                }
                 style={{
                   position: 'absolute',
                   left: `${pct.x}%`,
