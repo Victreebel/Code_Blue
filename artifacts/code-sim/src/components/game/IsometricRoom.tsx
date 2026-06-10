@@ -701,6 +701,14 @@ const MINIMAP_ZONE_FULL_LABEL: Record<ZoneId, string> = {
   door:               'Team Actions',
 };
 
+const ZONE_HOVER_GLOW: Record<ZoneId, string> = {
+  patient_bed:        'rgba(59,130,246,0.7)',
+  defib_station:      'rgba(239,68,68,0.7)',
+  medication_station: 'rgba(34,197,94,0.7)',
+  airway_station:     'rgba(245,158,11,0.7)',
+  door:               'rgba(107,114,128,0.5)',
+};
+
 const MINIMAP_ZOOM_MIN = 0.75;
 const MINIMAP_ZOOM_MAX = 2.0;
 const MINIMAP_ZOOM_STEP = 0.25;
@@ -1196,6 +1204,11 @@ export default function IsometricRoom({ ui, actions }: IsometricRoomProps) {
           const hasFurniture = z.id !== 'door';
           const pct = zoneToPct(z.cx, z.cy);
 
+          const isHoveredFurniture = hasFurniture && hoveredZone === z.id;
+          const hoverFilter = isHoveredFurniture
+            ? `brightness(1.38) drop-shadow(0 0 10px ${ZONE_HOVER_GLOW[z.id]})`
+            : 'brightness(1)';
+
           return (
             <g
               key={z.id}
@@ -1211,7 +1224,7 @@ export default function IsometricRoom({ ui, actions }: IsometricRoomProps) {
                 },
                 onMouseEnter: () => setHoveredZone(z.id),
                 onMouseLeave: () => setHoveredZone(null),
-                style: { cursor: 'pointer' },
+                style: { cursor: 'pointer', filter: hoverFilter, transition: 'filter 0.18s ease' },
               } : { style: { pointerEvents: 'none' as const } })}
             >
               {/* Left face */}
