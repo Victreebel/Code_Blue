@@ -1364,7 +1364,7 @@ export default function IsometricRoom({ ui, actions }: IsometricRoomProps) {
       {/* ── Callout tags — pill labels floating above each zone ── */}
       {ZONES.map(z => {
         const pct = zoneToPct(z.cx, z.cy);
-        const tagVisible = showInitialTags || flashedZones.has(z.id);
+        const tagVisible = showInitialTags || flashedZones.has(z.id) || menu?.targetId === z.id;
         const color = ZONE_TAG_COLOR[z.id];
         return (
           <AnimatePresence key={`tag-${z.id}`}>
