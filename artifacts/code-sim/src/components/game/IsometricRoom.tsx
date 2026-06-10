@@ -1365,21 +1365,22 @@ export default function IsometricRoom({ ui, actions }: IsometricRoomProps) {
       {ZONES.map(z => {
         const pct = zoneToPct(z.cx, z.cy);
         const tagVisible = showInitialTags || flashedZones.has(z.id) || menu?.targetId === z.id;
+        const isMenuOpen = menu?.targetId === z.id;
         const color = ZONE_TAG_COLOR[z.id];
         return (
           <AnimatePresence key={`tag-${z.id}`}>
             {tagVisible && (
               <motion.div
                 initial={{ opacity: 0, y: -4, scale: 0.92 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
+                animate={{ opacity: 1, y: 0, scale: isMenuOpen ? 1.12 : 1 }}
                 exit={{ opacity: 0, y: -4, scale: 0.92 }}
-                transition={{ duration: 0.35 }}
+                transition={{ duration: 0.25 }}
                 style={{
                   position: 'absolute',
                   left: `${pct.x}%`,
                   top: `${pct.y - 12}%`,
                   transform: 'translate(-50%, -100%)',
-                  zIndex: 10,
+                  zIndex: isMenuOpen ? 12 : 10,
                   pointerEvents: 'none',
                 }}
               >
@@ -1390,10 +1391,10 @@ export default function IsometricRoom({ ui, actions }: IsometricRoomProps) {
                     bottom: '-8px',
                     left: '50%',
                     transform: 'translateX(-50%)',
-                    width: '1px',
+                    width: isMenuOpen ? '2px' : '1px',
                     height: '8px',
                     background: color,
-                    opacity: 0.6,
+                    opacity: isMenuOpen ? 1 : 0.6,
                   }}
                 />
                 {/* Pill tag */}
@@ -1404,10 +1405,14 @@ export default function IsometricRoom({ ui, actions }: IsometricRoomProps) {
                     gap: '5px',
                     padding: '3px 9px',
                     borderRadius: '999px',
-                    border: `1.5px solid ${color}`,
-                    background: `${color}18`,
+                    border: `${isMenuOpen ? '2px' : '1.5px'} solid ${color}`,
+                    background: isMenuOpen ? `${color}30` : `${color}18`,
                     backdropFilter: 'blur(4px)',
                     whiteSpace: 'nowrap',
+                    boxShadow: isMenuOpen
+                      ? `0 0 8px 2px ${color}55, 0 0 18px 4px ${color}25`
+                      : 'none',
+                    transition: 'box-shadow 0.25s, border 0.25s, background 0.25s',
                   }}
                 >
                   <div
@@ -1417,6 +1422,7 @@ export default function IsometricRoom({ ui, actions }: IsometricRoomProps) {
                       borderRadius: '50%',
                       background: color,
                       flexShrink: 0,
+                      boxShadow: isMenuOpen ? `0 0 4px 1px ${color}` : 'none',
                     }}
                   />
                   <span
@@ -1426,6 +1432,7 @@ export default function IsometricRoom({ ui, actions }: IsometricRoomProps) {
                       fontWeight: 700,
                       color,
                       letterSpacing: '0.04em',
+                      textShadow: isMenuOpen ? `0 0 6px ${color}` : 'none',
                     }}
                   >
                     {ZONE_CALLOUT[z.id]}
