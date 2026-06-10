@@ -169,6 +169,125 @@ async function runTests() {
       );
     });
 
+    // --- Body validation: unrecognised fields → 400 with descriptive message ---
+    // Auth is bypassed per-request via X-Test-User-Id header (only active in NODE_ENV=test).
+
+    test("PUT with unknown field returns 400 and lists the bad key in message", async () => {
+      const testUserId = "testbodyvalid1";
+      const res = await fetch(`${baseUrl}/preferences/${testUserId}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Test-User-Id": testUserId,
+        },
+        body: JSON.stringify({ miimapVisible: true, tagsVisible: false }),
+      });
+      assert.equal(
+        res.status,
+        400,
+        `Expected 400 for unknown field, got ${res.status}`,
+      );
+      const body = (await res.json()) as { message: string; validation: unknown };
+      assert.ok(
+        body.message.includes("miimapVisible"),
+        `Expected message to list "miimapVisible", got: ${body.message}`,
+      );
+      assert.ok(
+        body.message.startsWith("Unrecognised fields:"),
+        `Expected message to start with "Unrecognised fields:", got: ${body.message}`,
+      );
+      assert.ok(
+        body.validation !== undefined && body.validation !== null,
+        `Expected "validation" field to be present in response`,
+      );
+    });
+
+    test("PUT with multiple unknown fields returns 400 and lists all bad keys", async () => {
+      const testUserId = "testbodyvalid2";
+      const res = await fetch(`${baseUrl}/preferences/${testUserId}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Test-User-Id": testUserId,
+        },
+        body: JSON.stringify({ miimapVisible: true, tagsVisble: false }),
+      });
+      assert.equal(
+        res.status,
+        400,
+        `Expected 400 for multiple unknown fields, got ${res.status}`,
+      );
+      const body = (await res.json()) as { message: string; validation: unknown };
+      assert.ok(
+        body.message.includes("miimapVisible"),
+        `Expected message to include "miimapVisible", got: ${body.message}`,
+      );
+      assert.ok(
+        body.message.includes("tagsVisble"),
+        `Expected message to include "tagsVisble", got: ${body.message}`,
+      );
+      assert.ok(
+        body.validation !== undefined && body.validation !== null,
+        `Expected "validation" field to be present in response`,
+      );
+    });
+
+    // --- Body validation: missing required field (no unknown keys) → fallback message ---
+
+    test("PUT with missing required field returns 400 with fallback message", async () => {
+      const testUserId = "testbodyvalid3";
+      const res = await fetch(`${baseUrl}/preferences/${testUserId}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Test-User-Id": testUserId,
+        },
+        body: JSON.stringify({ minimapVisible: true }),
+      });
+      assert.equal(
+        res.status,
+        400,
+        `Expected 400 for missing required field, got ${res.status}`,
+      );
+      const body = (await res.json()) as { message: string; validation: unknown };
+      assert.equal(
+        body.message,
+        "Invalid preferences payload",
+        `Expected fallback message for missing field, got: ${body.message}`,
+      );
+      assert.ok(
+        body.validation !== undefined && body.validation !== null,
+        `Expected "validation" field to be present in response`,
+      );
+    });
+
+    test("PUT with empty body returns 400 with fallback message", async () => {
+      const testUserId = "testbodyvalid4";
+      const res = await fetch(`${baseUrl}/preferences/${testUserId}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Test-User-Id": testUserId,
+        },
+        body: JSON.stringify({}),
+      });
+      assert.equal(
+        res.status,
+        400,
+        `Expected 400 for empty body, got ${res.status}`,
+      );
+      const body = (await res.json()) as { message: string; validation: unknown };
+      assert.equal(
+        body.message,
+        "Invalid preferences payload",
+        `Expected fallback message for empty body, got: ${body.message}`,
+      );
+      assert.ok(
+        body.validation !== undefined && body.validation !== null,
+        `Expected "validation" field to be present in response`,
+      );
+    });
+
     await Promise.all(pending);
   } finally {
     close();
