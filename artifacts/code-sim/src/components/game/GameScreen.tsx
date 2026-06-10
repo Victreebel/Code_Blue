@@ -202,6 +202,38 @@ function TeamQuickActions({ ui, actions }: { ui: UIState; actions: EngineActions
   );
 }
 
+/* ── Protocol Reminders collapsible ──────────────────────────────── */
+
+function CollapsibleReminders({ ui }: { ui: UIState }) {
+  const [open, setOpen] = useState(true);
+  return (
+    <div className="bg-gray-900/85 border border-gray-800 rounded-lg overflow-hidden backdrop-blur-sm">
+      <button
+        onClick={() => setOpen(o => !o)}
+        className="w-full flex items-center justify-between px-2 py-1.5 text-left hover:bg-gray-800/50 transition-colors"
+      >
+        <span className="text-[10px] text-gray-500 tracking-wider">REMINDERS</span>
+        <span className="text-[10px] text-gray-600">{open ? '▲' : '▼'}</span>
+      </button>
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.15 }}
+            className="overflow-hidden"
+          >
+            <div className="px-2 pb-2">
+              <ProtocolReminders ui={ui} />
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
 /* ── Event Log collapsible ────────────────────────────────────────── */
 
 function CollapsibleEventLog({ ui }: { ui: UIState }) {
@@ -321,27 +353,18 @@ export default function GameScreen({ ui, scenarioInput, actions }: GameScreenPro
 
         {/* ── Left overlay column ── */}
         <div className="absolute top-2 left-2 z-20 flex flex-col gap-2" style={{ width: 200 }}>
-          <div className="bg-gray-900/90 border border-gray-800 rounded-lg overflow-hidden backdrop-blur-sm">
-            <VitalsMonitor ui={ui} />
-          </div>
-          <div className="bg-gray-900/90 border border-gray-800 rounded-lg overflow-hidden backdrop-blur-sm">
-            <StopwatchWidget
-              clock={ui.clock}
-              lastEpiAt={ui.lastEpiAt}
-              lastRhythmCheckAt={ui.lastRhythmCheckAt}
-            />
-          </div>
-          <div className="bg-gray-900/85 border border-gray-800 rounded-lg p-2 backdrop-blur-sm">
-            <div className="text-[10px] text-gray-500 tracking-wider mb-1">REMINDERS</div>
-            <ProtocolReminders ui={ui} />
-          </div>
+          <VitalsMonitor ui={ui} />
+          <StopwatchWidget
+            clock={ui.clock}
+            lastEpiAt={ui.lastEpiAt}
+            lastRhythmCheckAt={ui.lastRhythmCheckAt}
+          />
+          <CollapsibleReminders ui={ui} />
         </div>
 
         {/* ── Right overlay column ── */}
         <div className="absolute top-2 right-2 z-20 flex flex-col gap-2" style={{ width: 200 }}>
-          <div className="bg-gray-900/85 border border-gray-800 rounded-lg overflow-hidden backdrop-blur-sm">
-            <PendingOrdersPanel orders={ui.pendingOrders} clock={ui.clock} />
-          </div>
+          <PendingOrdersPanel orders={ui.pendingOrders} clock={ui.clock} />
           <HsCausesPanel actions={actions} />
           <TeamQuickActions ui={ui} actions={actions} />
         </div>
