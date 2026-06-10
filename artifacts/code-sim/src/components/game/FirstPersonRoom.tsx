@@ -71,6 +71,19 @@ const ROLE_BADGE_CLS: Record<TeamRole, string> = {
   none:          'bg-gray-900/60 border-gray-700 text-gray-600',
 };
 
+/* ── Role-based uniform colours ──────────────────────────────────── */
+const ROLE_UNIFORM: Record<TeamRole, { top: string; bot: string }> = {
+  leader:        { top: '#92400e', bot: '#78350f' },
+  compressor:    { top: '#dc2626', bot: '#991b1b' },
+  airway:        { top: '#d97706', bot: '#92400e' },
+  iv_access:     { top: '#1d4ed8', bot: '#1e3a8a' },
+  medication:    { top: '#15803d', bot: '#14532d' },
+  monitor_defib: { top: '#7c3aed', bot: '#4c1d95' },
+  recorder:      { top: '#475569', bot: '#334155' },
+  timekeeper:    { top: '#475569', bot: '#334155' },
+  none:          { top: '#374151', bot: '#1f2937' },
+};
+
 function fatigueHaloColor(f: number) {
   return f < 0.35 ? '#22c55e' : f < 0.65 ? '#f59e0b' : '#ef4444';
 }
@@ -1027,23 +1040,44 @@ export default function FirstPersonRoom({ ui, actions }: FirstPersonRoomProps) {
           .filter(m => !m.isLeader)
           .sort((a, b) => (ROLE_3D[a.assignedRole]?.z ?? 0) - (ROLE_3D[b.assignedRole]?.z ?? 0))
           .map(m => {
-            const pos3d   = ROLE_3D[m.assignedRole] ?? ROLE_3D.none;
-            const proj    = project(pos3d.x, pos3d.z);
-            const sz      = Math.round(AVATAR_R * 2 * proj.s);
+            const pos3d      = ROLE_3D[m.assignedRole] ?? ROLE_3D.none;
+            const proj       = project(pos3d.x, pos3d.z);
+            const s          = proj.s;
             const isFatigued = m.fatigueLevel > 0.5;
             const isCpr      = m.assignedRole === 'compressor' && ui.cprActive;
             const hasSpeech  = !!m.speech && ui.clock < m.speech.until;
             const zIndex     = Math.max(1, Math.round(100 + pos3d.z / 5));
+            const uniform    = ROLE_UNIFORM[m.assignedRole] ?? ROLE_UNIFORM.none;
+
+            /* Figure part sizes — all scale with perspective depth */
+            const HEAD   = Math.max(7,  Math.round(18 * s));
+            const NECK   = Math.max(1,  Math.round(3  * s));
+            const TORSOW = Math.max(6,  Math.round(20 * s));
+            const TORSOH = Math.max(5,  Math.round(20 * s));
+            const ARMW   = Math.max(2,  Math.round(5  * s));
+            const ARMH   = Math.max(5,  Math.round(16 * s));
+            const LEGW   = Math.max(2,  Math.round(7  * s));
+            const LEGH   = Math.max(4,  Math.round(16 * s));
+            const SHOEW  = Math.max(3,  Math.round(10 * s));
+            const SHOEH  = Math.max(2,  Math.round(4  * s));
+            const GAP    = Math.max(1,  Math.round(2  * s));
+
+            const figW = TORSOW + ARMW * 2 + GAP * 2;
+            const figH = HEAD + NECK + TORSOH + LEGH + SHOEH;
+
+            const topColor = isFatigued ? '#7f1d1d' : uniform.top;
+            const botColor = isFatigued ? '#450a0a' : uniform.bot;
+            const haloColor = fatigueHaloColor(m.fatigueLevel);
 
             return (
               <motion.div
                 key={m.id}
                 style={{ position: 'absolute', left: 0, top: 0, pointerEvents: 'auto', zIndex }}
-                initial={{ x: proj.x - AVATAR_R, y: proj.y - AVATAR_R }}
-                animate={{ x: proj.x - AVATAR_R, y: proj.y - AVATAR_R }}
+                initial={{ x: proj.x - figW / 2, y: proj.y - figH }}
+                animate={{ x: proj.x - figW / 2, y: proj.y - figH }}
                 transition={{ duration: 1.4, ease: [0.4, 0, 0.2, 1] }}
               >
-                {/* Speech bubble */}
+                {/* Speech bubble — above figure */}
                 <AnimatePresence>
                   {hasSpeech && (
                     <motion.div
@@ -1052,7 +1086,7 @@ export default function FirstPersonRoom({ ui, actions }: FirstPersonRoomProps) {
                       exit={{ opacity: 0, y: -4 }}
                       style={{
                         position: 'absolute',
-                        bottom: sz + 6,
+                        bottom: '100%', marginBottom: 4,
                         left: '50%', transform: 'translateX(-50%)',
                         pointerEvents: 'none', whiteSpace: 'nowrap', zIndex: 30,
                       }}
@@ -1060,8 +1094,8 @@ export default function FirstPersonRoom({ ui, actions }: FirstPersonRoomProps) {
                       <div style={{
                         background: '#1f2937', border: '1px solid #4b5563',
                         borderRadius: 4, padding: '3px 8px',
-                        fontSize: Math.max(6, 9 * proj.s), color: '#e5e7eb',
-                        maxWidth: 130, overflow: 'hidden', textOverflow: 'ellipsis',
+                        fontSize: Math.max(6, Math.round(9 * s)), color: '#e5e7eb',
+                        maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis',
                       }}>
                         {m.speech!.text}
                         <div style={{
@@ -1076,23 +1110,8 @@ export default function FirstPersonRoom({ ui, actions }: FirstPersonRoomProps) {
                   )}
                 </AnimatePresence>
 
-                {/* Fatigue halo */}
-                {m.assignedRole === 'compressor' && (
-                  <motion.div
-                    style={{
-                      position: 'absolute',
-                      width: sz, height: sz,
-                      borderRadius: '50%',
-                      boxShadow: `0 0 0 ${Math.max(2, 3 * proj.s)}px ${fatigueHaloColor(m.fatigueLevel)}, 0 0 ${12 * proj.s}px ${4 * proj.s}px ${fatigueHaloColor(m.fatigueLevel)}88`,
-                      pointerEvents: 'none',
-                    }}
-                    animate={{ opacity: [0.7, 1, 0.7] }}
-                    transition={{ duration: 1.2, repeat: Infinity, ease: 'easeInOut' }}
-                  />
-                )}
-
-                {/* Avatar circle */}
-                <motion.button
+                {/* ── 3-D stick figure (clickable, animates on CPR / fatigue) ── */}
+                <motion.div
                   onClick={e => {
                     e.stopPropagation();
                     setMenu({
@@ -1104,46 +1123,136 @@ export default function FirstPersonRoom({ ui, actions }: FirstPersonRoomProps) {
                   }}
                   animate={
                     isCpr
-                      ? { y: [0, -4 * proj.s, 0], scale: [1, 1.1, 1] }
+                      ? { y: [0, -Math.round(4 * s), 0], scaleX: [1, 1.06, 1] }
                       : isFatigued
-                        ? { scale: [1, 1.05, 1] }
+                        ? { y: [0, Math.round(1.5 * s), 0] }
                         : {}
                   }
-                  transition={{ duration: isCpr ? 0.55 : 1.2, repeat: Infinity, ease: 'easeInOut' }}
-                  whileHover={{ scale: 1.2 }}
+                  transition={{ duration: isCpr ? 0.55 : 2, repeat: Infinity, ease: 'easeInOut' }}
+                  whileHover={{ scale: 1.1 }}
                   style={{
-                    width: sz, height: sz,
-                    borderRadius: '50%',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontSize: Math.max(7, 10 * proj.s),
-                    fontWeight: 'bold', fontFamily: 'monospace',
-                    border: `${Math.max(1, 2 * proj.s)}px solid`,
                     cursor: 'pointer',
-                    boxShadow: `0 ${3 * proj.s}px ${10 * proj.s}px rgba(0,0,0,0.6)`,
-                    background:    m.isLeader   ? '#92400e'
-                                 : isFatigued   ? '#7f1d1d'
-                                 : m.confirmedRole ? '#14532d'
-                                 : '#1f2937',
-                    borderColor:   m.isLeader   ? '#fbbf24'
-                                 : isFatigued   ? '#f87171'
-                                 : m.confirmedRole ? '#4ade80'
-                                 : '#6b7280',
-                    color:         m.isLeader   ? '#fef3c7'
-                                 : isFatigued   ? '#fecaca'
-                                 : m.confirmedRole ? '#dcfce7'
-                                 : '#d1d5db',
+                    display: 'flex', flexDirection: 'column', alignItems: 'center',
+                    gap: 0,
+                    filter: isFatigued ? 'brightness(0.7) saturate(0.8)' : 'none',
+                    /* Compressor gets a fatigue-coloured glow around the whole figure */
+                    boxShadow: m.assignedRole === 'compressor'
+                      ? `0 0 ${Math.round(14 * s)}px ${Math.round(5 * s)}px ${haloColor}55`
+                      : 'none',
+                    /* Confirmed role → thin green outline */
+                    outline: m.confirmedRole
+                      ? `${Math.max(1, Math.round(s))}px solid #4ade8077`
+                      : 'none',
+                    outlineOffset: Math.round(3 * s),
                   }}
                   title={`${m.name} — ${ROLE_FULL[m.assignedRole]}`}
                 >
-                  {m.name.split(' ')[0].slice(0, 3)}
-                </motion.button>
+                  {/* Head — sphere-like radial gradient */}
+                  <div style={{
+                    width: HEAD, height: HEAD,
+                    borderRadius: '50%',
+                    background: 'radial-gradient(circle at 38% 32%, #f5d0a0 0%, #dba070 55%, #9a5c32 100%)',
+                    border: `${Math.max(1, Math.round(s))}px solid #7a4828`,
+                    boxShadow: `0 ${Math.round(2*s)}px ${Math.round(5*s)}px rgba(0,0,0,0.6)`,
+                    flexShrink: 0,
+                  }} />
 
-                {/* Role badge */}
+                  {/* Neck */}
+                  <div style={{
+                    width: Math.max(2, Math.round(5 * s)),
+                    height: NECK,
+                    background: '#c07848',
+                    flexShrink: 0,
+                  }} />
+
+                  {/* Torso + arms */}
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: GAP, flexShrink: 0 }}>
+                    {/* Left arm — angled outward, extended forward on CPR */}
+                    <div style={{
+                      width: ARMW, height: ARMH,
+                      background: topColor,
+                      borderRadius: Math.round(2 * s),
+                      marginTop: Math.round(3 * s),
+                      transform: isCpr ? 'rotate(35deg)' : 'rotate(14deg)',
+                      transformOrigin: 'top center',
+                      flexShrink: 0,
+                      transition: 'transform 0.15s',
+                    }} />
+
+                    {/* Torso — role-coloured scrubs with name initial */}
+                    <div style={{
+                      width: TORSOW, height: TORSOH,
+                      background: `linear-gradient(175deg, ${topColor} 0%, ${topColor}bb 100%)`,
+                      borderRadius: `${Math.round(3*s)}px ${Math.round(3*s)}px 0 0`,
+                      border: `${Math.max(1, Math.round(s * 0.8))}px solid ${
+                        m.confirmedRole ? '#4ade80' : 'rgba(255,255,255,0.1)'
+                      }`,
+                      display: 'flex', alignItems: 'flex-start', justifyContent: 'center',
+                      paddingTop: Math.round(2 * s),
+                      flexShrink: 0,
+                      boxShadow: `inset 0 -${Math.round(3*s)}px ${Math.round(7*s)}px rgba(0,0,0,0.3)`,
+                    }}>
+                      {s > 0.44 && (
+                        <span style={{
+                          color: 'rgba(255,255,255,0.6)',
+                          fontSize: Math.max(5, Math.round(9 * s)),
+                          fontFamily: 'monospace', fontWeight: 'bold',
+                          lineHeight: 1, userSelect: 'none', pointerEvents: 'none',
+                        }}>
+                          {m.name[0]}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Right arm */}
+                    <div style={{
+                      width: ARMW, height: ARMH,
+                      background: topColor,
+                      borderRadius: Math.round(2 * s),
+                      marginTop: Math.round(3 * s),
+                      transform: isCpr ? 'rotate(-35deg)' : 'rotate(-14deg)',
+                      transformOrigin: 'top center',
+                      flexShrink: 0,
+                      transition: 'transform 0.15s',
+                    }} />
+                  </div>
+
+                  {/* Legs — darker scrubs colour */}
+                  <div style={{ display: 'flex', gap: GAP, flexShrink: 0 }}>
+                    <div style={{
+                      width: LEGW, height: LEGH,
+                      background: `linear-gradient(180deg, ${botColor} 0%, ${botColor}cc 100%)`,
+                      borderRadius: `0 0 ${Math.round(2*s)}px ${Math.round(2*s)}px`,
+                    }} />
+                    <div style={{
+                      width: LEGW, height: LEGH,
+                      background: `linear-gradient(180deg, ${botColor} 0%, ${botColor}cc 100%)`,
+                      borderRadius: `0 0 ${Math.round(2*s)}px ${Math.round(2*s)}px`,
+                    }} />
+                  </div>
+
+                  {/* Shoes */}
+                  <div style={{ display: 'flex', gap: Math.max(1, Math.round(3 * s)), flexShrink: 0 }}>
+                    <div style={{
+                      width: SHOEW, height: SHOEH,
+                      background: '#111827',
+                      borderRadius: `0 ${Math.round(3*s)}px ${Math.round(3*s)}px 0`,
+                      marginLeft: Math.round(-s),
+                    }} />
+                    <div style={{
+                      width: SHOEW, height: SHOEH,
+                      background: '#111827',
+                      borderRadius: `0 ${Math.round(3*s)}px ${Math.round(3*s)}px 0`,
+                    }} />
+                  </div>
+                </motion.div>
+
+                {/* Role badge — below figure */}
                 {m.assignedRole !== 'none' && (
-                  <div style={{ textAlign: 'center', marginTop: 3, pointerEvents: 'none' }}>
+                  <div style={{ textAlign: 'center', marginTop: Math.round(2 * s), pointerEvents: 'none' }}>
                     <span
                       className={`inline-flex items-center gap-0.5 px-1 py-px rounded border font-bold leading-none ${ROLE_BADGE_CLS[m.assignedRole]}`}
-                      style={{ fontSize: Math.max(5, 7 * proj.s) }}
+                      style={{ fontSize: Math.max(5, Math.round(7 * s)) }}
                     >
                       {m.confirmedRole && <span>✓</span>}
                       {ROLE_SHORT[m.assignedRole]}
