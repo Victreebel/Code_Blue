@@ -961,6 +961,7 @@ export default function IsometricRoom({ ui, actions }: IsometricRoomProps) {
   }
 
   const [hoveredZone, setHoveredZone] = useState<ZoneId | null>(null);
+  const [cursorPos, setCursorPos] = useState<{ x: number; y: number } | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
   /* Callout tag visibility — visible for first 8 s when preference allows, then fade out */
@@ -1160,6 +1161,15 @@ export default function IsometricRoom({ ui, actions }: IsometricRoomProps) {
           aspectRatio: `${ROOM_W} / ${VIEW_H}`,
           maxHeight: '100%',
         }}
+        onMouseMove={e => {
+          const rect = containerRef.current?.getBoundingClientRect();
+          if (!rect) return;
+          setCursorPos({
+            x: (e.clientX - rect.left) / rect.width * 100,
+            y: (e.clientY - rect.top) / rect.height * 100,
+          });
+        }}
+        onMouseLeave={() => setCursorPos(null)}
       >
       {/* ── Isometric room SVG ── */}
       <svg
@@ -1510,6 +1520,61 @@ export default function IsometricRoom({ ui, actions }: IsometricRoomProps) {
           </motion.div>
         );
       })}
+
+      {/* ── Cursor tooltip — shown on furniture hover when menu is not open for that zone ── */}
+      <AnimatePresence>
+        {hoveredZone && cursorPos && menu?.targetId !== hoveredZone && (
+          <motion.div
+            key={hoveredZone}
+            initial={{ opacity: 0, scale: 0.92, y: 2 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.92, y: 2 }}
+            transition={{ duration: 0.15 }}
+            style={{
+              position: 'absolute',
+              left: `${Math.min(cursorPos.x + 2, 78)}%`,
+              top: `${Math.max(cursorPos.y - 14, 2)}%`,
+              pointerEvents: 'none',
+              zIndex: 45,
+              whiteSpace: 'nowrap',
+            }}
+          >
+            <div
+              style={{
+                background: 'rgba(10,14,28,0.92)',
+                border: `1px solid ${ZONE_HOVER_GLOW[hoveredZone]}`,
+                borderRadius: '6px',
+                padding: '4px 10px',
+                backdropFilter: 'blur(6px)',
+                boxShadow: `0 2px 12px ${ZONE_HOVER_GLOW[hoveredZone]}44`,
+              }}
+            >
+              <div
+                style={{
+                  fontFamily: 'monospace',
+                  fontSize: '10px',
+                  fontWeight: 700,
+                  color: '#e2e8f0',
+                  letterSpacing: '0.03em',
+                }}
+              >
+                {MINIMAP_ZONE_FULL_LABEL[hoveredZone]}
+              </div>
+              <div
+                style={{
+                  fontFamily: 'monospace',
+                  fontSize: '8px',
+                  color: '#94a3b8',
+                  marginTop: '1px',
+                  letterSpacing: '0.02em',
+                }}
+              >
+                Click for actions
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* ── Context menu ── */}
       <AnimatePresence>
