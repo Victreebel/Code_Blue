@@ -21,7 +21,7 @@ vi.mock("@workspace/db", () => {
 
 vi.mock("../middlewares/requireAuth", () => ({
   requireAuth: (req: Request, _res: Response, next: NextFunction) => {
-    req.userId = "test-user";
+    req.userId = "testuser";
     next();
   },
 }));
@@ -32,7 +32,7 @@ const app = express();
 app.use(express.json());
 app.use(preferencesRouter);
 
-const USER_ID = "test-user";
+const USER_ID = "testuser";
 
 describe("PUT /preferences/:userId", () => {
   it("returns 200 for a valid payload", async () => {
@@ -50,7 +50,7 @@ describe("PUT /preferences/:userId", () => {
       .send({ minimapVisible: true, tagsVisible: false, unknownField: "bad" });
 
     expect(res.status).toBe(400);
-    expect(res.body).toHaveProperty("error");
+    expect(res.body).toHaveProperty("message");
   });
 
   it("returns 400 when a required field is missing", async () => {
@@ -71,7 +71,7 @@ describe("PUT /preferences/:userId", () => {
 
   it("returns 403 when userId does not match the authenticated user", async () => {
     const res = await request(app)
-      .put("/preferences/other-user")
+      .put("/preferences/otheruser")
       .send({ minimapVisible: true, tagsVisible: false });
 
     expect(res.status).toBe(403);
@@ -87,7 +87,7 @@ describe("GET /preferences/:userId", () => {
   });
 
   it("returns 403 when userId does not match the authenticated user", async () => {
-    const res = await request(app).get("/preferences/other-user");
+    const res = await request(app).get("/preferences/otheruser");
 
     expect(res.status).toBe(403);
   });
