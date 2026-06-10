@@ -1203,7 +1203,11 @@ export default function IsometricRoom({ ui, actions }: IsometricRoomProps) {
                 onClick: (e: React.MouseEvent<SVGGElement>) => {
                   e.stopPropagation();
                   flashZoneTag(z.id);
-                  openZoneMenu(z.id, { x: pct.x - 2, y: pct.y - 10 });
+                  const rect = containerRef.current?.getBoundingClientRect();
+                  const anchor = rect
+                    ? { x: (e.clientX - rect.left) / rect.width * 100, y: (e.clientY - rect.top) / rect.height * 100 }
+                    : { x: pct.x - 2, y: pct.y - 10 };
+                  openZoneMenu(z.id, anchor);
                 },
                 onMouseEnter: () => setHoveredZone(z.id),
                 onMouseLeave: () => setHoveredZone(null),
@@ -1304,7 +1308,11 @@ export default function IsometricRoom({ ui, actions }: IsometricRoomProps) {
             onClick={e => {
               e.stopPropagation();
               flashZoneTag(z.id);
-              openZoneMenu(z.id, { x: pct.x - 2, y: pct.y - 10 });
+              const rect = containerRef.current?.getBoundingClientRect();
+              const anchor = rect
+                ? { x: (e.clientX - rect.left) / rect.width * 100, y: (e.clientY - rect.top) / rect.height * 100 }
+                : { x: pct.x - 2, y: pct.y - 10 };
+              openZoneMenu(z.id, anchor);
             }}
             title={`Click: ${z.label}`}
           />
