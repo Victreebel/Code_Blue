@@ -3,8 +3,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import type { UIState } from '../../engine/ui/uiStateEngine';
 import type { EngineActions } from '../../engine/useGameEngine';
 import type { TeamMemberRuntime } from '../../engine/types/team';
-import type { TeamRole } from '../../engine/types/core';
-import { formatTime } from '../../engine/types/core';
+import type { TeamRole, StaffType } from '../../engine/types/core';
+import { formatTime, STAFF_TYPE_LABELS } from '../../engine/types/core';
 import { AMIODARONE_FIRST_DOSE_MG, AMIODARONE_SUBSEQUENT_DOSE_MG } from '../../engine/clinical/aclsConstants';
 
 /* ── Scene constants ───────────────────────────────────────────────── */
@@ -70,6 +70,17 @@ const ROLE_BADGE_CLS: Record<TeamRole, string> = {
   recorder:      'bg-gray-800/80 border-gray-500 text-gray-300',
   timekeeper:    'bg-gray-800/80 border-gray-500 text-gray-300',
   none:          'bg-gray-900/60 border-gray-700 text-gray-600',
+};
+
+/* ── Credential badge colours (distinct from role palette) ────────── */
+const CRED_STYLE: Record<StaffType, { fg: string; bg: string; border: string }> = {
+  nurse:       { fg: '#22d3ee', bg: '#083344', border: '#0891b2' },
+  attending:   { fg: '#fbbf24', bg: '#431407', border: '#d97706' },
+  resident:    { fg: '#a78bfa', bg: '#2e1065', border: '#7c3aed' },
+  rt:          { fg: '#4ade80', bg: '#052e16', border: '#16a34a' },
+  tech:        { fg: '#94a3b8', bg: '#1e293b', border: '#475569' },
+  student:     { fg: '#38bdf8', bg: '#082f49', border: '#0284c7' },
+  pharmacist:  { fg: '#6ee7b7', bg: '#022c22', border: '#059669' },
 };
 
 /* ── Role-based uniform colours ──────────────────────────────────── */
@@ -1122,8 +1133,10 @@ export default function FirstPersonRoom({ ui, actions }: FirstPersonRoomProps) {
             const proj       = project(pos3d.x, pos3d.z);
             const s          = proj.s;
             const isFatigued = m.fatigueLevel > 0.5;
-            const isCpr      = m.assignedRole === 'compressor' && ui.cprActive;
-            const isDoingBvm = m.assignedRole === 'airway' && !ui.hasAdvancedAirway;
+            const isCpr        = m.assignedRole === 'compressor' && ui.cprActive;
+            const isDoingBvm   = m.assignedRole === 'airway' && !ui.hasAdvancedAirway;
+            const isUnassigned = m.assignedRole === 'none';
+            const cred         = CRED_STYLE[m.staffType] ?? CRED_STYLE.tech;
             const hasSpeech  = !!m.speech && ui.clock < m.speech.until;
             const zIndex     = Math.max(1, Math.round(100 + pos3d.z / 5));
             const uniform    = ROLE_UNIFORM[m.assignedRole] ?? ROLE_UNIFORM.none;
@@ -1231,15 +1244,21 @@ export default function FirstPersonRoom({ ui, actions }: FirstPersonRoomProps) {
                     cursor: 'pointer',
                     display: 'flex', flexDirection: 'column', alignItems: 'center',
                     gap: 0,
-                    filter: isFatigued ? 'brightness(0.7) saturate(0.8)' : 'none',
+                    filter: isUnassigned
+                      ? 'saturate(0.12) brightness(0.5)'
+                      : isFatigued
+                        ? 'brightness(0.7) saturate(0.8)'
+                        : 'none',
                     /* Compressor gets a fatigue-coloured glow around the whole figure */
                     boxShadow: m.assignedRole === 'compressor'
                       ? `0 0 ${Math.round(14 * s)}px ${Math.round(5 * s)}px ${haloColor}55`
                       : 'none',
-                    /* Confirmed role → thin green outline */
-                    outline: m.confirmedRole
-                      ? `${Math.max(1, Math.round(s))}px solid #4ade8077`
-                      : 'none',
+                    /* Confirmed → green outline · Unassigned → dashed red outline */
+                    outline: isUnassigned
+                      ? `${Math.max(1, Math.round(s))}px dashed #dc262666`
+                      : m.confirmedRole
+                        ? `${Math.max(1, Math.round(s))}px solid #4ade8077`
+                        : 'none',
                     outlineOffset: Math.round(3 * s),
                   }}
                   title={`${m.name} — ${ROLE_FULL[m.assignedRole]}`}
@@ -1384,18 +1403,73 @@ export default function FirstPersonRoom({ ui, actions }: FirstPersonRoomProps) {
                   />
                 </motion.div>
 
-                {/* Role badge — below figure */}
-                {m.assignedRole !== 'none' && (
-                  <div style={{ textAlign: 'center', marginTop: Math.round(2 * s), pointerEvents: 'none' }}>
-                    <span
-                      className={`inline-flex items-center gap-0.5 px-1 py-px rounded border font-bold leading-none ${ROLE_BADGE_CLS[m.assignedRole]}`}
-                      style={{ fontSize: Math.max(5, Math.round(7 * s)) }}
-                    >
-                      {m.confirmedRole && <span>✓</span>}
-                      {ROLE_SHORT[m.assignedRole]}
+                {/* ── Credential + Role name plate ── */}
+                <div style={{
+                  marginTop: Math.max(2, Math.round(3 * s)),
+                  pointerEvents: 'none',
+                  display: 'flex', flexDirection: 'column', alignItems: 'center',
+                  gap: Math.max(1, Math.round(1.5 * s)),
+                }}>
+                  {/* Name (first name only, only at larger scale) */}
+                  {s > 0.52 && (
+                    <span style={{
+                      color: isUnassigned ? '#6b7280' : '#9ca3af',
+                      fontSize: Math.max(5, Math.round(7 * s)),
+                      fontFamily: 'monospace', whiteSpace: 'nowrap',
+                      letterSpacing: '0.02em',
+                    }}>
+                      {m.name.split(' ')[0]}
                     </span>
+                  )}
+
+                  {/* Credential badge + Role badge side by side */}
+                  <div style={{ display: 'flex', gap: Math.max(1, Math.round(2 * s)), alignItems: 'center' }}>
+
+                    {/* Credential pill — always visible */}
+                    <span style={{
+                      background: cred.bg,
+                      color: cred.fg,
+                      border: `1px solid ${cred.border}`,
+                      fontSize: Math.max(4, Math.round(6 * s)),
+                      fontFamily: 'monospace', fontWeight: 'bold', lineHeight: 1,
+                      padding: `${Math.max(1, Math.round(1.5 * s))}px ${Math.max(2, Math.round(3 * s))}px`,
+                      borderRadius: 2, whiteSpace: 'nowrap',
+                    }}>
+                      {STAFF_TYPE_LABELS[m.staffType]}
+                    </span>
+
+                    {/* Role pill — or blinking NONE badge */}
+                    {!isUnassigned ? (
+                      <span
+                        className={`${ROLE_BADGE_CLS[m.assignedRole]}`}
+                        style={{
+                          display: 'inline-flex', alignItems: 'center', gap: Math.round(s),
+                          fontSize: Math.max(4, Math.round(6 * s)),
+                          fontFamily: 'monospace', fontWeight: 'bold', lineHeight: 1,
+                          padding: `${Math.max(1, Math.round(1.5 * s))}px ${Math.max(2, Math.round(3 * s))}px`,
+                          borderRadius: 2, whiteSpace: 'nowrap',
+                        }}
+                      >
+                        {m.confirmedRole && '✓ '}{ROLE_SHORT[m.assignedRole]}
+                      </span>
+                    ) : (
+                      <motion.span
+                        animate={{ opacity: [1, 0.35, 1] }}
+                        transition={{ duration: 1.1, repeat: Infinity }}
+                        style={{
+                          background: '#450a0a', color: '#f87171',
+                          border: '1px solid #dc2626',
+                          fontSize: Math.max(4, Math.round(6 * s)),
+                          fontFamily: 'monospace', fontWeight: 'bold', lineHeight: 1,
+                          padding: `${Math.max(1, Math.round(1.5 * s))}px ${Math.max(2, Math.round(3 * s))}px`,
+                          borderRadius: 2, whiteSpace: 'nowrap', display: 'inline-block',
+                        }}
+                      >
+                        ⚠ NONE
+                      </motion.span>
+                    )}
                   </div>
-                )}
+                </div>
               </motion.div>
             );
           })}
