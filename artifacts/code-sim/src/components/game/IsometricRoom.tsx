@@ -1158,7 +1158,6 @@ export default function IsometricRoom({ ui, actions }: IsometricRoomProps) {
         viewBox={`0 ${VIEW_MIN_Y} ${ROOM_W} ${VIEW_H}`}
         className="absolute inset-0 w-full h-full"
         preserveAspectRatio="none"
-        style={{ pointerEvents: 'none' }}
       >
         <defs>
           <filter id="iso-glow-amber">
@@ -1175,8 +1174,8 @@ export default function IsometricRoom({ ui, actions }: IsometricRoomProps) {
         </defs>
 
         {/* Background */}
-        <rect x="0" y="0" width={ROOM_W} height={ROOM_H} fill="#060a14" />
-        <rect x="0" y="0" width={ROOM_W} height={ROOM_H} fill="url(#floor-grid)" opacity="0.4" />
+        <rect x="0" y="0" width={ROOM_W} height={ROOM_H} fill="#060a14" style={{ pointerEvents: 'none' }} />
+        <rect x="0" y="0" width={ROOM_W} height={ROOM_H} fill="url(#floor-grid)" opacity="0.4" style={{ pointerEvents: 'none' }} />
 
         {/* Room outline — large isometric floor */}
         <polygon
@@ -1184,6 +1183,7 @@ export default function IsometricRoom({ ui, actions }: IsometricRoomProps) {
           fill="#0a0f1a"
           stroke="#1e293b"
           strokeWidth="1"
+          style={{ pointerEvents: 'none' }}
         />
 
         {/* Render zones back-to-front (painter's algorithm) */}
@@ -1193,9 +1193,23 @@ export default function IsometricRoom({ ui, actions }: IsometricRoomProps) {
           const isShockableZone = z.id === 'defib_station' && isShockable;
           const strokeColor = isCharged ? '#fbbf24' : isShockableZone ? '#f97316' : z.topStroke;
           const strokeW = isCharged || isCprBed ? 2.5 : 1.5;
+          const hasFurniture = z.id !== 'door';
+          const pct = zoneToPct(z.cx, z.cy);
 
           return (
-            <g key={z.id}>
+            <g
+              key={z.id}
+              {...(hasFurniture ? {
+                onClick: (e: React.MouseEvent<SVGGElement>) => {
+                  e.stopPropagation();
+                  flashZoneTag(z.id);
+                  openZoneMenu(z.id, { x: pct.x - 2, y: pct.y - 10 });
+                },
+                onMouseEnter: () => setHoveredZone(z.id),
+                onMouseLeave: () => setHoveredZone(null),
+                style: { cursor: 'pointer' },
+              } : { style: { pointerEvents: 'none' as const } })}
+            >
               {/* Left face */}
               <polygon
                 points={isoLeftFace(z.cx, z.cy, z.w, z.h, z.fh)}
@@ -1271,8 +1285,8 @@ export default function IsometricRoom({ ui, actions }: IsometricRoomProps) {
         )}
       </svg>
 
-      {/* ── Clickable zone overlays (invisible hit targets) — inside scene div ── */}
-      {ZONES.map(z => {
+      {/* ── Clickable zone overlays — door only (furniture zones use SVG click targets) ── */}
+      {ZONES.filter(z => z.id === 'door').map(z => {
         const pct = zoneToPct(z.cx, z.cy);
         return (
           <div
