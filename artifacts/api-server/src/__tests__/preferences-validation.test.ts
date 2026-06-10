@@ -203,3 +203,27 @@ describe("GET happy-path — valid userId with auth header returns correct shape
     expect(prefs.tagsVisible).toBe(true);
   });
 });
+
+describe("round-trip — PUT then GET returns saved values, not defaults", () => {
+  it("PUT then GET round-trip returns the saved values", async () => {
+    const testUserId = "testroundtrip1";
+
+    const putRes = await fetch(`${baseUrl}/preferences/${testUserId}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Test-User-Id": testUserId,
+      },
+      body: JSON.stringify({ minimapVisible: false, tagsVisible: false }),
+    });
+    expect(putRes.status).toBe(200);
+
+    const getRes = await fetch(`${baseUrl}/preferences/${testUserId}`, {
+      headers: { "X-Test-User-Id": testUserId },
+    });
+    expect(getRes.status).toBe(200);
+    const prefs = (await getRes.json()) as Record<string, unknown>;
+    expect(prefs.minimapVisible).toBe(false);
+    expect(prefs.tagsVisible).toBe(false);
+  });
+});
