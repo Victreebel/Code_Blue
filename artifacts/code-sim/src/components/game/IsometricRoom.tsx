@@ -1205,7 +1205,10 @@ export default function IsometricRoom({ ui, actions }: IsometricRoomProps) {
           const pct = zoneToPct(z.cx, z.cy);
 
           const isHoveredFurniture = hasFurniture && hoveredZone === z.id;
-          const hoverFilter = isHoveredFurniture
+          const isMenuOpen = hasFurniture && menu?.targetId === z.id;
+          const hoverFilter = isMenuOpen
+            ? `brightness(1.55) drop-shadow(0 0 14px ${ZONE_HOVER_GLOW[z.id]})`
+            : isHoveredFurniture
             ? `brightness(1.38) drop-shadow(0 0 10px ${ZONE_HOVER_GLOW[z.id]})`
             : 'brightness(1)';
 
