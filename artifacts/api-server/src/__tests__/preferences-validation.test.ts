@@ -288,6 +288,67 @@ async function runTests() {
       );
     });
 
+    // --- GET happy-path: valid userId + X-Test-User-Id header → 200 with correct shape ---
+
+    test("GET with valid userId and X-Test-User-Id returns 200 with correct preference shape", async () => {
+      const testUserId = "testgethappy1";
+      const res = await fetch(`${baseUrl}/preferences/${testUserId}`, {
+        headers: { "X-Test-User-Id": testUserId },
+      });
+      assert.equal(
+        res.status,
+        200,
+        `Expected 200 for GET with valid userId and auth header, got ${res.status}`,
+      );
+      const body = (await res.json()) as unknown;
+      assert.ok(
+        body !== null && typeof body === "object",
+        "Expected response body to be an object",
+      );
+      const prefs = body as Record<string, unknown>;
+      assert.ok(
+        "minimapVisible" in prefs,
+        `Expected "minimapVisible" field in response, got: ${JSON.stringify(prefs)}`,
+      );
+      assert.ok(
+        "tagsVisible" in prefs,
+        `Expected "tagsVisible" field in response, got: ${JSON.stringify(prefs)}`,
+      );
+      assert.equal(
+        typeof prefs.minimapVisible,
+        "boolean",
+        `Expected minimapVisible to be boolean, got ${typeof prefs.minimapVisible}`,
+      );
+      assert.equal(
+        typeof prefs.tagsVisible,
+        "boolean",
+        `Expected tagsVisible to be boolean, got ${typeof prefs.tagsVisible}`,
+      );
+    });
+
+    test("GET for user with no saved prefs returns the default values", async () => {
+      const testUserId = "testgethappy2";
+      const res = await fetch(`${baseUrl}/preferences/${testUserId}`, {
+        headers: { "X-Test-User-Id": testUserId },
+      });
+      assert.equal(
+        res.status,
+        200,
+        `Expected 200 for GET default prefs fallback, got ${res.status}`,
+      );
+      const prefs = (await res.json()) as Record<string, unknown>;
+      assert.equal(
+        prefs.minimapVisible,
+        true,
+        `Expected default minimapVisible to be true, got ${prefs.minimapVisible}`,
+      );
+      assert.equal(
+        prefs.tagsVisible,
+        true,
+        `Expected default tagsVisible to be true, got ${prefs.tagsVisible}`,
+      );
+    });
+
     await Promise.all(pending);
   } finally {
     close();
