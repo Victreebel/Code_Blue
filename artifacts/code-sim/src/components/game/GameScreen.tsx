@@ -91,7 +91,7 @@ const HS_AND_TS = [
 ];
 
 function HsCausesPanel({ actions }: { actions: EngineActions }) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(true);
   const [identified, setIdentified] = useState<string | null>(null);
   const [treated, setTreated] = useState(false);
 
@@ -155,7 +155,7 @@ function HsCausesPanel({ actions }: { actions: EngineActions }) {
 /* ── Team Quick Actions Panel ─────────────────────────────────────── */
 
 function TeamQuickActions({ ui, actions }: { ui: UIState; actions: EngineActions }) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(true);
 
   return (
     <div className="bg-gray-900/85 border border-gray-700 rounded-lg overflow-hidden backdrop-blur-sm">
