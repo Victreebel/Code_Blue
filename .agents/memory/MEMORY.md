@@ -1,0 +1,1 @@
+- [CSS 3D hit zones](css3d-hit-zones.md) — rotated 3D planes don't reliably receive pointer events; use projected 2D overlays instead.

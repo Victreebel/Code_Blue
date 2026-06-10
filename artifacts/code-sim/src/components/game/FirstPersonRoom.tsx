@@ -1,9 +1,10 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { UIState } from '../../engine/ui/uiStateEngine';
 import type { EngineActions } from '../../engine/useGameEngine';
 import type { TeamMemberRuntime } from '../../engine/types/team';
 import type { TeamRole } from '../../engine/types/core';
+import { formatTime } from '../../engine/types/core';
 import { AMIODARONE_FIRST_DOSE_MG, AMIODARONE_SUBSEQUENT_DOSE_MG } from '../../engine/clinical/aclsConstants';
 
 /* ── Scene constants ───────────────────────────────────────────────── */
@@ -128,8 +129,19 @@ interface FirstPersonRoomProps {
 }
 
 export default function FirstPersonRoom({ ui, actions }: FirstPersonRoomProps) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [menu, setMenu] = useState<ActiveMenu | null>(null);
+  const containerRef    = useRef<HTMLDivElement>(null);
+  const prevShockCount  = useRef(ui.shockCount);
+  const [menu,           setMenu]          = useState<ActiveMenu | null>(null);
+  const [shockFlashing,  setShockFlashing] = useState(false);
+  const [cartOpen,       setCartOpen]      = useState(false);
+
+  useEffect(() => {
+    if (ui.shockCount <= prevShockCount.current) return;
+    prevShockCount.current = ui.shockCount;
+    setShockFlashing(true);
+    const t = setTimeout(() => setShockFlashing(false), 700);
+    return () => clearTimeout(t);
+  }, [ui.shockCount]);
 
   const isShockable = ui.rhythm === 'vfib' || ui.rhythm === 'vtach';
   const isArrest    = isShockable || ui.rhythm === 'pea' || ui.rhythm === 'asystole';
@@ -368,14 +380,23 @@ export default function FirstPersonRoom({ ui, actions }: FirstPersonRoomProps) {
               pointerEvents: 'none',
             }}
           >
-            {/* Wall-mounted clock (decorative) */}
+            {/* Wall clock — driven by sim core elapsed time */}
             <div style={{
-              position: 'absolute', top: 12, right: 24,
-              width: 44, height: 44, borderRadius: '50%',
-              border: '2px solid #1a2236', background: '#060a14',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: 18, color: '#1a2236',
-            }}>🕐</div>
+              position: 'absolute', top: 10, right: 16,
+              background: '#040810', border: '1px solid #1a2236',
+              borderRadius: 3, padding: '4px 10px', textAlign: 'center',
+            }}>
+              <div style={{ color: '#1e3a5f', fontSize: 6, fontFamily: 'monospace', letterSpacing: '0.12em', marginBottom: 2 }}>
+                CODE TIME
+              </div>
+              <div style={{
+                color: ui.clock > 0 ? '#22c55e' : '#1e3a5f',
+                fontSize: 13, fontFamily: 'monospace', fontWeight: 'bold',
+                letterSpacing: '0.06em',
+              }}>
+                {formatTime(ui.clock)}
+              </div>
+            </div>
             {/* HEAD OF BED label */}
             <div style={{
               position: 'absolute', bottom: 8, left: '50%', transform: 'translateX(-50%)',
@@ -561,45 +582,57 @@ export default function FirstPersonRoom({ ui, actions }: FirstPersonRoomProps) {
           <div
             style={{
               position: 'absolute',
-              left: CC_DEPTH - CC_ZW,   // right edge aligns to x=CC_DEPTH
+              left: CC_DEPTH - CC_ZW,
               top: SH - CC_H,
               width: CC_ZW,
               height: CC_H,
               transformOrigin: 'right center',
               transform: `translateZ(${CC_Z}px) rotateY(-90deg)`,
-              background: 'linear-gradient(180deg, #991b1b 0%, #7f1d1d 100%)',
+              background: cartOpen
+                ? 'linear-gradient(180deg, #7f1d1d 0%, #5a1212 100%)'
+                : 'linear-gradient(180deg, #991b1b 0%, #7f1d1d 100%)',
+              border: cartOpen ? '1px solid #f87171' : '1px solid transparent',
+              boxShadow: cartOpen ? '0 0 18px #dc262640' : 'none',
               cursor: 'pointer',
               pointerEvents: 'auto',
               overflow: 'hidden',
             }}
             onClick={e => {
               e.stopPropagation();
-              setMenu({ targetId: 'medication_station', title: 'Medication Cart', items: medicationMenu(), anchor: anchor(e) });
+              setCartOpen(o => !o);
+              setMenu({ targetId: 'medication_station', title: 'Crash Cart', items: medicationMenu(), anchor: anchor(e) });
             }}
           >
             {/* Cart header stripe */}
             <div style={{
-              background: '#7f1d1d',
-              borderBottom: '1px solid #dc2626',
+              background: cartOpen ? '#4c0519' : '#7f1d1d',
+              borderBottom: `1px solid ${cartOpen ? '#f87171' : '#dc2626'}`,
               padding: '3px 6px',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
             }}>
               <span style={{ color: '#fca5a5', fontSize: 7, fontFamily: 'monospace', fontWeight: 'bold', letterSpacing: '0.1em' }}>
                 MED CART
               </span>
+              <span style={{ color: cartOpen ? '#fca5a5' : '#7f1d1d', fontSize: 7, fontFamily: 'monospace' }}>
+                {cartOpen ? '▶ OPEN' : ''}
+              </span>
             </div>
 
-            {/* 4 drawers */}
+            {/* 4 drawers — top drawer slides out when cart is open */}
             {[0, 1, 2, 3].map(i => (
-              <div key={i} style={{
-                position: 'absolute',
-                top: 22 + i * 26, left: 5, right: 5, height: 22,
-                background: i === 0 ? '#4c0519' : '#6b1212',
-                border: '1px solid #991b1b',
-                borderRadius: 2,
-                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4,
-              }}>
-                {/* Drawer handle bar */}
+              <motion.div
+                key={i}
+                animate={{ x: cartOpen && i === 0 ? 10 : 0 }}
+                transition={{ duration: 0.25 }}
+                style={{
+                  position: 'absolute',
+                  top: 22 + i * 26, left: 5, right: cartOpen && i === 0 ? -5 : 5, height: 22,
+                  background: i === 0 ? (cartOpen ? '#4c0519' : '#4c0519') : '#6b1212',
+                  border: `1px solid ${i === 0 && cartOpen ? '#f87171' : '#991b1b'}`,
+                  borderRadius: 2,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4,
+                }}
+              >
                 <div style={{
                   width: 20, height: 4,
                   background: '#f87171',
@@ -607,7 +640,7 @@ export default function FirstPersonRoom({ ui, actions }: FirstPersonRoomProps) {
                   opacity: 0.7,
                   boxShadow: '0 1px 2px rgba(0,0,0,0.5)',
                 }} />
-              </div>
+              </motion.div>
             ))}
 
             {/* Epi label on top drawer */}
@@ -617,7 +650,7 @@ export default function FirstPersonRoom({ ui, actions }: FirstPersonRoomProps) {
               padding: '0 3px',
               pointerEvents: 'none',
             }}>
-              <span style={{ color: '#fca5a5', fontSize: 6, fontFamily: 'monospace', opacity: 0.6 }}>
+              <span style={{ color: cartOpen ? '#fca5a5' : '#7f1d1d', fontSize: 6, fontFamily: 'monospace', opacity: 0.8 }}>
                 EPI·AMIO
               </span>
             </div>
@@ -772,7 +805,7 @@ export default function FirstPersonRoom({ ui, actions }: FirstPersonRoomProps) {
               </span>
             </div>
 
-            {/* ECG screen */}
+            {/* ECG screen — animated scrolling waveform */}
             <div style={{
               margin: '6px 8px 4px',
               height: 40,
@@ -780,12 +813,28 @@ export default function FirstPersonRoom({ ui, actions }: FirstPersonRoomProps) {
               border: '1px solid #1e293b',
               borderRadius: 2, overflow: 'hidden', padding: '4px 5px',
             }}>
-              <svg viewBox="0 0 160 40" style={{ width: '100%', height: '100%' }}>
-                <path
-                  d={ecgPath()}
-                  stroke={isShockable ? '#ef4444' : ui.rhythm === 'asystole' ? '#374151' : '#22c55e'}
-                  strokeWidth="1.5" fill="none"
-                />
+              <svg viewBox="0 0 160 40" overflow="hidden" style={{ width: '100%', height: '100%', display: 'block' }}>
+                <clipPath id="ecg-clip"><rect x="0" y="0" width="160" height="40" /></clipPath>
+                <motion.g
+                  clipPath="url(#ecg-clip)"
+                  animate={{ x: [0, -160] }}
+                  transition={{
+                    duration: isShockable ? 0.7 : ui.rhythm === 'asystole' ? 4 : 1.4,
+                    repeat: Infinity,
+                    ease: 'linear',
+                    repeatType: 'loop',
+                  }}
+                >
+                  {[-160, 0, 160, 320].map(off => (
+                    <g key={off} transform={`translate(${off}, 0)`}>
+                      <path
+                        d={ecgPath()}
+                        stroke={isShockable ? '#ef4444' : ui.rhythm === 'asystole' ? '#374151' : '#22c55e'}
+                        strokeWidth="1.5" fill="none"
+                      />
+                    </g>
+                  ))}
+                </motion.g>
               </svg>
             </div>
 
@@ -1013,6 +1062,35 @@ export default function FirstPersonRoom({ ui, actions }: FirstPersonRoomProps) {
             />
           )}
 
+          {/* ── CODE CLIPBOARD — static prop near foot of bed, left side ── */}
+          <div style={{
+            position: 'absolute',
+            left: BED_CX - BED_W / 2 - 26,
+            top: SH - BED_FH - 34,
+            width: 20, height: 28,
+            transform: `translateZ(${BED_FZ - 14}px) rotateY(6deg)`,
+            background: '#f1f5f9',
+            border: '1px solid #cbd5e1',
+            borderRadius: 2,
+            boxShadow: '0 2px 6px rgba(0,0,0,0.5)',
+            pointerEvents: 'none',
+          }}>
+            {/* Clipboard clip */}
+            <div style={{
+              position: 'absolute', top: -3, left: '25%', width: '50%', height: 5,
+              background: '#94a3b8', borderRadius: '1px 1px 0 0',
+            }} />
+            {/* Ruled lines */}
+            {[0, 1, 2, 3, 4].map(i => (
+              <div key={i} style={{
+                margin: `${5 + i * 4}px 3px 0`,
+                height: 1,
+                background: '#94a3b8',
+                opacity: 0.4,
+              }} />
+            ))}
+          </div>
+
         </div>{/* end scene wrapper */}
       </div>{/* end perspective viewport */}
 
@@ -1045,6 +1123,7 @@ export default function FirstPersonRoom({ ui, actions }: FirstPersonRoomProps) {
             const s          = proj.s;
             const isFatigued = m.fatigueLevel > 0.5;
             const isCpr      = m.assignedRole === 'compressor' && ui.cprActive;
+            const isDoingBvm = m.assignedRole === 'airway' && !ui.hasAdvancedAirway;
             const hasSpeech  = !!m.speech && ui.clock < m.speech.until;
             const zIndex     = Math.max(1, Math.round(100 + pos3d.z / 5));
             const uniform    = ROLE_UNIFORM[m.assignedRole] ?? ROLE_UNIFORM.none;
@@ -1132,15 +1211,17 @@ export default function FirstPersonRoom({ ui, actions }: FirstPersonRoomProps) {
                   animate={
                     isCpr
                       ? { y: [0, -Math.round(4 * s), 0], scaleX: [1, 1.06, 1] }
-                      : isFatigued
-                        ? { y: [0, Math.round(2 * s), 0], x: [0, Math.round(s), 0, -Math.round(s), 0] }
-                        : {
-                            y: [0, -Math.round(1.5 * s), 0],
-                            x: [0, Math.round(s * 0.5), 0, -Math.round(s * 0.5), 0],
-                          }
+                      : isDoingBvm
+                        ? { y: [0, -Math.round(3.5 * s), 0, -Math.round(1 * s), 0] }
+                        : isFatigued
+                          ? { y: [0, Math.round(2 * s), 0], x: [0, Math.round(s), 0, -Math.round(s), 0] }
+                          : {
+                              y: [0, -Math.round(1.5 * s), 0],
+                              x: [0, Math.round(s * 0.5), 0, -Math.round(s * 0.5), 0],
+                            }
                   }
                   transition={{
-                    duration: isCpr ? 0.55 : isFatigued ? 2.5 : breatheDur,
+                    duration: isCpr ? 0.55 : isDoingBvm ? 1.1 : isFatigued ? 2.5 : breatheDur,
                     repeat: Infinity,
                     ease: [0.4, 0, 0.6, 1],
                     delay: isCpr ? 0 : idleDelay,
@@ -1319,12 +1400,76 @@ export default function FirstPersonRoom({ ui, actions }: FirstPersonRoomProps) {
             );
           })}
 
+        {/* ── Patient body hotspots (projected 2D overlays on mattress) ── */}
+        {[
+          { id: 'face',  label: 'AIRWAY', x: 450, z: -395, color: '#d97706', title: 'Face / Airway',        menuFn: airwayMenu  },
+          { id: 'pads',  label: 'PADS',   x: 468, z: -350, color: '#7c3aed', title: 'Defib Pad Placement',  menuFn: defibMenu   },
+          { id: 'chest', label: 'CPR',    x: 450, z: -290, color: '#dc2626', title: 'Chest / CPR Zone',     menuFn: patientMenu },
+          { id: 'arm',   label: 'IV',     x: 378, z: -280, color: '#2563eb', title: 'Left Arm / IV Access', menuFn: ivMenu      },
+        ].map((hs, idx) => {
+          const p  = project(hs.x, hs.z);
+          const by = p.y - BED_FH * p.s;   // mattress surface y
+          const r  = Math.max(11, Math.round(14 * p.s));
+          return (
+            <motion.div
+              key={hs.id}
+              style={{
+                position: 'absolute',
+                left: p.x - r, top: by - r,
+                width: r * 2, height: r * 2,
+                borderRadius: '50%',
+                border: `${Math.max(1, Math.round(2 * p.s))}px solid ${hs.color}`,
+                background: `${hs.color}22`,
+                boxShadow: `0 0 ${Math.round(8 * p.s)}px ${Math.round(3 * p.s)}px ${hs.color}44`,
+                cursor: 'pointer',
+                pointerEvents: 'auto',
+                zIndex: 8,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}
+              animate={{ opacity: [0.5, 0.95, 0.5] }}
+              transition={{ duration: 2.2, repeat: Infinity, ease: 'easeInOut', delay: idx * 0.55 }}
+              whileHover={{ scale: 1.38, opacity: 1 }}
+              onClick={e => {
+                e.stopPropagation();
+                setMenu({ targetId: hs.id, title: hs.title, items: hs.menuFn(), anchor: anchor(e) });
+              }}
+              title={hs.label}
+            >
+              <span style={{
+                color: hs.color,
+                fontSize: Math.max(4, Math.round(5.5 * p.s)),
+                fontFamily: 'monospace', fontWeight: 'bold',
+                pointerEvents: 'none',
+                letterSpacing: '0.05em',
+              }}>
+                {hs.label}
+              </span>
+            </motion.div>
+          );
+        })}
+
       </div>{/* end scene coordinate overlay */}
 
 
       {/* ══════════════════════════════════════════════════════════════
           FLAT HUD OVERLAYS  (z ≥ 20, always on top)
       ═══════════════════════════════════════════════════════════════ */}
+
+      {/* Shock delivery flash */}
+      <AnimatePresence>
+        {shockFlashing && (
+          <motion.div
+            className="absolute inset-0 z-50 pointer-events-none"
+            initial={{ opacity: 0.9 }}
+            animate={{ opacity: 0 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.7, ease: 'easeOut' }}
+            style={{
+              background: 'radial-gradient(ellipse at 70% 50%, #fffde4 0%, #fbbf24 35%, transparent 65%)',
+            }}
+          />
+        )}
+      </AnimatePresence>
 
       {/* Defib charged warning strip */}
       <AnimatePresence>
@@ -1378,7 +1523,7 @@ export default function FirstPersonRoom({ ui, actions }: FirstPersonRoomProps) {
       {/* Hint text */}
       <div className="absolute z-10 pointer-events-none" style={{ bottom: '5.2rem', left: '50%', transform: 'translateX(-50%)' }}>
         <span className="text-[8px] text-gray-700 tracking-wide">
-          Click footboard · defib wall · crash cart · IV bag · airway cabinet · person · door
+          Click on the patient (AIRWAY · PADS · CPR · IV) · defib · crash cart · IV bag · airway cabinet · person · door
         </span>
       </div>
 
