@@ -1069,6 +1069,14 @@ export default function FirstPersonRoom({ ui, actions }: FirstPersonRoomProps) {
             const botColor = isFatigued ? '#450a0a' : uniform.bot;
             const haloColor = fatigueHaloColor(m.fatigueLevel);
 
+            /* Staggered idle timing — each figure has a unique rhythm */
+            const idleHash   = m.id.split('').reduce((a, c) => a + c.charCodeAt(0), 0);
+            const idleDelay  = (idleHash % 40) / 10;          // 0.0 – 3.9 s
+            const breatheDur = 3.2 + (idleHash % 18) / 10;   // 3.2 – 5.0 s
+            const blinkDelay = 2.8 + (idleHash % 32) / 10;   // 2.8 – 6.0 s
+            const eyeW       = Math.max(1, Math.round(2.5 * s));
+            const eyeH       = Math.max(1, Math.round(2.8 * s));
+
             return (
               <motion.div
                 key={m.id}
@@ -1125,10 +1133,18 @@ export default function FirstPersonRoom({ ui, actions }: FirstPersonRoomProps) {
                     isCpr
                       ? { y: [0, -Math.round(4 * s), 0], scaleX: [1, 1.06, 1] }
                       : isFatigued
-                        ? { y: [0, Math.round(1.5 * s), 0] }
-                        : {}
+                        ? { y: [0, Math.round(2 * s), 0], x: [0, Math.round(s), 0, -Math.round(s), 0] }
+                        : {
+                            y: [0, -Math.round(1.5 * s), 0],
+                            x: [0, Math.round(s * 0.5), 0, -Math.round(s * 0.5), 0],
+                          }
                   }
-                  transition={{ duration: isCpr ? 0.55 : 2, repeat: Infinity, ease: 'easeInOut' }}
+                  transition={{
+                    duration: isCpr ? 0.55 : isFatigued ? 2.5 : breatheDur,
+                    repeat: Infinity,
+                    ease: [0.4, 0, 0.6, 1],
+                    delay: isCpr ? 0 : idleDelay,
+                  }}
                   whileHover={{ scale: 1.1 }}
                   style={{
                     cursor: 'pointer',
@@ -1147,15 +1163,37 @@ export default function FirstPersonRoom({ ui, actions }: FirstPersonRoomProps) {
                   }}
                   title={`${m.name} — ${ROLE_FULL[m.assignedRole]}`}
                 >
-                  {/* Head — sphere-like radial gradient */}
+                  {/* Head — sphere gradient + blinking eyes */}
                   <div style={{
+                    position: 'relative',
                     width: HEAD, height: HEAD,
                     borderRadius: '50%',
                     background: 'radial-gradient(circle at 38% 32%, #f5d0a0 0%, #dba070 55%, #9a5c32 100%)',
                     border: `${Math.max(1, Math.round(s))}px solid #7a4828`,
                     boxShadow: `0 ${Math.round(2*s)}px ${Math.round(5*s)}px rgba(0,0,0,0.6)`,
                     flexShrink: 0,
-                  }} />
+                    overflow: 'hidden',
+                  }}>
+                    {s > 0.45 && (
+                      <div style={{
+                        position: 'absolute', inset: 0,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        gap: Math.round(HEAD * 0.26),
+                        paddingTop: Math.round(HEAD * 0.08),
+                      }}>
+                        <motion.div
+                          style={{ width: eyeW, height: eyeH, borderRadius: '50%', background: '#1a0800', transformOrigin: 'center' }}
+                          animate={{ scaleY: [1, 1, 0.08, 1, 1] }}
+                          transition={{ duration: 0.3, repeat: Infinity, repeatDelay: blinkDelay, ease: 'easeInOut' }}
+                        />
+                        <motion.div
+                          style={{ width: eyeW, height: eyeH, borderRadius: '50%', background: '#1a0800', transformOrigin: 'center' }}
+                          animate={{ scaleY: [1, 1, 0.08, 1, 1] }}
+                          transition={{ duration: 0.3, repeat: Infinity, repeatDelay: blinkDelay, ease: 'easeInOut' }}
+                        />
+                      </div>
+                    )}
+                  </div>
 
                   {/* Neck */}
                   <div style={{
@@ -1179,30 +1217,35 @@ export default function FirstPersonRoom({ ui, actions }: FirstPersonRoomProps) {
                       transition: 'transform 0.15s',
                     }} />
 
-                    {/* Torso — role-coloured scrubs with name initial */}
-                    <div style={{
-                      width: TORSOW, height: TORSOH,
-                      background: `linear-gradient(175deg, ${topColor} 0%, ${topColor}bb 100%)`,
-                      borderRadius: `${Math.round(3*s)}px ${Math.round(3*s)}px 0 0`,
-                      border: `${Math.max(1, Math.round(s * 0.8))}px solid ${
-                        m.confirmedRole ? '#4ade80' : 'rgba(255,255,255,0.1)'
-                      }`,
-                      display: 'flex', alignItems: 'flex-start', justifyContent: 'center',
-                      paddingTop: Math.round(2 * s),
-                      flexShrink: 0,
-                      boxShadow: `inset 0 -${Math.round(3*s)}px ${Math.round(7*s)}px rgba(0,0,0,0.3)`,
-                    }}>
-                      {s > 0.44 && (
-                        <span style={{
-                          color: 'rgba(255,255,255,0.6)',
-                          fontSize: Math.max(5, Math.round(9 * s)),
-                          fontFamily: 'monospace', fontWeight: 'bold',
-                          lineHeight: 1, userSelect: 'none', pointerEvents: 'none',
-                        }}>
-                          {m.name[0]}
-                        </span>
-                      )}
-                    </div>
+                    {/* Torso — role-coloured scrubs, breathing wrapper */}
+                    <motion.div
+                      animate={{ scaleY: [1, 1.04, 1] }}
+                      transition={{ duration: breatheDur, repeat: Infinity, ease: 'easeInOut', delay: idleDelay }}
+                      style={{ transformOrigin: 'top center', flexShrink: 0 }}
+                    >
+                      <div style={{
+                        width: TORSOW, height: TORSOH,
+                        background: `linear-gradient(175deg, ${topColor} 0%, ${topColor}bb 100%)`,
+                        borderRadius: `${Math.round(3*s)}px ${Math.round(3*s)}px 0 0`,
+                        border: `${Math.max(1, Math.round(s * 0.8))}px solid ${
+                          m.confirmedRole ? '#4ade80' : 'rgba(255,255,255,0.1)'
+                        }`,
+                        display: 'flex', alignItems: 'flex-start', justifyContent: 'center',
+                        paddingTop: Math.round(2 * s),
+                        boxShadow: `inset 0 -${Math.round(3*s)}px ${Math.round(7*s)}px rgba(0,0,0,0.3)`,
+                      }}>
+                        {s > 0.44 && (
+                          <span style={{
+                            color: 'rgba(255,255,255,0.6)',
+                            fontSize: Math.max(5, Math.round(9 * s)),
+                            fontFamily: 'monospace', fontWeight: 'bold',
+                            lineHeight: 1, userSelect: 'none', pointerEvents: 'none',
+                          }}>
+                            {m.name[0]}
+                          </span>
+                        )}
+                      </div>
+                    </motion.div>
 
                     {/* Right arm */}
                     <div style={{
@@ -1245,6 +1288,19 @@ export default function FirstPersonRoom({ ui, actions }: FirstPersonRoomProps) {
                       borderRadius: `0 ${Math.round(3*s)}px ${Math.round(3*s)}px 0`,
                     }} />
                   </div>
+
+                  {/* Ground shadow — pulses gently with breathing */}
+                  <motion.div
+                    animate={{ opacity: [0.3, 0.5, 0.3], scaleX: [1, 0.9, 1] }}
+                    transition={{ duration: breatheDur, repeat: Infinity, ease: 'easeInOut', delay: idleDelay }}
+                    style={{
+                      width: Math.round(figW * 0.7),
+                      height: Math.max(2, Math.round(4 * s)),
+                      background: 'radial-gradient(ellipse, rgba(0,0,0,0.55) 0%, transparent 70%)',
+                      borderRadius: '50%',
+                      marginTop: Math.round(1 * s),
+                    }}
+                  />
                 </motion.div>
 
                 {/* Role badge — below figure */}
