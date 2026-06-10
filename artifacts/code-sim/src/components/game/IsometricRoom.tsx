@@ -1379,7 +1379,7 @@ export default function IsometricRoom({ ui, actions }: IsometricRoomProps) {
                 exit={{ opacity: 0, y: -4, scale: 0.92 }}
                 transition={isMenuOpen
                   ? { duration: 0.25, scale: { duration: 1.2, repeat: Infinity, ease: 'easeInOut' } }
-                  : { duration: 0.25 }
+                  : { scale: { type: 'spring', stiffness: 320, damping: 22, mass: 0.8 }, opacity: { duration: 0.25 }, y: { duration: 0.25 } }
                 }
                 style={{
                   position: 'absolute',
