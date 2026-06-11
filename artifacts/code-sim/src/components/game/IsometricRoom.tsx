@@ -155,12 +155,15 @@ const ROLE_POSITIONS: Record<TeamRole, { x: number; y: number }> = {
   monitor_defib: { x: 79, y: 28 },
   medication:    { x: 22, y: 27 },
   iv_access:     { x: 30, y: 44 },
-  compressor:    { x: 50, y: 55 },
+  compressor:    { x: 67, y: 46 },
   leader:        { x: 73, y: 62 },
   recorder:      { x: 16, y: 10 },
   timekeeper:    { x: 18, y: 74 },
   none:          { x: 88, y: 83 },
 };
+
+/** Compressor moves onto the bed only while CPR is actively running */
+const COMPRESSOR_ACTIVE_POS = { x: 50, y: 55 };
 
 const ROLE_SHORT: Record<TeamRole, string> = {
   leader: 'Lead', compressor: 'CPR', airway: 'Airway',
@@ -1473,9 +1476,11 @@ export default function IsometricRoom({ ui, actions }: IsometricRoomProps) {
 
       {/* ── Staff avatars ── */}
       {ui.team.map(m => {
-        const pos = ROLE_POSITIONS[m.assignedRole] ?? ROLE_POSITIONS.none;
-        const isFatigued = m.fatigueLevel > 0.5;
         const isCpr = m.assignedRole === 'compressor' && ui.cprActive;
+        const pos = isCpr
+          ? COMPRESSOR_ACTIVE_POS
+          : (ROLE_POSITIONS[m.assignedRole] ?? ROLE_POSITIONS.none);
+        const isFatigued = m.fatigueLevel > 0.5;
         const hasSpeech = !!m.speech && ui.clock < m.speech.until;
 
         return (
