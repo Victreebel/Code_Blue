@@ -91,7 +91,7 @@ const HS_AND_TS = [
 ];
 
 function HsCausesPanel({ actions }: { actions: EngineActions }) {
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useState(false);
   const [identified, setIdentified] = useState<string | null>(null);
   const [treated, setTreated] = useState(false);
 
@@ -155,7 +155,7 @@ function HsCausesPanel({ actions }: { actions: EngineActions }) {
 /* ── Team Quick Actions Panel ─────────────────────────────────────── */
 
 function TeamQuickActions({ ui, actions }: { ui: UIState; actions: EngineActions }) {
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useState(false);
 
   return (
     <div className="bg-gray-900/85 border border-gray-700 rounded-lg overflow-hidden backdrop-blur-sm">
@@ -205,7 +205,7 @@ function TeamQuickActions({ ui, actions }: { ui: UIState; actions: EngineActions
 /* ── Protocol Reminders collapsible ──────────────────────────────── */
 
 function CollapsibleReminders({ ui }: { ui: UIState }) {
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useState(false);
   return (
     <div className="bg-gray-900/85 border border-gray-800 rounded-lg overflow-hidden backdrop-blur-sm">
       <button
@@ -237,7 +237,7 @@ function CollapsibleReminders({ ui }: { ui: UIState }) {
 /* ── Event Log collapsible ────────────────────────────────────────── */
 
 function CollapsibleEventLog({ ui }: { ui: UIState }) {
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useState(false);
 
   return (
     <div className="bg-gray-900/85 border border-gray-700 rounded-lg overflow-hidden backdrop-blur-sm flex flex-col">

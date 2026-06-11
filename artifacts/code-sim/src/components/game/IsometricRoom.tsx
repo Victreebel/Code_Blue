@@ -964,20 +964,6 @@ export default function IsometricRoom({ ui, actions }: IsometricRoomProps) {
   const [cursorPos, setCursorPos] = useState<{ x: number; y: number } | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  /* ── Room zoom ── */
-  const ISO_ZOOM_KEY = 'acls-iso-zoom';
-  const [roomZoom, setRoomZoom] = useState<number>(() => {
-    const v = parseFloat(localStorage.getItem(ISO_ZOOM_KEY) ?? '1');
-    return isNaN(v) ? 1 : Math.min(2.2, Math.max(0.6, v));
-  });
-  function adjustIsoZoom(delta: number) {
-    setRoomZoom(prev => {
-      const next = Math.round(Math.min(2.2, Math.max(0.6, prev + delta)) * 10) / 10;
-      localStorage.setItem(ISO_ZOOM_KEY, String(next));
-      return next;
-    });
-  }
-
   /* Callout tag visibility — visible for first 8 s when preference allows, then fade out */
   const [showInitialTags, setShowInitialTags] = useState(() => prefs.tagsVisible);
   /* Per-zone flash: set of zone ids briefly re-shown after a click */
@@ -1158,7 +1144,6 @@ export default function IsometricRoom({ ui, actions }: IsometricRoomProps) {
     <div
       className="relative w-full h-full bg-gray-950 overflow-hidden select-none"
       onClick={() => setMenu(null)}
-      onWheel={e => { e.preventDefault(); adjustIsoZoom(e.deltaY < 0 ? 0.1 : -0.1); }}
     >
       {/*
         Inner scene div — constrained to viewBox aspect ratio so that
@@ -1171,7 +1156,7 @@ export default function IsometricRoom({ ui, actions }: IsometricRoomProps) {
           position: 'absolute',
           top: '50%',
           left: '50%',
-          transform: `translate(-50%, -50%) scale(${roomZoom})`,
+          transform: 'translate(-50%, -50%)',
           transformOrigin: 'center center',
           width: '100%',
           aspectRatio: `${ROOM_W} / ${VIEW_H}`,
@@ -1752,51 +1737,6 @@ export default function IsometricRoom({ ui, actions }: IsometricRoomProps) {
         </span>
       </div>
 
-      {/* ── Zoom controls ── */}
-      <div
-        style={{
-          position: 'absolute', bottom: 6, left: 6, zIndex: 30,
-          display: 'flex', alignItems: 'center', gap: 2,
-          pointerEvents: 'auto',
-        }}
-        onClick={e => e.stopPropagation()}
-      >
-        <button
-          onClick={() => adjustIsoZoom(-0.1)}
-          style={{
-            width: 20, height: 20, borderRadius: 4,
-            background: '#1e293b', border: '1px solid #334155',
-            color: '#94a3b8', fontSize: 14, lineHeight: 1,
-            cursor: roomZoom <= 0.6 ? 'not-allowed' : 'pointer',
-            opacity: roomZoom <= 0.6 ? 0.4 : 1,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-          }}
-        >−</button>
-        <span
-          style={{
-            background: '#0f172a', border: '1px solid #334155',
-            color: '#64748b', fontSize: 9, fontFamily: 'monospace',
-            padding: '2px 5px', borderRadius: 4, minWidth: 36,
-            textAlign: 'center', cursor: roomZoom !== 1 ? 'pointer' : 'default',
-            userSelect: 'none',
-          }}
-          onClick={() => { setRoomZoom(1); localStorage.setItem(ISO_ZOOM_KEY, '1'); }}
-          title="Reset zoom"
-        >
-          {Math.round(roomZoom * 100)}%
-        </span>
-        <button
-          onClick={() => adjustIsoZoom(0.1)}
-          style={{
-            width: 20, height: 20, borderRadius: 4,
-            background: '#1e293b', border: '1px solid #334155',
-            color: '#94a3b8', fontSize: 14, lineHeight: 1,
-            cursor: roomZoom >= 2.2 ? 'not-allowed' : 'pointer',
-            opacity: roomZoom >= 2.2 ? 0.4 : 1,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-          }}
-        >+</button>
-      </div>
 
     </div>
   );

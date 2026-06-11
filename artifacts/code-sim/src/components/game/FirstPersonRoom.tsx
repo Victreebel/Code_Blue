@@ -146,20 +146,6 @@ export default function FirstPersonRoom({ ui, actions }: FirstPersonRoomProps) {
   const [shockFlashing,  setShockFlashing] = useState(false);
   const [cartOpen,       setCartOpen]      = useState(false);
 
-  /* ── Room zoom ── */
-  const FP_ZOOM_KEY = 'acls-fp-zoom';
-  const [roomZoom, setRoomZoom] = useState<number>(() => {
-    const v = parseFloat(localStorage.getItem('acls-fp-zoom') ?? '1');
-    return isNaN(v) ? 1 : Math.min(2.2, Math.max(0.6, v));
-  });
-  function adjustFpZoom(delta: number) {
-    setRoomZoom(prev => {
-      const next = Math.round(Math.min(2.2, Math.max(0.6, prev + delta)) * 10) / 10;
-      localStorage.setItem(FP_ZOOM_KEY, String(next));
-      return next;
-    });
-  }
-
   useEffect(() => {
     if (ui.shockCount <= prevShockCount.current) return;
     prevShockCount.current = ui.shockCount;
@@ -322,14 +308,11 @@ export default function FirstPersonRoom({ ui, actions }: FirstPersonRoomProps) {
       className="relative w-full h-full overflow-hidden select-none"
       style={{ background: '#020509' }}
       onClick={() => setMenu(null)}
-      onWheel={e => { e.preventDefault(); adjustFpZoom(e.deltaY < 0 ? 0.1 : -0.1); }}
     >
 
-      {/* ── Scene zoom wrapper — 3D room + 2D projected overlays only ── */}
+      {/* ── Scene wrapper ── */}
       <div style={{
         position: 'absolute', inset: 0,
-        transform: `scale(${roomZoom})`,
-        transformOrigin: 'center center',
       }}>
 
       {/* ══════════════════════════════════════════════════════════════
@@ -1622,52 +1605,6 @@ export default function FirstPersonRoom({ ui, actions }: FirstPersonRoomProps) {
         <span className="text-[8px] text-gray-700 tracking-wide">
           Click on the patient (AIRWAY · PADS · CPR · IV) · defib · crash cart · IV bag · airway cabinet · person · door
         </span>
-      </div>
-
-      {/* ── Zoom controls ── */}
-      <div
-        style={{
-          position: 'absolute', bottom: 6, left: 6, zIndex: 30,
-          display: 'flex', alignItems: 'center', gap: 2,
-          pointerEvents: 'auto',
-        }}
-        onClick={e => e.stopPropagation()}
-      >
-        <button
-          onClick={() => adjustFpZoom(-0.1)}
-          style={{
-            width: 20, height: 20, borderRadius: 4,
-            background: '#1e293b', border: '1px solid #334155',
-            color: '#94a3b8', fontSize: 14, lineHeight: 1,
-            cursor: roomZoom <= 0.6 ? 'not-allowed' : 'pointer',
-            opacity: roomZoom <= 0.6 ? 0.4 : 1,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-          }}
-        >−</button>
-        <span
-          style={{
-            background: '#0f172a', border: '1px solid #334155',
-            color: '#64748b', fontSize: 9, fontFamily: 'monospace',
-            padding: '2px 5px', borderRadius: 4, minWidth: 36,
-            textAlign: 'center', cursor: roomZoom !== 1 ? 'pointer' : 'default',
-            userSelect: 'none',
-          }}
-          onClick={() => { setRoomZoom(1); localStorage.setItem(FP_ZOOM_KEY, '1'); }}
-          title="Reset zoom"
-        >
-          {Math.round(roomZoom * 100)}%
-        </span>
-        <button
-          onClick={() => adjustFpZoom(0.1)}
-          style={{
-            width: 20, height: 20, borderRadius: 4,
-            background: '#1e293b', border: '1px solid #334155',
-            color: '#94a3b8', fontSize: 14, lineHeight: 1,
-            cursor: roomZoom >= 2.2 ? 'not-allowed' : 'pointer',
-            opacity: roomZoom >= 2.2 ? 0.4 : 1,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-          }}
-        >+</button>
       </div>
 
       {/* ── Context menu ── */}
