@@ -13,6 +13,39 @@ const VIEW_MIN_Y = 60;
 const VIEW_H = 430;
 const CALLOUT_STAGGER_MS = 60;
 
+/* ── Animation constants — edit here to tune without touching logic ── */
+
+// Callout tag entrance spring (scale + y axis)
+const CALLOUT_TAG_SPRING_STIFFNESS  = 380;
+const CALLOUT_TAG_SPRING_DAMPING    = 18;
+const CALLOUT_TAG_SPRING_MASS       = 0.7;
+// Callout tag fade duration (seconds)
+const CALLOUT_TAG_OPACITY_DURATION  = 0.18;
+// Callout tag snap to menu-open state (seconds)
+const CALLOUT_TAG_MENU_DURATION     = 0.25;
+// Looping scale pulse while a callout tag's menu is open (seconds)
+const CALLOUT_TAG_MENU_PULSE        = 1.2;
+
+// Staff avatar glide to new position when role changes (seconds)
+const AVATAR_MOVE_DURATION          = 1.4;
+// Compressor avatar bounce cycle during CPR (seconds)
+const CPR_BOUNCE_DURATION           = 0.55;
+// Fatigue halo + avatar bob cycle (seconds)
+const FATIGUE_ANIM_DURATION         = 1.2;
+
+// Context menu pop-in / pop-out (seconds)
+const MENU_ANIM_DURATION            = 0.1;
+// Hover tooltip fade (seconds)
+const TOOLTIP_ANIM_DURATION         = 0.15;
+// Minimap panel show / hide (seconds)
+const MINIMAP_PANEL_ANIM_DURATION   = 0.15;
+// Minimap target-member dot pulse (seconds)
+const MINIMAP_DOT_PULSE_DURATION    = 1.1;
+// SVG CPR pulse ring expand cycle (seconds)
+const CPR_PULSE_RING_DURATION       = 0.6;
+// Chaos-meter bar width transition (seconds)
+const CHAOS_BAR_DURATION            = 0.5;
+
 /* ── Isometric geometry helpers ───────────────────────────────────── */
 
 function isoFloor(cx: number, cy: number, w: number, h: number): string {
@@ -854,7 +887,7 @@ function FloorPlanMinimap({ activeZone, menuZone, zoom, onZoneClick, members, fl
                 stroke={color}
                 strokeWidth={1.5}
                 animate={{ r: [5, 8, 5], opacity: [0.9, 0.2, 0.9] }}
-                transition={{ duration: 1.1, repeat: Infinity, ease: 'easeInOut' }}
+                transition={{ duration: MINIMAP_DOT_PULSE_DURATION, repeat: Infinity, ease: 'easeInOut' }}
               />
             )}
             <circle cx={dx} cy={dy} r={r} fill={color} opacity={isTarget ? 1 : 0.9} />
@@ -1312,7 +1345,7 @@ export default function IsometricRoom({ ui, actions }: IsometricRoomProps) {
             stroke="#ef4444"
             strokeWidth={2}
             animate={{ r: [45, 70, 45], opacity: [0.6, 0, 0.6] }}
-            transition={{ duration: 0.6, repeat: Infinity }}
+            transition={{ duration: CPR_PULSE_RING_DURATION, repeat: Infinity }}
           />
         )}
       </svg>
@@ -1366,8 +1399,8 @@ export default function IsometricRoom({ ui, actions }: IsometricRoomProps) {
                 }
                 exit={{ opacity: 0, y: -4, scale: 0.92 }}
                 transition={isMenuOpen
-                  ? { duration: 0.25, scale: { duration: 1.2, repeat: Infinity, ease: 'easeInOut' } }
-                  : { delay: entranceDelay, scale: { type: 'spring', stiffness: 380, damping: 18, mass: 0.7 }, y: { type: 'spring', stiffness: 380, damping: 18, mass: 0.7 }, opacity: { duration: 0.18 } }
+                  ? { duration: CALLOUT_TAG_MENU_DURATION, scale: { duration: CALLOUT_TAG_MENU_PULSE, repeat: Infinity, ease: 'easeInOut' } }
+                  : { delay: entranceDelay, scale: { type: 'spring', stiffness: CALLOUT_TAG_SPRING_STIFFNESS, damping: CALLOUT_TAG_SPRING_DAMPING, mass: CALLOUT_TAG_SPRING_MASS }, y: { type: 'spring', stiffness: CALLOUT_TAG_SPRING_STIFFNESS, damping: CALLOUT_TAG_SPRING_DAMPING, mass: CALLOUT_TAG_SPRING_MASS }, opacity: { duration: CALLOUT_TAG_OPACITY_DURATION } }
                 }
                 style={{
                   position: 'absolute',
@@ -1451,7 +1484,7 @@ export default function IsometricRoom({ ui, actions }: IsometricRoomProps) {
             className="absolute"
             initial={{ left: `${pos.x}%`, top: `${pos.y}%` }}
             animate={{ left: `${pos.x}%`, top: `${pos.y}%` }}
-            transition={{ duration: 1.4, ease: [0.4, 0, 0.2, 1] }}
+            transition={{ duration: AVATAR_MOVE_DURATION, ease: [0.4, 0, 0.2, 1] }}
             style={{ transform: 'translate(-50%,-50%)', zIndex: 20 }}
           >
             {/* Speech bubble */}
@@ -1481,7 +1514,7 @@ export default function IsometricRoom({ ui, actions }: IsometricRoomProps) {
                   boxShadow: `0 0 0 3px ${fatigueHaloColor(m.fatigueLevel)}, 0 0 10px 3px ${fatigueHaloColor(m.fatigueLevel)}88`,
                 }}
                 animate={{ opacity: [0.7, 1, 0.7] }}
-                transition={{ duration: 1.2, repeat: Infinity, ease: 'easeInOut' }}
+                transition={{ duration: FATIGUE_ANIM_DURATION, repeat: Infinity, ease: 'easeInOut' }}
               />
             )}
 
@@ -1505,7 +1538,7 @@ export default function IsometricRoom({ ui, actions }: IsometricRoomProps) {
                     : {}
               }
               transition={{
-                duration: isCpr ? 0.55 : 1.2,
+                duration: isCpr ? CPR_BOUNCE_DURATION : FATIGUE_ANIM_DURATION,
                 repeat: Infinity,
                 ease: 'easeInOut',
               }}
@@ -1546,7 +1579,7 @@ export default function IsometricRoom({ ui, actions }: IsometricRoomProps) {
             initial={{ opacity: 0, scale: 0.92, y: 2 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.92, y: 2 }}
-            transition={{ duration: 0.15 }}
+            transition={{ duration: TOOLTIP_ANIM_DURATION }}
             style={{
               position: 'absolute',
               left: `${Math.min(cursorPos.x + 2, 78)}%`,
@@ -1604,7 +1637,7 @@ export default function IsometricRoom({ ui, actions }: IsometricRoomProps) {
               initial={{ opacity: 0, scale: 0.88, y: -4 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.88, y: -4 }}
-              transition={{ duration: 0.1 }}
+              transition={{ duration: MENU_ANIM_DURATION }}
             >
               <div className="text-[9px] text-gray-400 font-semibold px-1.5 pb-1 border-b border-gray-700 mb-1 truncate">
                 {menu.title}
@@ -1681,7 +1714,7 @@ export default function IsometricRoom({ ui, actions }: IsometricRoomProps) {
               initial={{ opacity: 0, scale: 0.85, y: 4 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.85, y: 4 }}
-              transition={{ duration: 0.15 }}
+              transition={{ duration: MINIMAP_PANEL_ANIM_DURATION }}
               className="rounded overflow-hidden shadow-xl"
               style={{
                 background: 'rgba(6,10,20,0.82)',
@@ -1726,7 +1759,7 @@ export default function IsometricRoom({ ui, actions }: IsometricRoomProps) {
               chaosRatio > 0.7 ? 'bg-red-500' : chaosRatio > 0.4 ? 'bg-amber-500' : 'bg-green-600'
             }`}
             animate={{ width: `${Math.max(2, chaosRatio * 100)}%` }}
-            transition={{ duration: 0.5 }}
+            transition={{ duration: CHAOS_BAR_DURATION }}
           />
         </div>
       </div>
