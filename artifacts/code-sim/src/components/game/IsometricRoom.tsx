@@ -11,6 +11,7 @@ const ROOM_W = 1000;
 const ROOM_H = 580;
 const VIEW_MIN_Y = 60;
 const VIEW_H = 430;
+const CALLOUT_STAGGER_MS = 60;
 
 /* ── Isometric geometry helpers ───────────────────────────────────── */
 
@@ -1353,7 +1354,7 @@ export default function IsometricRoom({ ui, actions }: IsometricRoomProps) {
         const isMenuOpen = menu?.targetId === z.id;
         const color = ZONE_TAG_COLOR[z.id];
         // Stagger delay only on initial load; flashed/menu-opened tags enter immediately
-        const entranceDelay = showInitialTags && !flashedZones.has(z.id) ? zoneIndex * 0.06 : 0;
+        const entranceDelay = showInitialTags && !flashedZones.has(z.id) ? zoneIndex * (CALLOUT_STAGGER_MS / 1000) : 0;
         return (
           <AnimatePresence key={`tag-${z.id}`}>
             {tagVisible && (
