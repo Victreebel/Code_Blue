@@ -113,28 +113,28 @@ type ZoneId = 'patient_bed' | 'defib_station' | 'medication_station' | 'airway_s
 const ZONES: RoomZone[] = [
   {
     id: 'airway_station',
-    cx: 500, cy: 110, w: 200, h: 100, fh: 22,
+    cx: 500, cy: 110, w: 200, h: 100, fh: 40,
     topFill: '#2d2a1a', topStroke: '#f59e0b',
     leftFill: '#1a1808', rightFill: '#211e0d',
     labelColor: '#fcd34d', label: 'AIRWAY',
   },
   {
     id: 'medication_station',
-    cx: 240, cy: 210, w: 190, h: 95, fh: 20,
+    cx: 240, cy: 210, w: 190, h: 95, fh: 40,
     topFill: '#1a2e1a', topStroke: '#22c55e',
     leftFill: '#0d1a0d', rightFill: '#112111',
     labelColor: '#86efac', label: 'MEDS',
   },
   {
     id: 'defib_station',
-    cx: 760, cy: 210, w: 190, h: 95, fh: 20,
+    cx: 760, cy: 210, w: 190, h: 95, fh: 40,
     topFill: '#3b1f1f', topStroke: '#ef4444',
     leftFill: '#1f0f0f', rightFill: '#2d1515',
     labelColor: '#fca5a5', label: 'DEFIB',
   },
   {
     id: 'patient_bed',
-    cx: 500, cy: 320, w: 260, h: 130, fh: 28,
+    cx: 500, cy: 320, w: 260, h: 130, fh: 38,
     topFill: '#1e3a5f', topStroke: '#3b82f6',
     leftFill: '#0e1e30', rightFill: '#142a45',
     labelColor: '#93c5fd', label: 'PATIENT',
@@ -383,12 +383,12 @@ function DefibFurniture({ zone, charged }: FurnitureProps & { charged: boolean }
 
   // ── Low wheeled cart base (wide, shallow) ──────────────────────────
   const baseCx = cx + 6, baseCy = cy + 4;
-  const baseW = 78, baseH = 44, baseFh = 10;
+  const baseW = 78, baseH = 44, baseFh = 18;
 
   // ── Portrait-oriented monitor unit sitting on the cart ─────────────
   // Narrower footprint, taller face — "portrait" silhouette
   const monCx = cx + 6, monCy = cy - 10;
-  const monW = 44, monH = 24, monFh = 50;
+  const monW = 44, monH = 24, monFh = 68;
 
   // Right face of monitor: A→B→C→D
   // A=(monCx+monW/2, monCy), B=(monCx, monCy+monH/2),
@@ -489,7 +489,7 @@ function MedCartFurniture({ zone }: FurnitureProps) {
   const { cx, cy } = zone;
   // Crash cart: narrow footprint, tall tower body
   const boxCx = cx - 6, boxCy = cy - 4;
-  const bW = 50, bH = 26, bFh = 50;
+  const bW = 50, bH = 26, bFh = 82;
 
   // Left face corner points for drawer geometry
   // TL=(boxCx-bW/2, boxCy), TR=(boxCx, boxCy+bH/2)
@@ -560,7 +560,7 @@ function AirwayCartFurniture({ zone, hasAdvanced }: FurnitureProps & { hasAdvanc
 
   // Wide, low footprint — distinct from the tall narrow crash cart
   const boxCx = cx, boxCy = cy - 2;
-  const bW = 96, bH = 54, bFh = 16;
+  const bW = 96, bH = 54, bFh = 26;
 
   // IV / airway pole — sits near right edge of cart
   const poleCx = cx + 52, poleCy = cy - 4;
@@ -1514,8 +1514,8 @@ export default function IsometricRoom({ ui, actions }: IsometricRoomProps) {
               <motion.div
                 className="absolute inset-0 rounded-full pointer-events-none"
                 style={{
-                  width: '2.25rem',
-                  height: '2.25rem',
+                  width: '1.75rem',
+                  height: '1.75rem',
                   boxShadow: `0 0 0 3px ${fatigueHaloColor(m.fatigueLevel)}, 0 0 10px 3px ${fatigueHaloColor(m.fatigueLevel)}88`,
                 }}
                 animate={{ opacity: [0.7, 1, 0.7] }}
@@ -1547,7 +1547,7 @@ export default function IsometricRoom({ ui, actions }: IsometricRoomProps) {
                 repeat: Infinity,
                 ease: 'easeInOut',
               }}
-              className={`w-9 h-9 rounded-full flex items-center justify-center text-[9px] font-bold border-2 cursor-pointer shadow-lg ${
+              className={`w-7 h-7 rounded-full flex items-center justify-center text-[8px] font-bold border-2 cursor-pointer shadow-lg ${
                 m.isLeader
                   ? 'bg-amber-700 border-amber-300 text-amber-50'
                   : isFatigued
