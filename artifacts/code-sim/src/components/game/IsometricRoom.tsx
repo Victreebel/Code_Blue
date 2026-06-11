@@ -121,7 +121,7 @@ const ROLE_POSITIONS: Record<TeamRole, { x: number; y: number }> = {
   monitor_defib: { x: 79, y: 28 },
   medication:    { x: 22, y: 27 },
   iv_access:     { x: 30, y: 44 },
-  compressor:    { x: 50, y: 48 },
+  compressor:    { x: 67, y: 46 },
   leader:        { x: 64, y: 60 },
   recorder:      { x: 16, y: 10 },
   timekeeper:    { x: 18, y: 74 },
