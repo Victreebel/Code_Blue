@@ -1362,11 +1362,13 @@ export default function IsometricRoom({ ui, actions }: IsometricRoomProps) {
       })}
 
       {/* ── Callout tags — pill labels floating above each zone ── */}
-      {ZONES.map(z => {
+      {ZONES.map((z, zoneIndex) => {
         const pct = zoneToPct(z.cx, z.cy);
         const tagVisible = showInitialTags || flashedZones.has(z.id) || menu?.targetId === z.id;
         const isMenuOpen = menu?.targetId === z.id;
         const color = ZONE_TAG_COLOR[z.id];
+        // Stagger delay only on initial load; flashed/menu-opened tags enter immediately
+        const entranceDelay = showInitialTags && !flashedZones.has(z.id) ? zoneIndex * 0.06 : 0;
         return (
           <AnimatePresence key={`tag-${z.id}`}>
             {tagVisible && (
@@ -1379,7 +1381,7 @@ export default function IsometricRoom({ ui, actions }: IsometricRoomProps) {
                 exit={{ opacity: 0, y: -4, scale: 0.92 }}
                 transition={isMenuOpen
                   ? { duration: 0.25, scale: { duration: 1.2, repeat: Infinity, ease: 'easeInOut' } }
-                  : { scale: { type: 'spring', stiffness: 380, damping: 18, mass: 0.7 }, y: { type: 'spring', stiffness: 380, damping: 18, mass: 0.7 }, opacity: { duration: 0.18 } }
+                  : { delay: entranceDelay, scale: { type: 'spring', stiffness: 380, damping: 18, mass: 0.7 }, y: { type: 'spring', stiffness: 380, damping: 18, mass: 0.7 }, opacity: { duration: 0.18 } }
                 }
                 style={{
                   position: 'absolute',
