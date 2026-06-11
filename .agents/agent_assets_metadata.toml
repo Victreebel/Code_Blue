@@ -1,0 +1,8 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "3Iw4TmNgD6zMP2fqI4W4i"
+uri = "file://artifacts/code-sim/CODEBASE_GUIDE.md"
+type = "text"
+title = "ACLS Code Sim — Codebase Guide"
