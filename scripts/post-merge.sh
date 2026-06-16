@@ -12,7 +12,7 @@ pnpm --filter db push
 if [ -n "$GITHUB_TOKEN" ]; then
   REPO_URL="https://${GITHUB_TOKEN}@github.com/Victreebel/Code_Blue.git"
   echo "Pushing to GitHub mirror..."
-  if ! PUSH_OUTPUT=$(timeout 10 git push "$REPO_URL" HEAD:main 2>&1); then
+  if ! PUSH_OUTPUT=$(timeout 10 git push --force "$REPO_URL" HEAD:main 2>&1); then
     echo "ERROR: GitHub mirror push failed" >&2
     echo "--- git push output ---" >&2
     echo "$PUSH_OUTPUT" >&2

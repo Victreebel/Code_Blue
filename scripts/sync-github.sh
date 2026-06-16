@@ -44,7 +44,7 @@ while true; do
   fi
 
   echo "[$(date -u '+%Y-%m-%dT%H:%M:%SZ')] Pushing to GitHub (local=$LOCAL remote=${REMOTE:-none})..."
-  if git push "$REPO_URL" HEAD:main 2>&1; then
+  if git push --force "$REPO_URL" HEAD:main 2>&1; then
     echo "[$(date -u '+%Y-%m-%dT%H:%M:%SZ')] Push succeeded"
     consecutive_failures=0
   else
