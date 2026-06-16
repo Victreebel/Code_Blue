@@ -8,10 +8,10 @@ pnpm install --frozen-lockfile
 
 pnpm --filter db push
 
-# Push to GitHub mirror automatically after every merge
+# Push to GitHub mirror automatically after every merge (10s budget)
 if [ -n "$GITHUB_TOKEN" ]; then
   REPO_URL="https://${GITHUB_TOKEN}@github.com/Victreebel/Code_Blue.git"
-  git push "$REPO_URL" HEAD:main
+  timeout 10 git push "$REPO_URL" HEAD:main || echo "Warning: GitHub push timed out or failed — sync-github workflow will retry"
 else
   echo "Warning: GITHUB_TOKEN not set — skipping GitHub push"
 fi
