@@ -6,6 +6,13 @@
 
 set -euo pipefail
 
+if [ -n "${GITHUB_SYNC_INTERVAL:-}" ]; then
+  if ! echo "$GITHUB_SYNC_INTERVAL" | grep -qE '^[1-9][0-9]*$'; then
+    echo "Error: GITHUB_SYNC_INTERVAL must be a positive integer (got: '${GITHUB_SYNC_INTERVAL}')" >&2
+    exit 1
+  fi
+fi
+
 INTERVAL=${GITHUB_SYNC_INTERVAL:-300}  # seconds between pushes, default 5 min
 FAIL_THRESHOLD=${GITHUB_SYNC_FAIL_THRESHOLD:-3}  # consecutive failures before alerting
 
@@ -16,7 +23,7 @@ fi
 
 REPO_URL="https://${GITHUB_TOKEN}@github.com/Victreebel/Code_Blue.git"
 
-echo "GitHub sync started (push interval: ${INTERVAL}s, fail threshold: ${FAIL_THRESHOLD})"
+echo "GitHub sync started (push interval: ${INTERVAL}s${GITHUB_SYNC_INTERVAL:+ — set via GITHUB_SYNC_INTERVAL}, fail threshold: ${FAIL_THRESHOLD})"
 
 consecutive_failures=0
 

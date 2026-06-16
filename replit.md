@@ -128,3 +128,12 @@ Interactive ACLS (Advanced Cardiac Life Support) code simulation per **CODE_BLUE
 ### `scripts` (`@workspace/scripts`)
 
 Utility scripts package. Each script is a `.ts` file in `src/` with a corresponding npm script in `package.json`. Run scripts via `pnpm --filter @workspace/scripts run <script>`. Scripts can import any workspace package (e.g., `@workspace/db`) by adding it as a dependency in `scripts/package.json`.
+
+## Configuration
+
+Environment variables that control runtime behavior. Set these as Replit Secrets so they persist across restarts without touching code.
+
+| Variable | Default | Description |
+|---|---|---|
+| `GITHUB_SYNC_INTERVAL` | `300` | Seconds between GitHub mirror pushes. Must be a positive integer. The script validates this on startup and exits with an error if the value is invalid. Increase this to reduce push frequency; decrease it (minimum `1`) to sync more aggressively. |
+| `GITHUB_TOKEN` | *(required for sync)* | Personal access token used to authenticate pushes to the GitHub mirror. If unset, the sync workflow exits silently and GitHub mirroring is disabled. |
