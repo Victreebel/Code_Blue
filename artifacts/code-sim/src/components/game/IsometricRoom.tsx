@@ -113,35 +113,35 @@ type ZoneId = 'patient_bed' | 'defib_station' | 'medication_station' | 'airway_s
 const ZONES: RoomZone[] = [
   {
     id: 'airway_station',
-    cx: 500, cy: 110, w: 200, h: 100, fh: 10,
+    cx: 500, cy: 110, w: 200, h: 100, fh: 4,
     topFill: '#2d2a1a', topStroke: '#f59e0b',
     leftFill: '#1a1808', rightFill: '#211e0d',
     labelColor: '#fcd34d', label: 'AIRWAY',
   },
   {
     id: 'medication_station',
-    cx: 240, cy: 210, w: 190, h: 95, fh: 10,
+    cx: 240, cy: 210, w: 190, h: 95, fh: 4,
     topFill: '#1a2e1a', topStroke: '#22c55e',
     leftFill: '#0d1a0d', rightFill: '#112111',
     labelColor: '#86efac', label: 'MEDS',
   },
   {
     id: 'defib_station',
-    cx: 760, cy: 210, w: 190, h: 95, fh: 10,
+    cx: 760, cy: 210, w: 190, h: 95, fh: 4,
     topFill: '#3b1f1f', topStroke: '#ef4444',
     leftFill: '#1f0f0f', rightFill: '#2d1515',
     labelColor: '#fca5a5', label: 'DEFIB',
   },
   {
     id: 'patient_bed',
-    cx: 500, cy: 320, w: 260, h: 130, fh: 12,
+    cx: 500, cy: 320, w: 260, h: 130, fh: 4,
     topFill: '#1e3a5f', topStroke: '#3b82f6',
     leftFill: '#0e1e30', rightFill: '#142a45',
     labelColor: '#93c5fd', label: 'PATIENT',
   },
   {
     id: 'door',
-    cx: 500, cy: 480, w: 100, h: 50, fh: 10,
+    cx: 500, cy: 480, w: 100, h: 50, fh: 6,
     topFill: '#1f2937', topStroke: '#6b7280',
     leftFill: '#111827', rightFill: '#1a2535',
     labelColor: '#9ca3af', label: 'DOOR',
@@ -282,8 +282,8 @@ function BedLegNub({ x, y }: { x: number; y: number }) {
 function PatientBedFurniture({ zone, cprActive }: FurnitureProps & { cprActive: boolean }) {
   const { cx, cy } = zone;
 
-  // Bed frame: elongated ~2:1 footprint, full-length side rails as extruded walls
-  const bW = 238, bH = 116, railFh = 8;
+  // Bed frame: fits within 260×130 zone
+  const bW = 220, bH = 110, railFh = 18;
 
   const mattFill   = cprActive ? '#1a3a6a' : '#1a3560';
   const railFill   = '#0b1d3a';
@@ -291,25 +291,30 @@ function PatientBedFurniture({ zone, cprActive }: FurnitureProps & { cprActive: 
   const railTop    = '#2563eb';
   const railStroke = '#3b82f680';
 
-  // Head board: near top diamond point, elevated ~8 units (lower cy = higher visually)
-  const headCy = cy - bH / 2 + 6;
-  const headW = 148, headH = 14, headFh = 10;
+  // Head board
+  const headCy = cy - bH / 2 + 4;
+  const headW = 130, headH = 14, headFh = 14;
 
-  // Foot board: near bottom diamond point
-  const footCy = cy + bH / 2 - 8;
-  const footW = 116, footH = 12, footFh = 8;
+  // Foot board
+  const footCy = cy + bH / 2 - 6;
+  const footW = 100, footH = 12, footFh = 10;
 
-  // Pillow: small diamond just south of head board
+  // Pillow
   const pillowCy = headCy + 22;
 
-  // IV pole: rises from left side of head end
+  // IV pole
   const poleX  = cx - bW / 4 + 4;
-  const poleY0 = cy - bH / 2 + 2;   // base of pole (sits on mattress level)
-  const poleY1 = poleY0 - 36;        // top of pole
+  const poleY0 = cy - bH / 2 + 2;
+  const poleY1 = poleY0 - 48;
 
-  // Bed leg nub positions: 4 bottom corners of the base box
-  // Left face: bottom-left=(cx-bW/2, cy+railFh), bottom-right=(cx, cy+bH/2+railFh)
-  // Right face: bottom-left=(cx, cy+bH/2+railFh), bottom-right=(cx+bW/2, cy+railFh)
+  // Patient body — lying on the bed, clearly visible
+  const bodyCx = cx, bodyCy = cy + 4;
+  const bodyW = 130, bodyH = 56;
+  // Head at top of body
+  const patHeadCx = cx + 6, patHeadCy = headCy + 36;
+  const patHeadR = 16;
+
+  // Bed leg nub positions
   const legNubs = [
     { x: cx - bW / 2 + 4, y: cy + railFh },
     { x: cx - 4,           y: cy + bH / 2 + railFh },
@@ -322,7 +327,7 @@ function PatientBedFurniture({ zone, cprActive }: FurnitureProps & { cprActive: 
       {/* Floor shadow */}
       <IsoFloorShadow cx={cx} cy={cy} w={bW} h={bH} fh={railFh} color="#1e3a5f" />
 
-      {/* Full-length side rails — drawn as proper extruded wall faces */}
+      {/* Full-length side rails */}
       <polygon points={isoLeftFace(cx, cy, bW, bH, railFh)}
         fill={railFill} stroke={railStroke} strokeWidth="0.8" />
       <polygon points={isoRightFace(cx, cy, bW, bH, railFh)}
@@ -332,11 +337,30 @@ function PatientBedFurniture({ zone, cprActive }: FurnitureProps & { cprActive: 
       <polygon points={isoSlab(cx, cy, bW, bH)}
         fill={mattFill} stroke="#3b82f660" strokeWidth="1.2" />
 
-      {/* Rail cap lines along top edges for visual depth */}
+      {/* Rail cap lines */}
       <line x1={cx - bW / 2} y1={cy} x2={cx} y2={cy - bH / 2}
         stroke="#1d4ed8" strokeWidth="1.8" opacity="0.7" />
       <line x1={cx + bW / 2} y1={cy} x2={cx} y2={cy - bH / 2}
         stroke="#1d4ed8" strokeWidth="1.8" opacity="0.7" />
+
+      {/* Patient — lying on bed */}
+      {/* Body (blanket-covered, diamond shape) */}
+      <polygon points={isoSlab(bodyCx, bodyCy, bodyW, bodyH)}
+        fill="#1e293b" stroke="#475569" strokeWidth="1" opacity="0.9" />
+      {/* Body highlight (subtle shading) */}
+      <polygon points={isoSlab(bodyCx, bodyCy - 2, bodyW - 8, bodyH - 4)}
+        fill="#334155" stroke="none" opacity="0.5" />
+      {/* Head — circle at top of body */}
+      <ellipse cx={patHeadCx} cy={patHeadCy} rx={patHeadR} ry={patHeadR * 0.55}
+        fill="#d1d5db" stroke="#9ca3af" strokeWidth="1" opacity="0.85" />
+      {/* Hair / head shadow */}
+      <ellipse cx={patHeadCx + 2} cy={patHeadCy + 2} rx={patHeadR - 2} ry={patHeadR * 0.45}
+        fill="#9ca3af" opacity="0.4" />
+      {/* Face hint (subtle lines for eyes) */}
+      <line x1={patHeadCx - 4} y1={patHeadCy - 1} x2={patHeadCx - 2} y2={patHeadCy - 1}
+        stroke="#6b7280" strokeWidth="0.8" opacity="0.5" />
+      <line x1={patHeadCx + 2} y1={patHeadCy - 1} x2={patHeadCx + 4} y2={patHeadCy - 1}
+        stroke="#6b7280" strokeWidth="0.8" opacity="0.5" />
 
       {/* Head board */}
       <polygon points={isoLeftFace(cx, headCy, headW, headH, headFh)}
@@ -347,7 +371,7 @@ function PatientBedFurniture({ zone, cprActive }: FurnitureProps & { cprActive: 
         fill={railTop} stroke="#60a5fa" strokeWidth="1.2" />
 
       {/* Pillow */}
-      <polygon points={isoSlab(cx + 6, pillowCy, 54, 24)}
+      <polygon points={isoSlab(cx + 8, pillowCy, 60, 28)}
         fill="#e2e8f0" stroke="#94a3b8" strokeWidth="0.8" opacity="0.5" />
 
       {/* Foot board */}
@@ -358,20 +382,17 @@ function PatientBedFurniture({ zone, cprActive }: FurnitureProps & { cprActive: 
       <polygon points={isoSlab(cx, footCy, footW, footH)}
         fill={railTop} stroke="#60a5fa" strokeWidth="1" />
 
-      {/* IV pole — vertical line at head end */}
+      {/* IV pole */}
       <line x1={poleX} y1={poleY0} x2={poleX} y2={poleY1}
         stroke="#9ca3af" strokeWidth="2" />
-      {/* Cross-bar */}
       <line x1={poleX - 9} y1={poleY1 + 3} x2={poleX + 9} y2={poleY1 + 3}
         stroke="#9ca3af" strokeWidth="1.8" />
-      {/* IV bag hanging on pole */}
       <ellipse cx={poleX} cy={poleY1 + 1} rx={5} ry={3}
         fill="#0f172a" stroke="#60a5fa" strokeWidth="0.9" opacity="0.85" />
-      {/* Drip line from bag to patient */}
       <line x1={poleX} y1={poleY1 + 4} x2={poleX} y2={poleY0 - 2}
         stroke="#60a5fa" strokeWidth="0.6" opacity="0.45" />
 
-      {/* Bed leg foot-cap nubs at base corners */}
+      {/* Bed leg foot-cap nubs */}
       {legNubs.map((n, i) => <BedLegNub key={i} x={n.x} y={n.y} />)}
     </g>
   );
@@ -383,12 +404,12 @@ function DefibFurniture({ zone, charged }: FurnitureProps & { charged: boolean }
 
   // ── Low wheeled cart base (wide, shallow) ──────────────────────────
   const baseCx = cx + 6, baseCy = cy + 4;
-  const baseW = 78, baseH = 44, baseFh = 12;
+  const baseW = 60, baseH = 34, baseFh = 10;
 
   // ── Portrait-oriented monitor unit sitting on the cart ─────────────
   // Narrower footprint, taller face — "portrait" silhouette
   const monCx = cx + 6, monCy = cy - 10;
-  const monW = 44, monH = 24, monFh = 70;
+  const monW = 28, monH = 16, monFh = 40;
 
   // Right face of monitor: A→B→C→D
   // A=(monCx+monW/2, monCy), B=(monCx, monCy+monH/2),
@@ -489,7 +510,7 @@ function MedCartFurniture({ zone }: FurnitureProps) {
   const { cx, cy } = zone;
   // Crash cart: narrow footprint, tall tower body
   const boxCx = cx - 6, boxCy = cy - 4;
-  const bW = 50, bH = 26, bFh = 80;
+  const bW = 60, bH = 30, bFh = 48;
 
   // Left face corner points for drawer geometry
   // TL=(boxCx-bW/2, boxCy), TR=(boxCx, boxCy+bH/2)
@@ -560,7 +581,7 @@ function AirwayCartFurniture({ zone, hasAdvanced }: FurnitureProps & { hasAdvanc
 
   // Wide, low footprint — distinct from the tall narrow crash cart
   const boxCx = cx, boxCy = cy - 2;
-  const bW = 96, bH = 54, bFh = 35;
+  const bW = 70, bH = 40, bFh = 26;
 
   // IV / airway pole — sits near right edge of cart
   const poleCx = cx + 52, poleCy = cy - 4;
@@ -1013,13 +1034,13 @@ export default function IsometricRoom({ ui, actions }: IsometricRoomProps) {
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
-  const avatarSize = Math.max(24, Math.min(36, containerSize.width * 0.04));
+  const avatarSize = Math.max(32, Math.min(42, containerSize.width * 0.048));
   const avatarStyle: React.CSSProperties = {
     width: avatarSize,
     height: avatarSize,
-    fontSize: Math.max(9, avatarSize * 0.35),
+    fontSize: Math.max(10, avatarSize * 0.35),
   };
-  const haloSize = Math.max(28, Math.min(42, containerSize.width * 0.048));
+  const haloSize = Math.max(36, Math.min(50, containerSize.width * 0.055));
 
   /* Callout tag visibility — visible for first 8 s when preference allows, then fade out */
   const [showInitialTags, setShowInitialTags] = useState(() => prefs.tagsVisible);
