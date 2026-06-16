@@ -277,27 +277,27 @@ export default function FirstPersonRoom({ ui, actions }: FirstPersonRoomProps) {
   /* Patient bed */
   const BED_CX = 450;
   const BED_W  = 148;   // left-right width
-  const BED_FH = 56;    // frame height (floor to mattress surface)
+  const BED_FH = 38;    // frame height (floor to mattress surface)
   const BED_L  = 268;   // length front-to-back in z
-  const BED_RH = 22;    // side-rail height above mattress
+  const BED_RH = 15;    // side-rail height above mattress
   const BED_FZ = -140;  // z of footboard face
 
   /* Crash cart (left wall, x = 0..CC_DEPTH, z = CC_Z..CC_Z-CC_ZW) */
   const CC_DEPTH = 58;   // protrusion into room (x)
   const CC_ZW    = 70;   // width along wall (z extent)
-  const CC_H     = 132;  // height
+  const CC_H     = 90;   // height (~53% of person — crash cart ≈90cm, person ≈170cm)
   const CC_Z     = -278; // z of near face (toward viewer)
 
   /* Defib unit (right wall, x = SW-DF_DEPTH..SW, z = DF_Z..DF_Z-DF_ZW) */
   const DF_DEPTH = 58;
   const DF_ZW    = 70;
-  const DF_H     = 172;  // taller than crash cart (stand + monitor)
+  const DF_H     = 120;  // taller than crash cart (stand + monitor)
   const DF_Z     = -278;
 
   /* Airway cabinet (back wall centre, protrudes toward viewer) */
   const AW_CX  = SW / 2;
   const AW_W   = 216;   // left-right width
-  const AW_H   = 170;   // height
+  const AW_H   = 120;   // height
   const AW_D   = 42;    // protrusion toward viewer
   const AW_L   = SW / 2 - AW_W / 2;   // left edge x = 342
 
@@ -703,7 +703,7 @@ export default function FirstPersonRoom({ ui, actions }: FirstPersonRoomProps) {
           {/* Pole shaft */}
           <div style={{
             position: 'absolute',
-            left: 80, top: SH - 190, width: 5, height: 190,
+            left: 80, top: SH - 133, width: 5, height: 133,
             transform: 'translateZ(-162px)',
             background: 'linear-gradient(90deg, #374151 0%, #4b5563 100%)',
             pointerEvents: 'none',
@@ -712,7 +712,7 @@ export default function FirstPersonRoom({ ui, actions }: FirstPersonRoomProps) {
           <div
             style={{
               position: 'absolute',
-              left: 58, top: SH - 212, width: 48, height: 30,
+              left: 58, top: SH - 155, width: 48, height: 30,
               transform: 'translateZ(-162px)',
               background: hasAccess ? '#1e3a5f' : '#0f172a',
               border: `1.5px solid ${hasAccess ? '#3b82f6' : '#1e293b'}`,
@@ -1146,18 +1146,20 @@ export default function FirstPersonRoom({ ui, actions }: FirstPersonRoomProps) {
             const zIndex     = Math.max(1, Math.round(100 + pos3d.z / 5));
             const uniform    = ROLE_UNIFORM[m.assignedRole] ?? ROLE_UNIFORM.none;
 
-            /* Figure part sizes — all scale with perspective depth */
-            const HEAD   = Math.max(7,  Math.round(18 * s));
-            const NECK   = Math.max(1,  Math.round(3  * s));
-            const TORSOW = Math.max(6,  Math.round(20 * s));
-            const TORSOH = Math.max(5,  Math.round(20 * s));
-            const ARMW   = Math.max(2,  Math.round(5  * s));
-            const ARMH   = Math.max(5,  Math.round(16 * s));
-            const LEGW   = Math.max(2,  Math.round(7  * s));
-            const LEGH   = Math.max(4,  Math.round(16 * s));
-            const SHOEW  = Math.max(3,  Math.round(10 * s));
-            const SHOEH  = Math.max(2,  Math.round(4  * s));
-            const GAP    = Math.max(1,  Math.round(2  * s));
+            /* Figure part sizes — all scale with perspective depth.
+               Base values sized so a person at z=0 is ~180px tall,
+               matching real-world person:cart ≈ 1.9:1 ratio. */
+            const HEAD   = Math.max(21, Math.round(54 * s));
+            const NECK   = Math.max(3,  Math.round(9  * s));
+            const TORSOW = Math.max(18, Math.round(60 * s));
+            const TORSOH = Math.max(15, Math.round(60 * s));
+            const ARMW   = Math.max(6,  Math.round(15 * s));
+            const ARMH   = Math.max(15, Math.round(48 * s));
+            const LEGW   = Math.max(6,  Math.round(21 * s));
+            const LEGH   = Math.max(12, Math.round(48 * s));
+            const SHOEW  = Math.max(9,  Math.round(30 * s));
+            const SHOEH  = Math.max(6,  Math.round(12 * s));
+            const GAP    = Math.max(3,  Math.round(6  * s));
 
             const figW = TORSOW + ARMW * 2 + GAP * 2;
             const figH = HEAD + NECK + TORSOH + LEGH + SHOEH;
@@ -1171,8 +1173,8 @@ export default function FirstPersonRoom({ ui, actions }: FirstPersonRoomProps) {
             const idleDelay  = (idleHash % 40) / 10;          // 0.0 – 3.9 s
             const breatheDur = 3.2 + (idleHash % 18) / 10;   // 3.2 – 5.0 s
             const blinkDelay = 2.8 + (idleHash % 32) / 10;   // 2.8 – 6.0 s
-            const eyeW       = Math.max(1, Math.round(2.5 * s));
-            const eyeH       = Math.max(1, Math.round(2.8 * s));
+            const eyeW       = Math.max(3, Math.round(7.5 * s));
+            const eyeH       = Math.max(3, Math.round(8.0 * s));
 
             return (
               <motion.div
@@ -1228,14 +1230,14 @@ export default function FirstPersonRoom({ ui, actions }: FirstPersonRoomProps) {
                   }}
                   animate={
                     isCpr
-                      ? { y: [0, -Math.round(4 * s), 0], scaleX: [1, 1.06, 1] }
+                      ? { y: [0, -Math.round(12 * s), 0], scaleX: [1, 1.06, 1] }
                       : isDoingBvm
-                        ? { y: [0, -Math.round(3.5 * s), 0, -Math.round(1 * s), 0] }
+                        ? { y: [0, -Math.round(10 * s), 0, -Math.round(3 * s), 0] }
                         : isFatigued
-                          ? { y: [0, Math.round(2 * s), 0], x: [0, Math.round(s), 0, -Math.round(s), 0] }
+                          ? { y: [0, Math.round(6 * s), 0], x: [0, Math.round(3 * s), 0, -Math.round(3 * s), 0] }
                           : {
-                              y: [0, -Math.round(1.5 * s), 0],
-                              x: [0, Math.round(s * 0.5), 0, -Math.round(s * 0.5), 0],
+                              y: [0, -Math.round(4.5 * s), 0],
+                              x: [0, Math.round(s * 1.5), 0, -Math.round(s * 1.5), 0],
                             }
                   }
                   transition={{
@@ -1256,15 +1258,15 @@ export default function FirstPersonRoom({ ui, actions }: FirstPersonRoomProps) {
                         : 'none',
                     /* Compressor gets a fatigue-coloured glow around the whole figure */
                     boxShadow: m.assignedRole === 'compressor'
-                      ? `0 0 ${Math.round(14 * s)}px ${Math.round(5 * s)}px ${haloColor}55`
+                      ? `0 0 ${Math.round(42 * s)}px ${Math.round(15 * s)}px ${haloColor}55`
                       : 'none',
                     /* Confirmed → green outline · Unassigned → dashed red outline */
                     outline: isUnassigned
-                      ? `${Math.max(1, Math.round(s))}px dashed #dc262666`
+                      ? `${Math.max(1, Math.round(2 * s))}px dashed #dc262666`
                       : m.confirmedRole
-                        ? `${Math.max(1, Math.round(s))}px solid #4ade8077`
+                        ? `${Math.max(1, Math.round(2 * s))}px solid #4ade8077`
                         : 'none',
-                    outlineOffset: Math.round(3 * s),
+                    outlineOffset: Math.round(9 * s),
                   }}
                   title={`${m.name} — ${ROLE_FULL[m.assignedRole]}`}
                 >
@@ -1400,10 +1402,10 @@ export default function FirstPersonRoom({ ui, actions }: FirstPersonRoomProps) {
                     transition={{ duration: breatheDur, repeat: Infinity, ease: 'easeInOut', delay: idleDelay }}
                     style={{
                       width: Math.round(figW * 0.7),
-                      height: Math.max(2, Math.round(4 * s)),
+                      height: Math.max(4, Math.round(12 * s)),
                       background: 'radial-gradient(ellipse, rgba(0,0,0,0.55) 0%, transparent 70%)',
                       borderRadius: '50%',
-                      marginTop: Math.round(1 * s),
+                      marginTop: Math.round(3 * s),
                     }}
                   />
                 </motion.div>
