@@ -50,6 +50,18 @@ const ROLE_FOR_TYPE: Partial<Record<OrderType, TeamRole>> = {
   compressor_switch: 'compressor',
   announce_cycle: 'recorder',
   closed_loop_request: 'none',
+  /* Investigations */
+  blood_draw: 'iv_access',
+  poc_glucose: 'iv_access',
+  vbg_istat: 'iv_access',
+  bmp: 'iv_access',
+  ecg_12lead: 'monitor_defib',
+  pocus: 'monitor_defib',
+  chest_xray: 'monitor_defib',
+  capnography: 'airway',
+  core_temp: 'iv_access',
+  medication_review: 'medication',
+  tox_screen: 'medication',
 };
 
 function pickRecipient(
@@ -95,6 +107,18 @@ function baseExecution(type: OrderType): number {
     case 'cpr_pause': return 1;
     case 'compressor_switch': return 4;
     case 'announce_cycle': return 2;
+    /* Investigations — turnaround times */
+    case 'blood_draw': return 3;
+    case 'poc_glucose': return 2;
+    case 'vbg_istat': return 6;
+    case 'bmp': return 999;      // SLOW — does not return mid-arrest
+    case 'ecg_12lead': return 4;
+    case 'pocus': return 8;
+    case 'chest_xray': return 999; // SLOW — does not return mid-arrest
+    case 'capnography': return 2;
+    case 'core_temp': return 3;
+    case 'medication_review': return 4;
+    case 'tox_screen': return 8;
     default: return 4;
   }
 }

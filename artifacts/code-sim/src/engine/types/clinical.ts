@@ -12,6 +12,19 @@ export interface MedicationDose {
   givenAt: number;
 }
 
+export type CauseStatus = 'red' | 'yellow' | 'green';
+
+export interface ReversibleCauseState {
+  causeId: string;
+  status: CauseStatus;
+  investigationsDone: string[];
+  interventionsDone: string[];
+  declared: boolean;
+  declaredAt: number | null;
+  ruledOut: boolean;
+  treated: boolean;
+}
+
 export interface ClinicalState {
   cprActive: boolean;
   cprIntervals: CprInterval[];
@@ -35,4 +48,11 @@ export interface ClinicalState {
   lastCompressorSwitchAt: number | null;
   currentCompressorId: string | null;
   pendingChaosMedDelayUntil: number | null;
+  /* Reversibles tracking */
+  reversibles: Record<string, ReversibleCauseState>;
+  hasUltrasound: boolean;
+  workingDiagnosis: string | null;
+  workingDiagnosisDeclaredAt: number | null;
+  investigationCount: number;
+  inappropriateInvestigations: number;
 }

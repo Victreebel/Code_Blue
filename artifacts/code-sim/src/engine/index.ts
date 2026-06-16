@@ -23,10 +23,25 @@ import { buildWitnessedVfArrest } from './scenario/witnessedVfArrest';
 import { isShockable, isPerfusing } from './clinical/aclsConstants';
 import type { ClinicalState } from './types/clinical';
 import type { PendingOrder } from './types/orders';
+import { recordInvestigation, type InvestigationId } from './clinical/reversiblesEngine';
 
 const STEP_SECONDS = 0.1;
 
 function initClinical(): ClinicalState {
+  const reversibles: Record<string, ClinicalState['reversibles'][string]> = {};
+  const causeIds: string[] = ['hypovolemia','hypoxia','acidosis','hyperkalemia','hypokalemia','hypothermia','tension_pneumothorax','tamponade','toxins','thrombosis_pe','thrombosis_mi'];
+  for (const id of causeIds) {
+    reversibles[id] = {
+      causeId: id,
+      status: 'red',
+      investigationsDone: [],
+      interventionsDone: [],
+      declared: false,
+      declaredAt: null,
+      ruledOut: false,
+      treated: false,
+    };
+  }
   return {
     cprActive: false,
     cprIntervals: [],
@@ -50,6 +65,12 @@ function initClinical(): ClinicalState {
     lastCompressorSwitchAt: null,
     currentCompressorId: null,
     pendingChaosMedDelayUntil: null,
+    reversibles,
+    hasUltrasound: true,
+    workingDiagnosis: null,
+    workingDiagnosisDeclaredAt: null,
+    investigationCount: 0,
+    inappropriateInvestigations: 0,
   };
 }
 
@@ -128,6 +149,24 @@ function preferredRoleForType(type: OrderType): TeamRole {
     case 'announce_cycle':
       return 'recorder';
     case 'closed_loop_request':
+      return 'none';
+    /* Investigations */
+    case 'blood_draw':
+    case 'poc_glucose':
+    case 'vbg_istat':
+    case 'bmp':
+    case 'core_temp':
+      return 'iv_access';
+    case 'ecg_12lead':
+    case 'pocus':
+    case 'chest_xray':
+      return 'monitor_defib';
+    case 'capnography':
+      return 'airway';
+    case 'medication_review':
+    case 'tox_screen':
+      return 'medication';
+    default:
       return 'none';
   }
 }
@@ -272,6 +311,58 @@ function applyUserAction(state: SimulationState, action: UserAction): Simulation
       type = 'announce_cycle';
       label = 'Announce cycle / 2-minute mark';
       break;
+    /* Investigations */
+    case 'order_blood_draw':
+      type = 'blood_draw'; label = 'Blood draw / labs'; break;
+    case 'order_poc_glucose':
+      type = 'poc_glucose'; label = 'Point-of-care glucose'; break;
+    case 'order_vbg_istat':
+      type = 'vbg_istat'; label = 'VBG / iStat'; break;
+    case 'order_bmp':
+      type = 'bmp'; label = 'BMP (chem panel)'; break;
+    case 'order_ecg_12lead':
+      type = 'ecg_12lead'; label = '12-lead ECG'; break;
+    case 'order_pocus':
+      type = 'pocus'; label = 'POCUS (RUSH/FAST)'; break;
+    case 'order_chest_xray':
+      type = 'chest_xray'; label = 'Chest X-ray'; break;
+    case 'order_capnography':
+      type = 'capnography'; label = 'Capnography / ETCO2'; break;
+    case 'order_core_temp':
+      type = 'core_temp'; label = 'Core temperature'; break;
+    case 'order_medication_review':
+      type = 'medication_review'; label = 'Medication & history review'; break;
+    case 'order_tox_screen':
+      type = 'tox_screen'; label = 'Toxicology screen'; break;
+    case 'declare_working_diagnosis': {
+      const causeId = action.causeId;
+      const rev = s.clinical.reversibles[causeId];
+      if (!rev) return s;
+      const nextRev = {
+        ...rev,
+        declared: true,
+        declaredAt: clock,
+      };
+      const nextReversibles = {
+        ...s.clinical.reversibles,
+        [causeId]: nextRev,
+      };
+      const replay = append(s.replay, clock, 'user', 'user.declare_working_diagnosis', {
+        causeId,
+        previousWorking: s.clinical.workingDiagnosis,
+      });
+      s = {
+        ...s,
+        clinical: {
+          ...s.clinical,
+          reversibles: nextReversibles,
+          workingDiagnosis: causeId,
+          workingDiagnosisDeclaredAt: clock,
+        },
+        replay,
+      };
+      return s;
+    }
     default:
       return s;
   }
@@ -474,6 +565,36 @@ function applyOrderEffects(state: SimulationState, finalized: PendingOrder[]): S
           s = { ...s, scenario: ended.scenario, replay: ended.replay, phase: 'ended' };
           return s;
         }
+        break;
+      }
+      /* Investigations */
+      case 'blood_draw':
+      case 'poc_glucose':
+      case 'vbg_istat':
+      case 'bmp':
+      case 'ecg_12lead':
+      case 'pocus':
+      case 'chest_xray':
+      case 'capnography':
+      case 'core_temp':
+      case 'medication_review':
+      case 'tox_screen': {
+        // Record investigation in reversibles
+        const isArrest = s.rhythm.current === 'asystole' || s.rhythm.current === 'pea' || s.rhythm.current === 'vfib' || s.rhythm.current === 'vtach';
+        const newReversibles = recordInvestigation(
+          s.clinical.reversibles,
+          o.type as InvestigationId,
+          s.clinical.hasUltrasound,
+          isArrest,
+        );
+        s = {
+          ...s,
+          clinical: {
+            ...s.clinical,
+            reversibles: newReversibles,
+            investigationCount: s.clinical.investigationCount + 1,
+          },
+        };
         break;
       }
     }

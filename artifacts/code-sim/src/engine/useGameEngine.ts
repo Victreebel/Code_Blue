@@ -11,7 +11,7 @@ import {
 import { selectUIState, type UIState } from './ui/uiStateEngine';
 import { buildWitnessedVfArrest } from './scenario/witnessedVfArrest';
 import { createAccumulator, pollSteps } from './clock';
-import type { TeamRole, MedicationType } from './types/core';
+import type { TeamRole, MedicationType, ReversibleCauseId } from './types/core';
 import type { ScenarioInput } from './types/scenario';
 
 type Phase = SimulationState['phase'] | 'menu';
@@ -93,10 +93,20 @@ export interface EngineActions {
   /** @internal */
   callTimeOfDeath: () => void;
 
-  /** Identify a reversible cause (H's & T's) — UI only, no engine action */
-  identifyCause: (causeId: string) => void;
-  /** Initiate treatment of identified reversible cause — UI only, no engine action */
-  treatCause: (causeId: string) => void;
+  /* Investigations */
+  orderBloodDraw: () => void;
+  orderPocGlucose: () => void;
+  orderVbgIstat: () => void;
+  orderBmp: () => void;
+  orderEcg12lead: () => void;
+  orderPocus: () => void;
+  orderChestXray: () => void;
+  orderCapnography: () => void;
+  orderCoreTemp: () => void;
+  orderMedicationReview: () => void;
+  orderToxScreen: () => void;
+  /* Declare working diagnosis */
+  declareWorkingDiagnosis: (causeId: ReversibleCauseId) => void;
 }
 
 export interface UseGameEngineResult {
@@ -199,8 +209,18 @@ export function useGameEngine(): UseGameEngineResult {
     requestClosedLoop: (orderId) => dispatchAction({ kind: 'request_closed_loop', orderId }),
     callTimeOfDeath: () => dispatchAction({ kind: 'call_time_of_death' }),
     declareRosc: () => dispatchAction({ kind: 'declare_rosc' }),
-    identifyCause: (_causeId: string) => { /* UI tracking only */ },
-    treatCause: (_causeId: string) => { /* UI tracking only */ },
+    orderBloodDraw: () => dispatchAction({ kind: 'order_blood_draw' }),
+    orderPocGlucose: () => dispatchAction({ kind: 'order_poc_glucose' }),
+    orderVbgIstat: () => dispatchAction({ kind: 'order_vbg_istat' }),
+    orderBmp: () => dispatchAction({ kind: 'order_bmp' }),
+    orderEcg12lead: () => dispatchAction({ kind: 'order_ecg_12lead' }),
+    orderPocus: () => dispatchAction({ kind: 'order_pocus' }),
+    orderChestXray: () => dispatchAction({ kind: 'order_chest_xray' }),
+    orderCapnography: () => dispatchAction({ kind: 'order_capnography' }),
+    orderCoreTemp: () => dispatchAction({ kind: 'order_core_temp' }),
+    orderMedicationReview: () => dispatchAction({ kind: 'order_medication_review' }),
+    orderToxScreen: () => dispatchAction({ kind: 'order_tox_screen' }),
+    declareWorkingDiagnosis: (causeId: ReversibleCauseId) => dispatchAction({ kind: 'declare_working_diagnosis', causeId }),
   };
 
   const ui = wrapper.kind === 'sim' ? selectUIState(wrapper.state) : null;

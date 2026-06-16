@@ -2,6 +2,7 @@ import type { SimulationState } from '../types/state';
 import type { PendingOrder } from '../types/orders';
 import type { ReplayEvent } from '../types/replay';
 import type { TeamMemberRuntime } from '../types/team';
+import type { ReversibleCauseState } from '../types/clinical';
 import { findEvents } from '../replay/replayEngine';
 import { isTerminal as isOrderTerminal } from '../orders/pendingOrdersEngine';
 
@@ -38,6 +39,12 @@ export interface UIState {
   recentLog: ReplayEvent[];
   chaosFiredCount: number;
   scoreReport: SimulationState['score'];
+  /* Reversibles */
+  reversibles: Record<string, ReversibleCauseState>;
+  hasUltrasound: boolean;
+  workingDiagnosis: string | null;
+  investigationCount: number;
+  inappropriateInvestigations: number;
 }
 
 export function selectUIState(state: SimulationState): UIState {
@@ -77,5 +84,10 @@ export function selectUIState(state: SimulationState): UIState {
     recentLog: recent,
     chaosFiredCount: findEvents(state.replay, e => e.eventType === 'scenario.chaos.fired').length,
     scoreReport: state.score,
+    reversibles: state.clinical.reversibles,
+    hasUltrasound: state.clinical.hasUltrasound,
+    workingDiagnosis: state.clinical.workingDiagnosis,
+    investigationCount: state.clinical.investigationCount,
+    inappropriateInvestigations: state.clinical.inappropriateInvestigations,
   };
 }

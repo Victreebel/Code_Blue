@@ -4,6 +4,8 @@ import type { UIState } from '../../engine/ui/uiStateEngine';
 import type { ScenarioInput } from '../../engine/types/scenario';
 import type { EngineActions } from '../../engine/useGameEngine';
 import { formatTime, RHYTHM_LABELS } from '../../engine/types/core';
+import { CAUSE_MAPPINGS, INVESTIGATION_LABELS } from '../../engine/clinical/reversiblesEngine';
+import type { ReversibleCauseState } from '../../engine/types/clinical';
 import {
   RHYTHM_CHECK_INTERVAL_SECONDS,
   RHYTHM_CHECK_GRACE_SECONDS,
@@ -75,26 +77,16 @@ function ProtocolReminders({ ui }: { ui: UIState }) {
   );
 }
 
-/* ── H's & T's Panel ──────────────────────────────────────────────── */
+/* ── H's & T's Dashboard (read-only) ────────────────────────────────── */
 
-const HS_AND_TS = [
-  { id: 'hypovolemia', label: 'Hypovolemia' },
-  { id: 'hypoxia', label: 'Hypoxia' },
-  { id: 'hydrogen_ion', label: 'Hydrogen Ion (Acidosis)' },
-  { id: 'hypo_hyperkalemia', label: 'Hypo/Hyperkalemia' },
-  { id: 'hypothermia', label: 'Hypothermia' },
-  { id: 'tension_pneumo', label: 'Tension Pneumothorax' },
-  { id: 'tamponade', label: 'Cardiac Tamponade' },
-  { id: 'toxins', label: 'Toxins' },
-  { id: 'thrombosis_pulm', label: 'Thrombosis (Pulmonary)' },
-  { id: 'thrombosis_cor', label: 'Thrombosis (Coronary)' },
-];
+const STATUS_COLORS: Record<ReversibleCauseState['status'], { bar: string; text: string; bg: string }> = {
+  red:    { bar: 'bg-red-500',    text: 'text-red-400',    bg: 'bg-red-950/30' },
+  yellow: { bar: 'bg-yellow-500', text: 'text-yellow-400', bg: 'bg-yellow-950/30' },
+  green:  { bar: 'bg-green-500',  text: 'text-green-400',  bg: 'bg-green-950/30' },
+};
 
-function HsCausesPanel({ actions }: { actions: EngineActions }) {
+function HsCausesPanel({ ui }: { ui: UIState }) {
   const [open, setOpen] = useState(false);
-  const [identified, setIdentified] = useState<string | null>(null);
-  const [treated, setTreated] = useState(false);
-
   return (
     <div className="bg-gray-900/85 border border-gray-700 rounded-lg overflow-hidden backdrop-blur-sm">
       <button
@@ -114,36 +106,121 @@ function HsCausesPanel({ actions }: { actions: EngineActions }) {
             className="overflow-hidden"
           >
             <div className="px-2 pb-2 space-y-1">
-              <div className="text-[9px] text-gray-600 mb-1">Identify reversible cause:</div>
-              {HS_AND_TS.map(cause => (
-                <button
-                  key={cause.id}
-                  onClick={() => {
-                    setIdentified(cause.id);
-                    actions.identifyCause(cause.id);
-                  }}
-                  className={`w-full text-left text-[9px] px-1.5 py-0.5 rounded transition-colors ${
-                    identified === cause.id
-                      ? 'bg-purple-900/60 text-purple-200 border border-purple-700/50'
-                      : 'bg-gray-800/60 text-gray-400 hover:bg-gray-700/60 hover:text-gray-200'
-                  }`}
-                >
-                  {cause.label}
-                </button>
+              {CAUSE_MAPPINGS.map(cause => {
+                const state = ui.reversibles[cause.causeId];
+                const colors = STATUS_COLORS[state?.status ?? 'red'];
+                const doneInvs = state?.investigationsDone ?? [];
+                return (
+                  <div key={cause.causeId} className={`rounded px-2 py-1 ${colors.bg}`}>
+                    <div className="flex items-center gap-2">
+                      <div className={`w-1.5 h-1.5 rounded-full ${colors.bar}`} />
+                      <span className={`text-[10px] font-semibold ${colors.text}`}>{cause.label}</span>
+                    </div>
+                    <div className="text-[8px] text-gray-500 mt-0.5 leading-tight">
+                      {doneInvs.length > 0
+                        ? `Done: ${doneInvs.map(i => INVESTIGATION_LABELS[i] ?? i).join(', ')}`
+                        : 'No investigations yet'}
+                    </div>
+                    <div className="text-[8px] text-gray-600 leading-tight">
+                      {ui.hasUltrasound ? (cause.withUSClue ?? '') : (cause.withoutUSClue ?? '')}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+/* ── Investigations Panel ─────────────────────────────────────────── */
+
+interface InvGroup {
+  label: string;
+  color: string;
+  items: { key: string; label: string; action: () => void; disabled?: boolean }[];
+}
+
+function InvestigationsPanel({ ui, actions }: { ui: UIState; actions: EngineActions }) {
+  const [open, setOpen] = useState(false);
+
+  const groups: InvGroup[] = [
+    {
+      label: 'Vascular / Labs',
+      color: 'text-blue-400',
+      items: [
+        { key: 'iv_access', label: 'IV Access', action: actions.ivAccess, disabled: ui.hasIVAccess },
+        { key: 'io_access', label: 'IO Access', action: actions.ioAccess, disabled: ui.hasIOAccess },
+        { key: 'blood_draw', label: 'Blood draw', action: actions.orderBloodDraw },
+        { key: 'poc_glucose', label: 'Glucose', action: actions.orderPocGlucose },
+        { key: 'vbg_istat', label: 'VBG / iStat', action: actions.orderVbgIstat },
+        { key: 'bmp', label: 'BMP (slow)', action: actions.orderBmp },
+      ],
+    },
+    {
+      label: 'Cardiac / Imaging',
+      color: 'text-red-400',
+      items: [
+        { key: 'rhythm_check', label: 'Rhythm check', action: actions.rhythmCheck },
+        { key: 'ecg_12lead', label: '12-lead ECG', action: actions.orderEcg12lead },
+        { key: 'pocus', label: 'POCUS', action: actions.orderPocus },
+        { key: 'chest_xray', label: 'Chest X-ray (slow)', action: actions.orderChestXray },
+      ],
+    },
+    {
+      label: 'Other',
+      color: 'text-teal-400',
+      items: [
+        { key: 'capnography', label: 'Capnography / ETCO2', action: actions.orderCapnography },
+        { key: 'core_temp', label: 'Core temperature', action: actions.orderCoreTemp },
+        { key: 'medication_review', label: 'Med / History review', action: actions.orderMedicationReview },
+        { key: 'tox_screen', label: 'Tox screen', action: actions.orderToxScreen },
+      ],
+    },
+  ];
+
+  return (
+    <div className="bg-gray-900/85 border border-gray-700 rounded-lg overflow-hidden backdrop-blur-sm">
+      <button
+        onClick={() => setOpen(o => !o)}
+        className="w-full flex items-center justify-between px-2 py-1.5 text-left hover:bg-gray-800/50 transition-colors"
+      >
+        <span className="text-[10px] text-cyan-400 tracking-wider font-semibold">INVESTIGATIONS</span>
+        <span className="text-[10px] text-gray-600">{open ? '▲' : '▼'}</span>
+      </button>
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.15 }}
+            className="overflow-hidden"
+          >
+            <div className="px-2 pb-2 space-y-2">
+              {groups.map(g => (
+                <div key={g.label}>
+                  <div className={`text-[9px] font-semibold ${g.color} mb-0.5`}>{g.label}</div>
+                  <div className="space-y-0.5">
+                    {g.items.map(item => (
+                      <button
+                        key={item.key}
+                        onClick={item.action}
+                        disabled={item.disabled}
+                        className={`w-full text-left text-[9px] px-1.5 py-0.5 rounded transition-colors ${
+                          item.disabled
+                            ? 'bg-gray-800/40 text-gray-600 cursor-default'
+                            : 'bg-gray-800/60 text-gray-300 hover:bg-gray-700/60 hover:text-white'
+                        }`}
+                      >
+                        {item.disabled ? `✓ ${item.label}` : item.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
               ))}
-              {identified && (
-                <button
-                  onClick={() => { setTreated(true); actions.treatCause(identified); }}
-                  disabled={treated}
-                  className={`w-full text-[9px] px-2 py-1 rounded mt-1 font-semibold transition-colors ${
-                    treated
-                      ? 'bg-green-900/40 text-green-400 cursor-default'
-                      : 'bg-purple-800/60 text-purple-200 hover:bg-purple-700/60'
-                  }`}
-                >
-                  {treated ? '✓ Treat Initiated' : 'Treat Cause'}
-                </button>
-              )}
             </div>
           </motion.div>
         )}
@@ -365,7 +442,8 @@ export default function GameScreen({ ui, scenarioInput, actions }: GameScreenPro
         {/* ── Right overlay column ── */}
         <div className="absolute top-2 right-2 z-20 flex flex-col gap-2" style={{ width: 200 }}>
           <PendingOrdersPanel orders={ui.pendingOrders} clock={ui.clock} />
-          <HsCausesPanel actions={actions} />
+          <InvestigationsPanel ui={ui} actions={actions} />
+          <HsCausesPanel ui={ui} />
           <TeamQuickActions ui={ui} actions={actions} />
         </div>
 

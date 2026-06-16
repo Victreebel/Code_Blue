@@ -32,7 +32,19 @@ export type OrderType =
   | 'medication'
   | 'compressor_switch'
   | 'announce_cycle'
-  | 'closed_loop_request';
+  | 'closed_loop_request'
+  /* Investigations */
+  | 'blood_draw'
+  | 'poc_glucose'
+  | 'vbg_istat'
+  | 'bmp'
+  | 'ecg_12lead'
+  | 'pocus'
+  | 'chest_xray'
+  | 'capnography'
+  | 'core_temp'
+  | 'medication_review'
+  | 'tox_screen';
 
 export type OrderStatus = 'issued' | 'heard' | 'acknowledged' | 'in_progress' | 'completed' | 'delayed' | 'wrong_recipient' | 'failed' | 'missed';
 
@@ -48,6 +60,19 @@ export type OrderFailureSubtype =
   | 'abandoned';
 
 export type ChaosEventType = 'compressor_fatigue' | 'medication_delay';
+
+export type ReversibleCauseId =
+  | 'hypovolemia'
+  | 'hypoxia'
+  | 'acidosis'
+  | 'hyperkalemia'
+  | 'hypokalemia'
+  | 'hypothermia'
+  | 'tension_pneumothorax'
+  | 'tamponade'
+  | 'toxins'
+  | 'thrombosis_pe'
+  | 'thrombosis_mi';
 
 export const RHYTHM_LABELS: Record<Rhythm, string> = {
   vfib: 'Ventricular Fibrillation',

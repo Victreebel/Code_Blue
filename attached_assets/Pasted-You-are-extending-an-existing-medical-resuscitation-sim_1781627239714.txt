@@ -1,0 +1,90 @@
+You are extending an existing medical resuscitation simulator (Scenario #1: non-shockable arrest — asystole/PEA). Build ONE feature: an investigation/intervention action system plus a redesigned H's & T's dashboard. The clinical content below is authoritative — implement it exactly; do not invent your own mappings.
+
+Hard guardrails (this project previously failed from scope drift — respect these)
+
+
+Change ONLY: the investigations/interventions UI, their routing through the existing team engine, the H's & T's tab, and the scoring events listed. Do not refactor the team engine, CPR loop, rhythm logic, or drug timing.
+Do not add causes, investigations, or interventions beyond those listed.
+If something is ambiguous, ask me before expanding scope. Do not "improve" adjacent systems.
+
+
+What to remove
+
+The current H's & T's tab that lists causes with a vague "Treat" button. Delete the Treat button and that interaction.
+
+What to build
+
+A. Investigations panel (replaces H's & T's in the right overlay column)
+
+Players order specific investigations/interventions. Every order routes through the existing team engine (acknowledged / delayed / failed) — do not bypass it. Group into three sections:
+
+Vascular / Labs: IV Access, IO Access, Blood Draw, Point-of-care Glucose, VBG/iStat, BMP
+Cardiac / Imaging: Rhythm Check (monitor), 12-lead ECG, POCUS (RUSH/FAST), Chest X-ray
+Other: Capnography/ETCO2, Core Temperature, Medication/History Review, Tox Screen
+
+Turnaround rules (enforce — they are pacing levers, not cosmetic):
+
+
+IV/IO/blood draw/glucose: fast (< 1 round).
+VBG/iStat: ~1 round.
+BMP and Chest X-ray: SLOW — return post-ROSC or not at all during the arrest. Do NOT let a full BMP return mid-code.
+Rhythm check = part of the 2-min CPR cycle (free). 12-lead ECG is a SEPARATE action, mostly post-ROSC. Keep them as two distinct buttons.
+Capnography/ETCO2: continuous once airway is secured.
+
+
+B. H's & T's dashboard (the old tab, now READ-ONLY)
+
+No action buttons here. Each cause is a row showing its relevant investigations + interventions as sub-items, with a state: red not addressed → yellow in progress → green addressed.
+
+Key rules:
+
+
+The bar is a "good enough to safely move on" gate, NOT a "% of all sub-items completed" meter. Do not require every test + every intervention to turn a row green.
+A negative/excluding study turns a row green as "ruled out" — same weight as treated. "Addressed" = treated OR excluded.
+
+
+C. Declare Working Diagnosis action
+
+Add a control (panel or dashboard header) where the player commits to a cause. Correct + evidence-supported declaration = scoring reward and surfaces the targeted intervention. Grinding clues without ever declaring = no progress credit.
+
+Clinical mapping (authoritative — implement exactly)
+
+For each cause: which investigations apply, the WITH-ultrasound clue, the WITHOUT-ultrasound clue (no-US mode is a difficulty toggle), and interventions.
+
+
+Hypovolemia — invests: IV/IO, blood draw, iStat, POCUS. With US: flat/collapsing IVC + empty hyperdynamic LV. Without US: bleed/trauma/GI history, low Hgb on iStat, rising lactate, response to bolus. Interventions: fluid bolus, blood products, hemorrhage control.
+Hypoxia — invests: capnography, airway assessment, breath sounds. Diagnosis needs NO ultrasound: ETCO2, tube confirmation, bilateral breath sounds, response to O2. Interventions: secure/confirm airway, high-quality ventilation.
+Acidosis (H+) — invests: iStat/VBG, capnography, history. Without US: VBG pH/bicarb, ETCO2 trend, history (DKA/sepsis/renal). Interventions: optimize ventilation, bicarb in select cases, treat underlying.
+Hyperkalemia — invests: 12-lead ECG, iStat, history. ECG IS diagnostic here: peaked T → wide QRS → sine wave; plus iStat K+, renal/dialysis/crush history. Interventions: calcium, insulin+dextrose, bicarb, albuterol.
+Hypokalemia — invests: ECG (U waves, flat T), iStat K+. Interventions: K repletion, magnesium.
+Hypothermia — invests: core temp, ECG (Osborn J waves), history. Interventions: active rewarming, prolonged resuscitation.
+Tension pneumothorax — exam-diagnosable; US confirms but does NOT gatekeep. Without US: absent UNILATERAL breath sounds, hard to bag / rising airway pressure, hyperresonance, late tracheal deviation, mechanism. With US: absent lung sliding, barcode sign, lung point. Interventions: needle decompression, finger thoracostomy.
+Tamponade — HARD MODE (design centerpiece): With US: pericardial effusion + diastolic RV collapse (clean). Without US: JVD, muffled tones, narrow pulse pressure, history (malignancy/uremia/recent MI or procedure/trauma), and ultimately DIAGNOSIS OF EXCLUSION → empiric pericardiocentesis. ECG must NEVER complete this line — low voltage / electrical alternans is a weak hint at most. Intervention: pericardiocentesis. Without US, this row should only reach green via the exclusion-then-empiric path. (Tension pneumo and tamponade are deliberate mirror images: without US, pneumo keeps strong clues, tamponade loses its cleanest — preserve that asymmetry.)
+Toxins — invests: med/history review, glucose, tox screen, ECG. Without US: toxidrome pattern, glucose (hypoglycemic agents), response to antidote, ECG (wide QRS/long QT). Interventions: specific antidote, bicarb for Na-channel, lipid emulsion.
+Thrombosis — PE — invests: history, capnography, POCUS, ECG. With US: RV strain (D-sign), McConnell's, IVC plethora, DVT. Without US: risk factors, low ETCO2 despite good CPR, sudden PEA; ECG (S1Q3T3) is SUGGESTIVE not diagnostic. Interventions: consider thrombolytics, prolonged CPR.
+Thrombosis — MI — invests: 12-lead ECG (largely post-ROSC), history, troponin. With US: regional wall-motion abnormality. Interventions: post-ROSC PCI/cath, antiplatelets.
+
+
+Scoring events to emit (I will tune weights)
+
+
+Ordering investigations NOT indicated by the scenario's clues → CPR/leadership penalty (shotgun workup pulls attention off compressions).
+Player (team leader) personally performing hands-on tasks (blood draw, line, compressions) → penalty; default all orders to delegation through the team engine. (Freeing the leader is the top quality lever — encode it.)
+Appropriately ruling a cause out → credit equal to treating it.
+Timely correct Declare Working Diagnosis → reward; clue-grinding without declaring → none.
+Inappropriate CPR pauses / low compression fraction → dominant penalty regardless of diagnostic accuracy.
+
+
+Acceptance check before you call it done
+
+
+No-ultrasound toggle changes which clue paths are available per the with/without lists above.
+Tamponade cannot be completed by ECG and, without US, only completes via exclusion+empiric path.
+Tension pneumo is completable without US via the exam path.
+BMP/CXR do not return during the arrest.
+Rhythm check and 12-lead are separate actions.
+Capnography exists as an action.
+H's & T's tab has no action buttons; a negative study turns a row green as "ruled out."
+
+
+Build only this. Ask before expanding anything.
