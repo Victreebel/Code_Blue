@@ -1147,19 +1147,19 @@ export default function FirstPersonRoom({ ui, actions }: FirstPersonRoomProps) {
             const uniform    = ROLE_UNIFORM[m.assignedRole] ?? ROLE_UNIFORM.none;
 
             /* Figure part sizes — all scale with perspective depth.
-               Base values sized so a person at z=0 is ~180px tall,
-               matching real-world person:cart ≈ 1.9:1 ratio. */
-            const HEAD   = Math.max(21, Math.round(54 * s));
-            const NECK   = Math.max(3,  Math.round(9  * s));
-            const TORSOW = Math.max(18, Math.round(60 * s));
-            const TORSOH = Math.max(15, Math.round(60 * s));
-            const ARMW   = Math.max(6,  Math.round(15 * s));
-            const ARMH   = Math.max(15, Math.round(48 * s));
-            const LEGW   = Math.max(6,  Math.round(21 * s));
-            const LEGH   = Math.max(12, Math.round(48 * s));
-            const SHOEW  = Math.max(9,  Math.round(30 * s));
-            const SHOEH  = Math.max(6,  Math.round(12 * s));
-            const GAP    = Math.max(3,  Math.round(6  * s));
+               Base values at 2.5× original — person ~150px tall at z=0,
+               cart ~59% of person height. Balances realism with readability. */
+            const HEAD   = Math.max(16, Math.round(45 * s));
+            const NECK   = Math.max(2,  Math.round(8  * s));
+            const TORSOW = Math.max(14, Math.round(50 * s));
+            const TORSOH = Math.max(12, Math.round(50 * s));
+            const ARMW   = Math.max(4,  Math.round(12 * s));
+            const ARMH   = Math.max(10, Math.round(40 * s));
+            const LEGW   = Math.max(4,  Math.round(18 * s));
+            const LEGH   = Math.max(10, Math.round(40 * s));
+            const SHOEW  = Math.max(7,  Math.round(25 * s));
+            const SHOEH  = Math.max(4,  Math.round(10 * s));
+            const GAP    = Math.max(2,  Math.round(5  * s));
 
             const figW = TORSOW + ARMW * 2 + GAP * 2;
             const figH = HEAD + NECK + TORSOH + LEGH + SHOEH;
@@ -1173,8 +1173,8 @@ export default function FirstPersonRoom({ ui, actions }: FirstPersonRoomProps) {
             const idleDelay  = (idleHash % 40) / 10;          // 0.0 – 3.9 s
             const breatheDur = 3.2 + (idleHash % 18) / 10;   // 3.2 – 5.0 s
             const blinkDelay = 2.8 + (idleHash % 32) / 10;   // 2.8 – 6.0 s
-            const eyeW       = Math.max(3, Math.round(7.5 * s));
-            const eyeH       = Math.max(3, Math.round(8.0 * s));
+            const eyeW       = Math.max(2, Math.round(6.0 * s));
+            const eyeH       = Math.max(2, Math.round(7.0 * s));
 
             return (
               <motion.div
@@ -1230,14 +1230,14 @@ export default function FirstPersonRoom({ ui, actions }: FirstPersonRoomProps) {
                   }}
                   animate={
                     isCpr
-                      ? { y: [0, -Math.round(12 * s), 0], scaleX: [1, 1.06, 1] }
+                      ? { y: [0, -Math.round(10 * s), 0], scaleX: [1, 1.06, 1] }
                       : isDoingBvm
-                        ? { y: [0, -Math.round(10 * s), 0, -Math.round(3 * s), 0] }
+                        ? { y: [0, -Math.round(9 * s), 0, -Math.round(2.5 * s), 0] }
                         : isFatigued
-                          ? { y: [0, Math.round(6 * s), 0], x: [0, Math.round(3 * s), 0, -Math.round(3 * s), 0] }
+                          ? { y: [0, Math.round(5 * s), 0], x: [0, Math.round(2.5 * s), 0, -Math.round(2.5 * s), 0] }
                           : {
-                              y: [0, -Math.round(4.5 * s), 0],
-                              x: [0, Math.round(s * 1.5), 0, -Math.round(s * 1.5), 0],
+                              y: [0, -Math.round(4 * s), 0],
+                              x: [0, Math.round(s * 1.25), 0, -Math.round(s * 1.25), 0],
                             }
                   }
                   transition={{
@@ -1258,15 +1258,15 @@ export default function FirstPersonRoom({ ui, actions }: FirstPersonRoomProps) {
                         : 'none',
                     /* Compressor gets a fatigue-coloured glow around the whole figure */
                     boxShadow: m.assignedRole === 'compressor'
-                      ? `0 0 ${Math.round(42 * s)}px ${Math.round(15 * s)}px ${haloColor}55`
+                      ? `0 0 ${Math.round(35 * s)}px ${Math.round(12 * s)}px ${haloColor}55`
                       : 'none',
                     /* Confirmed → green outline · Unassigned → dashed red outline */
                     outline: isUnassigned
-                      ? `${Math.max(1, Math.round(2 * s))}px dashed #dc262666`
+                      ? `${Math.max(1, Math.round(1.5 * s))}px dashed #dc262666`
                       : m.confirmedRole
-                        ? `${Math.max(1, Math.round(2 * s))}px solid #4ade8077`
+                        ? `${Math.max(1, Math.round(1.5 * s))}px solid #4ade8077`
                         : 'none',
-                    outlineOffset: Math.round(9 * s),
+                    outlineOffset: Math.round(7 * s),
                   }}
                   title={`${m.name} — ${ROLE_FULL[m.assignedRole]}`}
                 >
@@ -1402,10 +1402,10 @@ export default function FirstPersonRoom({ ui, actions }: FirstPersonRoomProps) {
                     transition={{ duration: breatheDur, repeat: Infinity, ease: 'easeInOut', delay: idleDelay }}
                     style={{
                       width: Math.round(figW * 0.7),
-                      height: Math.max(4, Math.round(12 * s)),
+                      height: Math.max(3, Math.round(10 * s)),
                       background: 'radial-gradient(ellipse, rgba(0,0,0,0.55) 0%, transparent 70%)',
                       borderRadius: '50%',
-                      marginTop: Math.round(3 * s),
+                      marginTop: Math.round(2.5 * s),
                     }}
                   />
                 </motion.div>
