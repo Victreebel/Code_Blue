@@ -996,6 +996,43 @@ export default function FirstPersonRoom({ ui, actions }: FirstPersonRoomProps) {
                 background: 'rgba(148,163,184,0.3)',
               }} />
             ))}
+
+            {/* ── Patient figure lying on mattress ── */}
+            {/* Blanket-covered body — extends from near foot to just below shoulders */}
+            <div style={{
+              position: 'absolute',
+              top: 14,
+              left: '12%', right: '12%',
+              bottom: 64,
+              background: 'linear-gradient(180deg, #283547 0%, #1e293b 45%, #17202c 100%)',
+              border: '1px solid #475569',
+              borderRadius: '5px 5px 4px 4px',
+              opacity: 0.93,
+              pointerEvents: 'none',
+            }} />
+            {/* Center ridge — subtle body contour under blanket */}
+            <div style={{
+              position: 'absolute',
+              top: 26,
+              left: '28%', right: '28%',
+              bottom: 80,
+              background: 'linear-gradient(180deg, #334155 0%, #253347 100%)',
+              borderRadius: 4,
+              opacity: 0.5,
+              pointerEvents: 'none',
+            }} />
+            {/* Patient head — oval, resting on pillow */}
+            <div style={{
+              position: 'absolute',
+              bottom: 48,
+              left: '26%', right: '26%',
+              height: 22,
+              background: 'radial-gradient(ellipse at 40% 38%, #dce0e6 0%, #d1d5db 55%, #bcc3cc 100%)',
+              border: '1px solid #9ca3af',
+              borderRadius: '50%',
+              opacity: 0.88,
+              pointerEvents: 'none',
+            }} />
           </div>
 
           {/* Footboard — vertical face, near viewer, CLICKABLE */}
