@@ -26,10 +26,27 @@ pnpm install --frozen-lockfile
 pnpm --filter db push
 
 # Push to GitHub mirror automatically after every merge (10s budget)
+SYNC_LOG="logs/github-sync.log"
+mkdir -p logs
+TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+
 if [ -n "$GITHUB_TOKEN" ]; then
   REPO_URL="https://${GITHUB_TOKEN}@github.com/Victreebel/Code_Blue.git"
   echo "Pushing to GitHub mirror..."
-  if ! PUSH_OUTPUT=$(timeout 10 git push --force "$REPO_URL" HEAD:main 2>&1); then
+  if PUSH_OUTPUT=$(timeout 10 git push --force "$REPO_URL" HEAD:main 2>&1); then
+    {
+      echo "[$TIMESTAMP] SUCCESS (exit 0)"
+      echo "$PUSH_OUTPUT"
+      echo "---"
+    } >> "$SYNC_LOG"
+    echo "GitHub mirror push succeeded."
+  else
+    EXIT_CODE=$?
+    {
+      echo "[$TIMESTAMP] FAILURE (exit $EXIT_CODE)"
+      echo "$PUSH_OUTPUT"
+      echo "---"
+    } >> "$SYNC_LOG"
     echo "ERROR: GitHub mirror push failed" >&2
     echo "--- git push output ---" >&2
     echo "$PUSH_OUTPUT" >&2
@@ -43,7 +60,10 @@ if [ -n "$GITHUB_TOKEN" ]; then
     fi
     exit 1
   fi
-  echo "GitHub mirror push succeeded."
 else
+  {
+    echo "[$TIMESTAMP] SKIPPED — GITHUB_TOKEN not set"
+    echo "---"
+  } >> "$SYNC_LOG"
   echo "Warning: GITHUB_TOKEN not set — skipping GitHub push"
 fi
