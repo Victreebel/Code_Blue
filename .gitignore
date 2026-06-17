@@ -47,3 +47,6 @@ Thumbs.db
 # Replit
 .cache/
 .local/
+
+# GitHub sync log (local audit trail, not committed)
+logs/github-sync.log
