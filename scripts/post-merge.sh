@@ -1,5 +1,22 @@
 #!/bin/bash
 set -e
+
+# --- Preflight: check GITHUB_TOKEN before any build work ---
+if [ -z "$GITHUB_TOKEN" ]; then
+  echo "WARNING: GITHUB_TOKEN is not set — GitHub mirror push will be skipped." >&2
+  echo "         Set GITHUB_TOKEN in your environment secrets to enable automatic mirroring." >&2
+else
+  # Lightweight validation: hit the GitHub API with the token to confirm it's valid
+  GH_CHECK_STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+    -H "Authorization: token ${GITHUB_TOKEN}" \
+    https://api.github.com/user)
+  if [ "$GH_CHECK_STATUS" != "200" ]; then
+    echo "ERROR: GITHUB_TOKEN appears to be invalid or expired (HTTP $GH_CHECK_STATUS from api.github.com)." >&2
+    echo "       Update the token in your environment secrets before pushing." >&2
+    exit 1
+  fi
+fi
+
 pnpm install --frozen-lockfile
 
 # Rebuild lib package declarations so downstream type-checks stay current
