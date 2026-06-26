@@ -1184,18 +1184,18 @@ export default function FirstPersonRoom({ ui, actions }: FirstPersonRoomProps) {
             const uniform    = ROLE_UNIFORM[m.assignedRole] ?? ROLE_UNIFORM.none;
 
             /* Figure part sizes — all scale with perspective depth.
-               Head ~20% of body height (down from ~30%); torso/arms/legs
-               lengthened to give room for action poses. Stylised, not realistic. */
-            const HEAD   = Math.max(11, Math.round(32 * s));
-            const NECK   = Math.max(2,  Math.round(6  * s));
+               Base values at 2.5× original — person ~150px tall at z=0,
+               cart ~59% of person height. Balances realism with readability. */
+            const HEAD   = Math.max(16, Math.round(45 * s));
+            const NECK   = Math.max(2,  Math.round(8  * s));
             const TORSOW = Math.max(14, Math.round(50 * s));
-            const TORSOH = Math.max(18, Math.round(62 * s));
+            const TORSOH = Math.max(12, Math.round(50 * s));
             const ARMW   = Math.max(4,  Math.round(12 * s));
-            const ARMH   = Math.max(14, Math.round(52 * s));
+            const ARMH   = Math.max(10, Math.round(40 * s));
             const LEGW   = Math.max(4,  Math.round(18 * s));
-            const LEGH   = Math.max(12, Math.round(50 * s));
-            const SHOEW  = Math.max(6,  Math.round(22 * s));
-            const SHOEH  = Math.max(2,  Math.round(7  * s));
+            const LEGH   = Math.max(10, Math.round(40 * s));
+            const SHOEW  = Math.max(7,  Math.round(25 * s));
+            const SHOEH  = Math.max(4,  Math.round(10 * s));
             const GAP    = Math.max(2,  Math.round(5  * s));
 
             const figW = TORSOW + ARMW * 2 + GAP * 2;
@@ -1210,8 +1210,8 @@ export default function FirstPersonRoom({ ui, actions }: FirstPersonRoomProps) {
             const idleDelay  = (idleHash % 40) / 10;          // 0.0 – 3.9 s
             const breatheDur = 3.2 + (idleHash % 18) / 10;   // 3.2 – 5.0 s
             const blinkDelay = 2.8 + (idleHash % 32) / 10;   // 2.8 – 6.0 s
-            const eyeW       = Math.max(2, Math.round(4.5 * s));
-            const eyeH       = Math.max(2, Math.round(5.0 * s));
+            const eyeW       = Math.max(2, Math.round(6.0 * s));
+            const eyeH       = Math.max(2, Math.round(7.0 * s));
 
             return (
               <motion.div
