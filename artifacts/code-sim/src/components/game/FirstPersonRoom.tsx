@@ -16,7 +16,7 @@ const PERSP = 720;  // CSS perspective (px)
 
 /* perspective origin within the scene coordinate space */
 const OX = SW / 2;      // 450 — horizontal centre
-const OY = SH * 0.50;   // 240 — true mid-frame; eliminates dead band at top
+const OY = SH * 0.42;   // 202 — balanced eye level: less dead-band than 36%, more floor than 50%
 
 /* y at which character feet are anchored (floor level in scene coords) */
 const FLOOR_Y = SH - 50; // ≈ 430
@@ -325,7 +325,7 @@ export default function FirstPersonRoom({ ui, actions }: FirstPersonRoomProps) {
         style={{
           position: 'absolute', inset: 0,
           perspective: `${PERSP}px`,
-          perspectiveOrigin: '50% 50%',
+          perspectiveOrigin: '50% 42%',
           overflow: 'hidden',
           pointerEvents: 'none',
         }}
@@ -998,39 +998,37 @@ export default function FirstPersonRoom({ ui, actions }: FirstPersonRoomProps) {
             ))}
 
             {/* ── Patient figure lying on mattress ── */}
-            {/* Blanket-covered body — extends from near foot to just below shoulders */}
+            {/* Blanket-covered body — hospital blue, clearly distinct from mattress */}
             <div style={{
               position: 'absolute',
-              top: 14,
-              left: '12%', right: '12%',
-              bottom: 64,
-              background: 'linear-gradient(180deg, #283547 0%, #1e293b 45%, #17202c 100%)',
-              border: '1px solid #475569',
-              borderRadius: '5px 5px 4px 4px',
-              opacity: 0.93,
+              top: 10,
+              left: '10%', right: '10%',
+              bottom: 58,
+              background: 'linear-gradient(180deg, #1e40af 0%, #1d4ed8 40%, #1e3a8a 100%)',
+              border: '1px solid #3b82f6',
+              borderRadius: '6px 6px 4px 4px',
               pointerEvents: 'none',
             }} />
-            {/* Center ridge — subtle body contour under blanket */}
+            {/* Center ridge — body contour under blanket */}
             <div style={{
               position: 'absolute',
-              top: 26,
-              left: '28%', right: '28%',
-              bottom: 80,
-              background: 'linear-gradient(180deg, #334155 0%, #253347 100%)',
+              top: 18,
+              left: '30%', right: '30%',
+              bottom: 74,
+              background: 'linear-gradient(180deg, #2563eb 0%, #1d4ed8 100%)',
               borderRadius: 4,
-              opacity: 0.5,
+              opacity: 0.6,
               pointerEvents: 'none',
             }} />
-            {/* Patient head — oval, resting on pillow */}
+            {/* Patient head — skin tone oval, clearly on pillow */}
             <div style={{
               position: 'absolute',
-              bottom: 48,
-              left: '26%', right: '26%',
-              height: 22,
-              background: 'radial-gradient(ellipse at 40% 38%, #dce0e6 0%, #d1d5db 55%, #bcc3cc 100%)',
-              border: '1px solid #9ca3af',
+              bottom: 40,
+              left: '22%', right: '22%',
+              height: 28,
+              background: 'radial-gradient(ellipse at 40% 35%, #fde8d0 0%, #f5c9a0 50%, #e8b080 100%)',
+              border: '1px solid #d4956a',
               borderRadius: '50%',
-              opacity: 0.88,
               pointerEvents: 'none',
             }} />
           </div>
