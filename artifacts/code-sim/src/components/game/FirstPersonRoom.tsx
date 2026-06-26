@@ -1183,20 +1183,18 @@ export default function FirstPersonRoom({ ui, actions }: FirstPersonRoomProps) {
             const zIndex     = Math.max(1, Math.round(100 + pos3d.z / 5));
             const uniform    = ROLE_UNIFORM[m.assignedRole] ?? ROLE_UNIFORM.none;
 
-            /* Figure part sizes — all scale with perspective depth.
-               Base values at 2.5× original — person ~150px tall at z=0,
-               cart ~59% of person height. Balances realism with readability. */
-            const HEAD   = Math.max(16, Math.round(45 * s));
-            const NECK   = Math.max(2,  Math.round(8  * s));
-            const TORSOW = Math.max(14, Math.round(50 * s));
-            const TORSOH = Math.max(12, Math.round(50 * s));
-            const ARMW   = Math.max(4,  Math.round(12 * s));
-            const ARMH   = Math.max(10, Math.round(40 * s));
-            const LEGW   = Math.max(4,  Math.round(18 * s));
-            const LEGH   = Math.max(10, Math.round(40 * s));
-            const SHOEW  = Math.max(7,  Math.round(25 * s));
-            const SHOEH  = Math.max(4,  Math.round(10 * s));
-            const GAP    = Math.max(2,  Math.round(5  * s));
+            /* Figure part sizes — all scale with perspective depth */
+            const HEAD   = Math.max(7,  Math.round(18 * s));
+            const NECK   = Math.max(1,  Math.round(3  * s));
+            const TORSOW = Math.max(6,  Math.round(20 * s));
+            const TORSOH = Math.max(5,  Math.round(20 * s));
+            const ARMW   = Math.max(2,  Math.round(5  * s));
+            const ARMH   = Math.max(5,  Math.round(16 * s));
+            const LEGW   = Math.max(2,  Math.round(7  * s));
+            const LEGH   = Math.max(4,  Math.round(16 * s));
+            const SHOEW  = Math.max(3,  Math.round(10 * s));
+            const SHOEH  = Math.max(2,  Math.round(4  * s));
+            const GAP    = Math.max(1,  Math.round(2  * s));
 
             const figW = TORSOW + ARMW * 2 + GAP * 2;
             const figH = HEAD + NECK + TORSOH + LEGH + SHOEH;
@@ -1210,8 +1208,8 @@ export default function FirstPersonRoom({ ui, actions }: FirstPersonRoomProps) {
             const idleDelay  = (idleHash % 40) / 10;          // 0.0 – 3.9 s
             const breatheDur = 3.2 + (idleHash % 18) / 10;   // 3.2 – 5.0 s
             const blinkDelay = 2.8 + (idleHash % 32) / 10;   // 2.8 – 6.0 s
-            const eyeW       = Math.max(2, Math.round(6.0 * s));
-            const eyeH       = Math.max(2, Math.round(7.0 * s));
+            const eyeW       = Math.max(1, Math.round(2.5 * s));
+            const eyeH       = Math.max(1, Math.round(2.8 * s));
 
             return (
               <motion.div
