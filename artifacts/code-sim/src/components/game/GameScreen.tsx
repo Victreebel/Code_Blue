@@ -435,6 +435,7 @@ export default function GameScreen({ ui, scenarioInput, actions }: GameScreenPro
             clock={ui.clock}
             lastEpiAt={ui.lastEpiAt}
             lastRhythmCheckAt={ui.lastRhythmCheckAt}
+            team={ui.team}
           />
           <CollapsibleReminders ui={ui} />
         </div>
